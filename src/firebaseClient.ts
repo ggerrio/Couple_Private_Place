@@ -1,0 +1,43 @@
+/// <reference types="vite/client" />
+import { initializeApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
+
+// Load configuration from Vite environment variables (.env)
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "placeholder-api-key",
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "placeholder-auth-domain.firebaseapp.com",
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "placeholder-project-id",
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "placeholder-messaging-id",
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || "placeholder-app-id",
+};
+
+const app = initializeApp(firebaseConfig);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+export const googleProvider = new GoogleAuthProvider();
+
+// Standardize Google login prompt
+googleProvider.setCustomParameters({
+  prompt: "select_account",
+});
+
+/**
+ * Image storage workaround for Firebase Free (Spark) Plan.
+ * Returns the base64 image data directly. Firestore stores this as a string in the document,
+ * completely avoiding the need for a Firebase Storage bucket (which requires Blaze billing).
+ */
+export const uploadBase64Image = async (base64Data: string, filename: string): Promise<string> => {
+  try {
+    if (!base64Data || !base64Data.startsWith("data:image")) {
+      return base64Data;
+    }
+    
+    // Optional: If base64 data is extremely large, we can log it
+    console.log(`[Base64 Upload Bypass] Storing image ${filename} directly in Firestore document.`);
+    return base64Data;
+  } catch (err) {
+    console.error("Base64 processing error:", err);
+    return base64Data;
+  }
+};

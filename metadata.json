@@ -1,0 +1,6 @@
+{
+  "name": "Private Couple Space",
+  "description": "A premium, private digital home for couples featuring a photobooth, live letters, shared journal, timeline, watch together, mini-games, and a growing virtual garden.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
