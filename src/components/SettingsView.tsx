@@ -68,11 +68,6 @@ export default function SettingsView() {
     setNewBirthdayB(birthdayB);
   }, [anniversaryDate, birthdayA, birthdayB]);
 
-  // Admin Milestones CRUD States
-  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
-  const [memTitle, setMemTitle] = useState("");
-  const [memDate, setMemDate] = useState("");
-  const [memImage, setMemImage] = useState("");
   const [memLoading, setMemLoading] = useState(false);
 
   const runAdminAction = async (label: string, fn: () => Promise<void>) => {
@@ -100,65 +95,6 @@ export default function SettingsView() {
       alert("Days of Love & Birthday configurations updated successfully! 🗓️🎉");
     } catch (e: any) {
       alert(`Failed to update settings: ${e.message}`);
-    } finally {
-      setMemLoading(false);
-    }
-  };
-
-  const handleSaveMilestone = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!memTitle.trim() || !memDate) {
-      alert("Please enter title and date");
-      return;
-    }
-    setMemLoading(true);
-    try {
-      const formattedDate = new Date(memDate).toISOString().split("T")[0];
-      const cleanImageUrl = memImage.trim() || "https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=600&h=600&fit=crop";
-      
-      if (editingMemoryId) {
-        await updateMemory(editingMemoryId, {
-          title: memTitle.trim(),
-          date: formattedDate,
-          imageUrl: cleanImageUrl
-        });
-        alert("Milestone updated! 💖");
-      } else {
-        await addMemory({
-          type: "milestone",
-          title: memTitle.trim(),
-          imageUrl: cleanImageUrl,
-          date: formattedDate,
-          creatorId: currentUser,
-        });
-        alert("New milestone added! 🎉");
-      }
-      setEditingMemoryId(null);
-      setMemTitle("");
-      setMemDate("");
-      setMemImage("");
-    } catch (e: any) {
-      alert(`Error saving milestone: ${e.message}`);
-    } finally {
-      setMemLoading(false);
-    }
-  };
-
-  const handleEditClick = (mem: any) => {
-    setEditingMemoryId(mem.id);
-    setMemTitle(mem.title);
-    setMemDate(mem.date ? mem.date.split("T")[0] : "");
-    setMemImage(mem.imageUrl || "");
-  };
-
-  const handleDeleteClick = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this milestone memory?")) return;
-    setMemLoading(true);
-    try {
-      await deleteMemory(id);
-      alert("Milestone deleted.");
-    } catch (e: any) {
-      alert(`Error deleting milestone: ${e.message}`);
     } finally {
       setMemLoading(false);
     }
@@ -530,118 +466,7 @@ export default function SettingsView() {
                   </div>
                 </div>
 
-                {/* Special Milestones CRUD Form */}
-                <div className="bg-white/5 border border-purple-500/15 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-bold text-purple-100 flex items-center gap-2">
-                    <Camera className="w-3.5 h-3.5 text-purple-300" />
-                    {editingMemoryId ? "Edit Special Milestone" : "Add Special Milestone"}
-                  </p>
-                  <form onSubmit={handleSaveMilestone} className="space-y-3">
-                    <div>
-                      <label className="block text-[9px] text-purple-300 font-semibold mb-1">Milestone Title</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. First date in Tokyo, First anniversary"
-                        value={memTitle}
-                        onChange={(e) => setMemTitle(e.target.value)}
-                        disabled={memLoading}
-                        className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all"
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[9px] text-purple-300 font-semibold mb-1">Date</label>
-                        <input
-                          type="date"
-                          value={memDate}
-                          onChange={(e) => setMemDate(e.target.value)}
-                          disabled={memLoading}
-                          className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] text-purple-300 font-semibold mb-1">Image URL (Optional)</label>
-                        <input
-                          type="text"
-                          placeholder="https://images.unsplash.com..."
-                          value={memImage}
-                          onChange={(e) => setMemImage(e.target.value)}
-                          disabled={memLoading}
-                          className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex gap-2 justify-end">
-                      {editingMemoryId && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setEditingMemoryId(null);
-                            setMemTitle("");
-                            setMemDate("");
-                            setMemImage("");
-                          }}
-                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg transition-all"
-                        >
-                          Cancel
-                        </button>
-                      )}
-                      <button
-                        type="submit"
-                        disabled={memLoading}
-                        className="px-4 py-1.5 bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold rounded-lg transition-all active:scale-95"
-                      >
-                        {memLoading ? "Saving..." : editingMemoryId ? "Update Milestone" : "Add Milestone"}
-                      </button>
-                    </div>
-                  </form>
-                </div>
 
-                {/* Milestone List Registry */}
-                <div className="bg-white/5 border border-purple-500/15 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-bold text-purple-100">
-                    Milestone Registry ({memories.length})
-                  </p>
-                  <div className="max-h-60 overflow-y-auto divide-y divide-purple-500/10 pr-1">
-                    {memories.length === 0 ? (
-                      <p className="text-center text-[10px] text-purple-400/60 py-4">No milestones registered yet</p>
-                    ) : (
-                      memories.map((mem) => (
-                        <div key={mem.id} className="py-2.5 flex items-center justify-between gap-3">
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <img
-                              src={mem.imageUrl || "https://images.unsplash.com/photo-1518199266791-5375a83190b7?w=80&h=80&fit=crop"}
-                              alt=""
-                              className="w-8 h-8 rounded-lg object-cover bg-purple-950 border border-purple-500/20"
-                            />
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-purple-200 truncate">{mem.title}</p>
-                              <p className="text-[9px] text-purple-400 font-mono">
-                                {mem.date ? new Date(mem.date).toLocaleDateString("id-ID", { year: 'numeric', month: 'long', day: 'numeric' }) : "No Date"}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 flex-shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => handleEditClick(mem)}
-                              className="px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 text-[10px] text-purple-300 font-semibold rounded-md transition-all active:scale-95"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteClick(mem.id)}
-                              className="px-2 py-1 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-[10px] text-red-300 font-semibold rounded-md transition-all active:scale-95"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
 
                 {/* Result banner */}
                 {adminActionResult && (

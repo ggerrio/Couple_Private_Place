@@ -469,6 +469,9 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           avatar: uA.avatar_url || prev.avatar,
           status: uA.status || prev.status,
           mood: uA.mood || prev.mood,
+          latitude: uA.latitude,
+          longitude: uA.longitude,
+          weatherCity: uA.weather_city,
         }));
       }
       if (uB) {
@@ -478,6 +481,9 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           avatar: uB.avatar_url || prev.avatar,
           status: uB.status || prev.status,
           mood: uB.mood || prev.mood,
+          latitude: uB.latitude,
+          longitude: uB.longitude,
+          weatherCity: uB.weather_city,
         }));
       }
     });
@@ -559,14 +565,33 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     });
 
+    const unsubSpotify = onSnapshot(doc(db, "settings", "spotify_state"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.updatedBy !== currentUser) {
+          setCurrentSong({
+            title: data.title,
+            artist: data.artist,
+            album: data.album,
+            artwork: data.artwork,
+            durationMs: data.durationMs,
+            progressMs: data.progressMs,
+            isPlaying: data.isPlaying,
+            spotifyId: data.spotifyId,
+          });
+        }
+      }
+    });
+
     return () => {
       unsubProfiles();
       unsubMemories();
       unsubLogs();
       unsubMissions();
       unsubSettings();
+      unsubSpotify();
     };
-  }, [session]);
+  }, [session, currentUser]);
 
   const seedDefaultMissions = async () => {
     const defaultMissions = [
@@ -711,6 +736,9 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (updates.avatar !== undefined) dbUpdates.avatar_url = updates.avatar;
       if (updates.status !== undefined) dbUpdates.status = updates.status;
       if (updates.mood !== undefined) dbUpdates.mood = updates.mood;
+      if (updates.latitude !== undefined) dbUpdates.latitude = updates.latitude;
+      if (updates.longitude !== undefined) dbUpdates.longitude = updates.longitude;
+      if (updates.weatherCity !== undefined) dbUpdates.weather_city = updates.weatherCity;
 
       await updateDoc(doc(db, "profiles", userId), dbUpdates);
 

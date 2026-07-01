@@ -11,6 +11,9 @@ export interface Profile {
   status: string;     // e.g. "Drinking Coffee", "Coding", "Working"
   xp: number;
   level: number;
+  latitude?: number;
+  longitude?: number;
+  weatherCity?: string;
 }
 
 export interface Comment {

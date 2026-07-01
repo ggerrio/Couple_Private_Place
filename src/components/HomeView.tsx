@@ -1188,8 +1188,37 @@ export default function HomeView() {
 
   // Calculate days together and countdowns using dynamic settings
   useEffect(() => {
-    const start = new Date(anniversaryDate);
+    const parseDateSafe = (dateVal: any): Date => {
+      if (!dateVal) return new Date();
+      if (typeof dateVal.toMillis === "function") {
+        return new Date(dateVal.toMillis());
+      }
+      if (dateVal.seconds) {
+        return new Date(dateVal.seconds * 1000);
+      }
+      if (typeof dateVal === "number") {
+        return new Date(dateVal);
+      }
+      if (typeof dateVal === "string") {
+        const parts = dateVal.split("-");
+        if (parts.length === 3) {
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          const d = parseInt(parts[2], 10);
+          if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+            return new Date(y, m, d);
+          }
+        }
+        return new Date(dateVal);
+      }
+      return new Date();
+    };
+
+    const start = parseDateSafe(anniversaryDate);
     const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    start.setHours(0, 0, 0, 0);
+
     const diffTime = Math.abs(today.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     setDaysCount(diffDays);
@@ -1197,28 +1226,42 @@ export default function HomeView() {
     const currentYear = today.getFullYear();
 
     // Calculate next anniversary countdown
-    const annivMonthDay = anniversaryDate.includes("-") ? anniversaryDate.substring(5) : "10-15";
-    let nextAnniv = new Date(`${currentYear}-${annivMonthDay}`);
+    let nextAnniv = new Date(currentYear, start.getMonth(), start.getDate());
     if (today > nextAnniv) {
-      nextAnniv = new Date(`${currentYear + 1}-${annivMonthDay}`);
+      nextAnniv = new Date(currentYear + 1, start.getMonth(), start.getDate());
     }
     const annivDiff = nextAnniv.getTime() - today.getTime();
     setNextAnniversaryDays(Math.ceil(annivDiff / (1000 * 60 * 60 * 24)));
 
     // Calculate birthdays
+    const parseBirthdaySafe = (bdayStr: string, year: number): Date => {
+      if (!bdayStr || typeof bdayStr !== "string") return new Date();
+      const parts = bdayStr.split("-");
+      if (parts.length === 2) {
+        const m = parseInt(parts[0], 10) - 1;
+        const d = parseInt(parts[1], 10);
+        if (!isNaN(m) && !isNaN(d)) {
+          return new Date(year, m, d);
+        }
+      }
+      return new Date();
+    };
+
     // Birthday A
-    const bdayAPattern = birthdayA || "11-18";
-    let nextBdayA = new Date(`${currentYear}-${bdayAPattern}`);
+    const bdayA = parseBirthdaySafe(birthdayA || "11-18", currentYear);
+    bdayA.setHours(0, 0, 0, 0);
+    let nextBdayA = bdayA;
     if (today > nextBdayA) {
-      nextBdayA = new Date(`${currentYear + 1}-${bdayAPattern}`);
+      nextBdayA = new Date(currentYear + 1, bdayA.getMonth(), bdayA.getDate());
     }
     const bdayADiff = nextBdayA.getTime() - today.getTime();
 
     // Birthday B
-    const bdayBPattern = birthdayB || "04-05";
-    let nextBdayB = new Date(`${currentYear}-${bdayBPattern}`);
+    const bdayB = parseBirthdaySafe(birthdayB || "04-05", currentYear);
+    bdayB.setHours(0, 0, 0, 0);
+    let nextBdayB = bdayB;
     if (today > nextBdayB) {
-      nextBdayB = new Date(`${currentYear + 1}-${bdayBPattern}`);
+      nextBdayB = new Date(currentYear + 1, bdayB.getMonth(), bdayB.getDate());
     }
     const bdayBDiff = nextBdayB.getTime() - today.getTime();
 
@@ -1310,6 +1353,13 @@ export default function HomeView() {
           windspeed: Math.round(curr.windspeed),
           isDay: curr.is_day === 1
         });
+
+        // Sync coordinates to Firestore so our partner can fetch our weather
+        updateProfile(currentUser, {
+          latitude: lat,
+          longitude: lon,
+          weatherCity: locationName
+        });
       } else {
         throw new Error("No current weather data found");
       }
@@ -1320,12 +1370,31 @@ export default function HomeView() {
     }
   };
 
-  const fetchPartnerWeather = async (cityName: string) => {
-    const preset = CITY_PRESETS.find(c => c.name.toLowerCase() === cityName.toLowerCase()) || CITY_PRESETS[1];
+  const fetchPartnerWeather = async (cityName?: string) => {
     try {
       setPartnerLoading(true);
+
+      // Check if partner profile has coordinates
+      const hasCoords = partnerProfile.latitude !== undefined && partnerProfile.longitude !== undefined && partnerProfile.latitude !== null && partnerProfile.longitude !== null;
+      let targetLat: number;
+      let targetLon: number;
+      let targetName: string;
+
+      if (hasCoords && !cityName) {
+        targetLat = partnerProfile.latitude!;
+        targetLon = partnerProfile.longitude!;
+        targetName = partnerProfile.weatherCity || "Partner's Place";
+      } else {
+        // Fallback to preset or selected city name
+        const activeName = cityName || partnerCity;
+        const preset = CITY_PRESETS.find(c => c.name.toLowerCase() === activeName.toLowerCase()) || CITY_PRESETS[1];
+        targetLat = preset.lat;
+        targetLon = preset.lon;
+        targetName = preset.name;
+      }
+
       const res = await fetch(
-        `https://api.open-meteo.com/v1/forecast?latitude=${preset.lat}&longitude=${preset.lon}&current_weather=true&timezone=auto`
+        `https://api.open-meteo.com/v1/forecast?latitude=${targetLat}&longitude=${targetLon}&current_weather=true&timezone=auto`
       );
       if (res.ok) {
         const data = await res.json();
@@ -1334,8 +1403,14 @@ export default function HomeView() {
           setPartnerWeather({
             temp: Math.round(curr.temperature),
             description: getWeatherInfo(curr.weathercode, curr.is_day === 1).label,
-            code: curr.weathercode
+            code: curr.weathercode,
+            name: targetName
           });
+          if (cityName) {
+            setPartnerCity(cityName);
+          } else {
+            setPartnerCity(targetName);
+          }
         }
       }
     } catch (e) {
@@ -1372,13 +1447,13 @@ export default function HomeView() {
   // Initial loads
   useEffect(() => {
     triggerGeolocation();
-    fetchPartnerWeather(partnerCity);
+    fetchPartnerWeather();
   }, [currentUser]);
 
-  // Refetch partner weather whenever partnerCity changes
+  // Refetch partner weather whenever partner coordinates change or manual selection is changed
   useEffect(() => {
-    fetchPartnerWeather(partnerCity);
-  }, [partnerCity]);
+    fetchPartnerWeather();
+  }, [partnerProfile.latitude, partnerProfile.longitude, partnerProfile.weatherCity, partnerCity]);
 
   const changeQuote = () => {
     fetchRomanticQuote(true);
@@ -1438,7 +1513,19 @@ export default function HomeView() {
           <span className="text-sm font-semibold tracking-wider uppercase text-white/70">Days of Love</span>
           <span className="text-6xl font-extrabold font-display my-1">{daysCount}</span>
           <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-            Since Dec 14, 2025
+            Since {(() => {
+              const parts = anniversaryDate.split("-");
+              if (parts.length === 3) {
+                const y = parseInt(parts[0], 10);
+                const m = parseInt(parts[1], 10) - 1;
+                const d = parseInt(parts[2], 10);
+                const dateObj = new Date(y, m, d);
+                if (!isNaN(dateObj.getTime())) {
+                  return dateObj.toLocaleDateString("en-US", { year: 'numeric', month: 'short', day: 'numeric' });
+                }
+              }
+              return "Oct 15, 2024";
+            })()}
           </span>
         </div>
       </motion.div>
@@ -1876,7 +1963,19 @@ export default function HomeView() {
               Special Milestones
             </h3>
             <span className="text-xs bg-rose-50 text-rose-600 px-2.5 py-1 rounded-full font-serif italic">
-              December 14
+              {(() => {
+                const parts = anniversaryDate.split("-");
+                if (parts.length === 3) {
+                  const y = parseInt(parts[0], 10);
+                  const m = parseInt(parts[1], 10) - 1;
+                  const d = parseInt(parts[2], 10);
+                  const dateObj = new Date(y, m, d);
+                  if (!isNaN(dateObj.getTime())) {
+                    return dateObj.toLocaleDateString("en-US", { month: 'long', day: 'numeric' });
+                  }
+                }
+                return "December 14";
+              })()}
             </span>
           </div>
 
@@ -2062,12 +2161,13 @@ export default function HomeView() {
 
                 {/* Partner Weather */}
                 <div className="flex flex-col items-center">
+                  <span className="text-xs font-bold text-[var(--text-muted)] tracking-tight">{partnerProfile.name}</span>
                   <div className="relative inline-block">
                     <button
                       onClick={() => setShowPartnerSelector(!showPartnerSelector)}
                       className="text-xs text-[var(--primary)] hover:bg-black/5 font-extrabold flex items-center gap-0.5"
                     >
-                      <span>{partnerCity}</span>
+                      <span>{partnerWeather?.name || partnerCity}</span>
                       <span>▼</span>
                     </button>
                     {showPartnerSelector && (
