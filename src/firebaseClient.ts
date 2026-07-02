@@ -41,3 +41,38 @@ export const uploadBase64Image = async (base64Data: string, filename: string): P
     return base64Data;
   }
 };
+
+export const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "";
+export const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
+
+/**
+ * Uploads a file Blob directly to Cloudinary using unsigned upload presets.
+ */
+export const uploadToCloudinary = async (
+  fileBlob: Blob,
+  filename: string,
+  cloudName: string,
+  uploadPreset: string
+): Promise<string> => {
+  if (!cloudName || !uploadPreset) {
+    throw new Error("Cloudinary configuration missing. Please verify your Cloud Name and Upload Preset settings.");
+  }
+  const formData = new FormData();
+  formData.append("file", fileBlob, filename);
+  formData.append("upload_preset", uploadPreset);
+  formData.append("folder", "couple-space/photobooth/strip");
+
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorBody = await res.text();
+    console.error("Cloudinary upload raw error:", errorBody);
+    throw new Error(`Cloudinary upload failed: ${res.statusText}`);
+  }
+
+  const responseJson = await res.json();
+  return responseJson.secure_url;
+};

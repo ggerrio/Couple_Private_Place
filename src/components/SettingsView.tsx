@@ -37,6 +37,8 @@ export default function SettingsView() {
     anniversaryDate,
     birthdayA,
     birthdayB,
+    cloudinaryCloudName,
+    cloudinaryUploadPreset,
     updateCoupleSettings,
     addMemory,
     updateMemory,
@@ -61,12 +63,16 @@ export default function SettingsView() {
   const [newAnniversary, setNewAnniversary] = useState(anniversaryDate);
   const [newBirthdayA, setNewBirthdayA] = useState(birthdayA);
   const [newBirthdayB, setNewBirthdayB] = useState(birthdayB);
+  const [newCloudName, setNewCloudName] = useState(cloudinaryCloudName);
+  const [newUploadPreset, setNewUploadPreset] = useState(cloudinaryUploadPreset);
 
   useEffect(() => {
     setNewAnniversary(anniversaryDate);
     setNewBirthdayA(birthdayA);
     setNewBirthdayB(birthdayB);
-  }, [anniversaryDate, birthdayA, birthdayB]);
+    setNewCloudName(cloudinaryCloudName);
+    setNewUploadPreset(cloudinaryUploadPreset);
+  }, [anniversaryDate, birthdayA, birthdayB, cloudinaryCloudName, cloudinaryUploadPreset]);
 
   const [memLoading, setMemLoading] = useState(false);
 
@@ -91,8 +97,8 @@ export default function SettingsView() {
     }
     setMemLoading(true);
     try {
-      await updateCoupleSettings(newAnniversary, newBirthdayA, newBirthdayB);
-      alert("Days of Love & Birthday configurations updated successfully! 🗓️🎉");
+      await updateCoupleSettings(newAnniversary, newBirthdayA, newBirthdayB, newCloudName, newUploadPreset);
+      alert("Days of Love, Birthdays, and Media Storage configurations updated successfully! 🗓️🎉");
     } catch (e: any) {
       alert(`Failed to update settings: ${e.message}`);
     } finally {
@@ -452,16 +458,47 @@ export default function SettingsView() {
                         />
                       </div>
                     </div>
+
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <label className="block text-[9px] text-purple-300 font-semibold mb-1 uppercase tracking-wider">Cloudinary Cloud Name</label>
+                        <input
+                          type="text"
+                          placeholder="Cloud Name"
+                          value={newCloudName}
+                          onChange={(e) => setNewCloudName(e.target.value)}
+                          disabled={memLoading}
+                          className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] text-purple-300 font-semibold mb-1 uppercase tracking-wider">Cloudinary Upload Preset</label>
+                        <input
+                          type="text"
+                          placeholder="Upload Preset"
+                          value={newUploadPreset}
+                          onChange={(e) => setNewUploadPreset(e.target.value)}
+                          disabled={memLoading}
+                          className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all font-mono"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex justify-end pt-1">
                     <button
                       type="button"
                       onClick={handleSaveCoupleSettings}
-                      disabled={memLoading || (newAnniversary === anniversaryDate && newBirthdayA === birthdayA && newBirthdayB === birthdayB)}
+                      disabled={memLoading || (
+                        newAnniversary === anniversaryDate &&
+                        newBirthdayA === birthdayA &&
+                        newBirthdayB === birthdayB &&
+                        newCloudName === cloudinaryCloudName &&
+                        newUploadPreset === cloudinaryUploadPreset
+                      )}
                       className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:hover:bg-purple-600 text-white text-xs font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center"
                     >
-                      {memLoading ? "Saving..." : "Save Milestone Dates"}
+                      {memLoading ? "Saving..." : "Save Settings"}
                     </button>
                   </div>
                 </div>

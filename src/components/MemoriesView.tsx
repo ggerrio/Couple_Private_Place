@@ -5,8 +5,9 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useCouple } from "../context/CoupleContext";
-import { uploadBase64Image } from "../firebaseClient";
+import { uploadBase64Image, db, uploadToCloudinary, CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from "../firebaseClient";
 import { useCamera } from "../hooks/useCamera";
+import { doc, setDoc, updateDoc, onSnapshot, deleteDoc, getDoc, collection } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Camera,
@@ -109,6 +110,8 @@ export default function MemoriesView() {
     addJournal,
     deleteJournal,
     awardXp,
+    cloudinaryCloudName,
+    cloudinaryUploadPreset,
   } = useCouple();
 
   const [activeSubTab, setActiveSubTab] = useState<"timeline" | "photobooth" | "journal">("timeline");
@@ -118,7 +121,6 @@ export default function MemoriesView() {
   const [selectedBg, setSelectedBg] = useState("sakura");
   const [selectedFilter, setSelectedFilter] = useState("natural");
   const [photos, setPhotos] = useState<string[]>([]);
-  const [stickerPlacements, setStickerPlacements] = useState<{ id: number; sticker: string; x: number; y: number }[]>([]);
   const [customTextStamp, setCustomTextStamp] = useState("");
   const [selectedStamp, setSelectedStamp] = useState("Us 💖");
   const [isSnapping, setIsSnapping] = useState(false);
@@ -151,13 +153,15 @@ export default function MemoriesView() {
   const myPhotosRef = useRef<string[]>([]);
   const partnerPhotosRef = useRef<string[]>([]);
   const broadcastRef = useRef<BroadcastChannel | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
 
   // Refs for tracking values inside BroadcastChannel event listeners to prevent loop reconstruction
   const selectedBgRef = useRef(selectedBg);
   const selectedFilterRef = useRef(selectedFilter);
   const selectedStampRef = useRef(selectedStamp);
   const layoutRef = useRef(layout);
-  const stickerPlacementsRef = useRef(stickerPlacements);
   const myUploadRef = useRef(myUpload);
   const mySourceRef = useRef(mySource);
   const isBotPartnerRef = useRef(isBotPartner);
@@ -166,7 +170,6 @@ export default function MemoriesView() {
   useEffect(() => { selectedFilterRef.current = selectedFilter; }, [selectedFilter]);
   useEffect(() => { selectedStampRef.current = selectedStamp; }, [selectedStamp]);
   useEffect(() => { layoutRef.current = layout; }, [layout]);
-  useEffect(() => { stickerPlacementsRef.current = stickerPlacements; }, [stickerPlacements]);
   useEffect(() => { myUploadRef.current = myUpload; }, [myUpload]);
   useEffect(() => { mySourceRef.current = mySource; }, [mySource]);
   useEffect(() => { isBotPartnerRef.current = isBotPartner; }, [isBotPartner]);
@@ -202,20 +205,10 @@ export default function MemoriesView() {
       layout: updates.lay,
     });
   };
-
-  const broadcastStickers = (stickers: typeof stickerPlacements) => {
-    safeBroadcast("STICKER_SYNC", { stickerPlacements: stickers });
-  };
-
   // Broadcast settings whenever local changes happen
   useEffect(() => {
     broadcastSettings({ bg: selectedBg, filter: selectedFilter, stamp: selectedStamp, lay: layout });
   }, [selectedBg, selectedFilter, selectedStamp, layout]);
-
-  // Broadcast stickers whenever they change
-  useEffect(() => {
-    broadcastStickers(stickerPlacements);
-  }, [stickerPlacements]);
 
   const sendChatPrompt = (text: string) => {
     if (!text.trim()) return;
@@ -274,12 +267,6 @@ export default function MemoriesView() {
           if (msg.payload.selectedFilter !== undefined && msg.payload.selectedFilter !== selectedFilterRef.current) setSelectedFilter(msg.payload.selectedFilter);
           if (msg.payload.selectedStamp !== undefined && msg.payload.selectedStamp !== selectedStampRef.current) setSelectedStamp(msg.payload.selectedStamp);
           if (msg.payload.layout !== undefined && msg.payload.layout !== layoutRef.current) setLayout(msg.payload.layout);
-          break;
-        case "STICKER_SYNC":
-          // Ensure we don't infinitely cycle state if it's already identical
-          if (JSON.stringify(msg.payload.stickerPlacements) !== JSON.stringify(stickerPlacementsRef.current)) {
-            setStickerPlacements(msg.payload.stickerPlacements);
-          }
           break;
         case "START_COUNTDOWN":
           triggerSnapsLocal();
@@ -344,6 +331,489 @@ export default function MemoriesView() {
     };
   }, [roomId, currentUser]);
 
+  const setupDataChannel = (dc: RTCDataChannel) => {
+    dc.onopen = () => console.log("[DataChannel] Channel opened");
+    dc.onclose = () => console.log("[DataChannel] Channel closed");
+    dc.onmessage = (event) => {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === "PHOTO") {
+          console.log(`[DataChannel] Received photo for slot ${msg.index}`);
+          partnerPhotosRef.current[msg.index] = msg.data;
+          setPartnerPhotos([...partnerPhotosRef.current]);
+        }
+      } catch (err) {
+        console.warn("Failed to parse DataChannel message:", err);
+      }
+    };
+  };
+
+  // WebRTC peer connection initializer
+  useEffect(() => {
+    if (activeSubTab !== "photobooth" || !webcamStream) {
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+      setRemoteStream(null);
+      dataChannelRef.current = null;
+      return;
+    }
+
+    const roomDocRef = doc(db, "rooms", roomId);
+
+    const initWebRTC = async () => {
+      const configuration = {
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" },
+          { urls: "stun:stun1.l.google.com:19302" },
+          { urls: "stun:stun2.l.google.com:19302" }
+        ],
+      };
+
+      const pc = new RTCPeerConnection(configuration);
+      pcRef.current = pc;
+
+      // Add local stream tracks
+      webcamStream.getTracks().forEach((track) => {
+        pc.addTrack(track, webcamStream);
+      });
+
+      pc.ontrack = (event) => {
+        console.log("[WebRTC] Received remote stream track");
+        if (event.streams && event.streams[0]) {
+          setRemoteStream(event.streams[0]);
+        }
+      };
+
+      if (currentUser === "user_a") {
+        console.log("[WebRTC] Initiating offer as user_a");
+        const dc = pc.createDataChannel("photos");
+        dataChannelRef.current = dc;
+        setupDataChannel(dc);
+
+        pc.onicecandidate = async (event) => {
+          if (event.candidate) {
+            const candidateData = event.candidate.toJSON();
+            const docSnap = await getDoc(roomDocRef);
+            const data = docSnap.exists() ? docSnap.data() : {};
+            const candidatesA = data.candidatesA || [];
+            await setDoc(roomDocRef, { candidatesA: [...candidatesA, candidateData] }, { merge: true });
+          }
+        };
+
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        await setDoc(roomDocRef, {
+          offer: { type: offer.type, sdp: offer.sdp },
+          sender: "user_a",
+          status: "waiting",
+          candidatesA: [],
+          candidatesB: []
+        }, { merge: true });
+
+        const unsub = onSnapshot(roomDocRef, async (snapshot) => {
+          if (!snapshot.exists()) return;
+          const data = snapshot.data();
+
+          if (data.answer && pc.signalingState === "have-local-offer") {
+            console.log("[WebRTC] Setting remote description answer");
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          }
+
+          if (data.candidatesB && data.candidatesB.length > 0) {
+            console.log("[WebRTC] Adding ICE candidates B");
+            for (const cand of data.candidatesB) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(cand));
+              } catch (e) {
+                console.warn("[WebRTC] Error adding ICE candidate:", e);
+              }
+            }
+          }
+        });
+        return unsub;
+
+      } else {
+        console.log("[WebRTC] Preparing answer as user_b");
+        pc.ondatachannel = (event) => {
+          const dc = event.channel;
+          dataChannelRef.current = dc;
+          setupDataChannel(dc);
+        };
+
+        pc.onicecandidate = async (event) => {
+          if (event.candidate) {
+            const candidateData = event.candidate.toJSON();
+            const docSnap = await getDoc(roomDocRef);
+            const data = docSnap.exists() ? docSnap.data() : {};
+            const candidatesB = data.candidatesB || [];
+            await setDoc(roomDocRef, { candidatesB: [...candidatesB, candidateData] }, { merge: true });
+          }
+        };
+
+        let sdpOfferSet = false;
+        const unsub = onSnapshot(roomDocRef, async (snapshot) => {
+          if (!snapshot.exists()) return;
+          const data = snapshot.data();
+
+          if (data.offer && !sdpOfferSet) {
+            sdpOfferSet = true;
+            console.log("[WebRTC] Setting remote description offer");
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            await updateDoc(roomDocRef, {
+              answer: { type: answer.type, sdp: answer.sdp },
+              status: "ready"
+            });
+          }
+
+          if (data.candidatesA && data.candidatesA.length > 0) {
+            console.log("[WebRTC] Adding ICE candidates A");
+            for (const cand of data.candidatesA) {
+              try {
+                await pc.addIceCandidate(new RTCIceCandidate(cand));
+              } catch (e) {
+                console.warn("[WebRTC] Error adding ICE candidate:", e);
+              }
+            }
+          }
+        });
+        return unsub;
+      }
+    };
+
+    let unsubSignaling: (() => void) | null = null;
+    initWebRTC().then((unsub) => {
+      if (unsub) unsubSignaling = unsub;
+    });
+
+    return () => {
+      if (unsubSignaling) unsubSignaling();
+      if (pcRef.current) {
+        pcRef.current.close();
+        pcRef.current = null;
+      }
+      setRemoteStream(null);
+      dataChannelRef.current = null;
+    };
+  }, [activeSubTab, webcamStream, roomId, currentUser]);
+
+  // Firestore Room state listener
+  useEffect(() => {
+    if (activeSubTab !== "photobooth") return;
+    const roomDocRef = doc(db, "rooms", roomId);
+
+    const unsub = onSnapshot(roomDocRef, (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
+
+      // 1. Sync Countdown
+      if (data.countdown !== undefined) {
+        setCountdown(data.countdown === null || data.countdown < 0 ? null : data.countdown);
+      } else {
+        setCountdown(null);
+      }
+
+      // 2. Sync Status
+      if (data.status) {
+        if (data.status === "counting" || data.status === "capturing") {
+          setIsSnapping(true);
+        } else if (data.status === "completed") {
+          setIsSnapping(false);
+          setShowPrintAnimation(true);
+        } else if (data.status === "idle") {
+          setIsSnapping(false);
+          setCountdown(null);
+        }
+      }
+
+      // 3. Sync Captured Photos (Fallback)
+      const myKey = currentUser === "user_a" ? "capturedPhotosA" : "capturedPhotosB";
+      const partnerKey = currentUser === "user_a" ? "capturedPhotosB" : "capturedPhotosA";
+
+      if (data[myKey]) {
+        const myPhotosList: string[] = [];
+        Object.keys(data[myKey]).sort().forEach((k) => {
+          myPhotosList.push(data[myKey][k]);
+        });
+        if (JSON.stringify(myPhotosList) !== JSON.stringify(myPhotosRef.current)) {
+          myPhotosRef.current = myPhotosList;
+          setPhotos(myPhotosList);
+        }
+      }
+
+      if (data[partnerKey]) {
+        const partnerPhotosList: string[] = [];
+        Object.keys(data[partnerKey]).sort().forEach((k) => {
+          partnerPhotosList.push(data[partnerKey][k]);
+        });
+        if (JSON.stringify(partnerPhotosList) !== JSON.stringify(partnerPhotosRef.current)) {
+          partnerPhotosRef.current = partnerPhotosList;
+          setPartnerPhotos(partnerPhotosList);
+        }
+      }
+
+      // 4. Sync Settings
+      if (data.sessionLayout) setLayout(data.sessionLayout);
+      if (data.sessionBg) setSelectedBg(data.sessionBg);
+      if (data.sessionFilter) setSelectedFilter(data.sessionFilter);
+      if (data.sessionStamp) setSelectedStamp(data.sessionStamp);
+    });
+
+    return () => unsub();
+  }, [activeSubTab, roomId, currentUser]);
+
+  // Designated Master (the user who started the session) runs the decrementing countdown interval in Firestore
+  useEffect(() => {
+    if (activeSubTab !== "photobooth") return;
+    const roomDocRef = doc(db, "rooms", roomId);
+
+    let intervalId: any = null;
+
+    const unsub = onSnapshot(roomDocRef, async (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
+
+      if (data.sessionMaster !== currentUser) {
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+        return;
+      }
+
+      if (data.status === "counting" && !intervalId) {
+        console.log("[Master] Starting countdown loop for index:", data.currentIndex);
+        let count = 3;
+        intervalId = setInterval(async () => {
+          count--;
+          if (count > 0) {
+            await updateDoc(roomDocRef, { countdown: count });
+          } else {
+            clearInterval(intervalId);
+            intervalId = null;
+            await updateDoc(roomDocRef, { status: "capturing", countdown: 0 });
+          }
+        }, 1000);
+      }
+    });
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      unsub();
+    };
+  }, [activeSubTab, roomId, currentUser]);
+
+  // Listen for the "capturing" state to take a local snapshot simultaneously
+  useEffect(() => {
+    if (activeSubTab !== "photobooth") return;
+    const roomDocRef = doc(db, "rooms", roomId);
+
+    const unsub = onSnapshot(roomDocRef, async (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
+
+      if (data.status === "capturing") {
+        const slotsCount = data.sessionLayout === "polaroid" ? 1 : data.sessionLayout === "2-cut" ? 2 : data.sessionLayout === "6-cut" ? 6 : 4;
+        const currentIdx = data.currentIndex;
+
+        const myKey = currentUser === "user_a" ? "capturedPhotosA" : "capturedPhotosB";
+        const myCapturedPhotos = data[myKey] || {};
+        if (myCapturedPhotos[currentIdx]) {
+          return;
+        }
+
+        console.log(`[Photobooth] Snapping slot index ${currentIdx}`);
+        triggerHaptic("heavy");
+
+        const flash = document.createElement("div");
+        flash.className = "fixed inset-0 bg-white z-50 opacity-100 pointer-events-none transition-opacity duration-300";
+        document.body.appendChild(flash);
+        setTimeout(() => {
+          flash.style.opacity = "0";
+          setTimeout(() => flash.remove(), 300);
+        }, 50);
+
+        let localPhoto = "";
+        if (mySourceRef.current === "webcam" && useWebcam && webcamStream && videoElementRef.current) {
+          const video = videoElementRef.current;
+          const canvas = document.createElement("canvas");
+          canvas.width = 320;
+          canvas.height = 240;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            localPhoto = canvas.toDataURL("image/webp", 0.7);
+          }
+        } else if (mySourceRef.current === "upload" && myUploadRef.current) {
+          localPhoto = myUploadRef.current;
+        } else {
+          localPhoto = photoboothSamplePhotos[currentIdx % photoboothSamplePhotos.length];
+        }
+
+        myPhotosRef.current[currentIdx] = localPhoto;
+        setPhotos([...myPhotosRef.current]);
+
+        if (dataChannelRef.current && dataChannelRef.current.readyState === "open") {
+          try {
+            dataChannelRef.current.send(JSON.stringify({
+              type: "PHOTO",
+              index: currentIdx,
+              data: localPhoto
+            }));
+            console.log("[DataChannel] Sent photo to partner");
+          } catch (e) {
+            console.warn("Failed to send via DataChannel:", e);
+          }
+        }
+
+        await updateDoc(roomDocRef, {
+          [`${myKey}.${currentIdx}`]: localPhoto
+        });
+
+        if (data.sessionMaster === currentUser) {
+          let retries = 0;
+          let partnerKey = currentUser === "user_a" ? "capturedPhotosB" : "capturedPhotosA";
+          let docSnap = await getDoc(roomDocRef);
+          let currentRoomData = docSnap.exists() ? docSnap.data() : {};
+
+          while (
+            (!currentRoomData[partnerKey] || !currentRoomData[partnerKey][currentIdx]) &&
+            retries < 40
+          ) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            docSnap = await getDoc(roomDocRef);
+            currentRoomData = docSnap.exists() ? docSnap.data() : {};
+            retries++;
+          }
+
+          if (!currentRoomData[partnerKey] || !currentRoomData[partnerKey][currentIdx]) {
+            const fallbackPhoto = photoboothSamplePhotos[(currentIdx + 2) % photoboothSamplePhotos.length];
+            await updateDoc(roomDocRef, {
+              [`${partnerKey}.${currentIdx}`]: fallbackPhoto
+            });
+          }
+
+          const nextIdx = currentIdx + 1;
+          if (nextIdx < slotsCount) {
+            await new Promise((resolve) => setTimeout(resolve, 1500));
+            await updateDoc(roomDocRef, {
+              status: "counting",
+              countdown: 3,
+              currentIndex: nextIdx
+            });
+          } else {
+            await updateDoc(roomDocRef, {
+              status: "completed",
+              countdown: null
+            });
+          }
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [activeSubTab, roomId, currentUser, useWebcam, webcamStream]);
+
+  // Generate final strip, auto-compress to WebP under 200 KB, upload to Cloudinary, and save
+  useEffect(() => {
+    if (activeSubTab !== "photobooth") return;
+    const roomDocRef = doc(db, "rooms", roomId);
+
+    const unsub = onSnapshot(roomDocRef, async (snapshot) => {
+      if (!snapshot.exists()) return;
+      const data = snapshot.data();
+
+      if (data.status === "completed" && !data.uploadedImageUrl && !data.isUploading) {
+        await updateDoc(roomDocRef, { isUploading: true });
+
+        try {
+          console.log("[Photobooth] Starting final strip generation & Cloudinary upload...");
+
+          const photosA: string[] = [];
+          const photosB: string[] = [];
+          const capA = data.capturedPhotosA || {};
+          const capB = data.capturedPhotosB || {};
+          const slotsCount = data.sessionLayout === "polaroid" ? 1 : data.sessionLayout === "2-cut" ? 2 : data.sessionLayout === "6-cut" ? 6 : 4;
+
+          for (let i = 0; i < slotsCount; i++) {
+            photosA.push(capA[i] || photoboothSamplePhotos[i % photoboothSamplePhotos.length]);
+            photosB.push(capB[i] || photoboothSamplePhotos[(i + 2) % photoboothSamplePhotos.length]);
+          }
+
+          const myPhotos = currentUser === "user_a" ? photosA : photosB;
+          const partnerPhotos = currentUser === "user_a" ? photosB : photosA;
+
+          const canvas = await generateCanvasStrip(
+            data.sessionLayout,
+            data.sessionBg,
+            data.sessionFilter,
+            data.sessionStamp,
+            myPhotos,
+            partnerPhotos,
+            colabMode,
+            new Date().toISOString()
+          );
+
+          let quality = 0.85;
+          let blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+          if (!blob) throw new Error("Blob generation failed");
+
+          while (blob.size > 200 * 1024 && quality > 0.3) {
+            quality -= 0.1;
+            const nextBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+            if (nextBlob) blob = nextBlob;
+          }
+
+          console.log(`[Photobooth] Combined strip compressed successfully. Size: ${(blob.size / 1024).toFixed(1)} KB`);
+
+          const cloudName = cloudinaryCloudName || CLOUDINARY_CLOUD_NAME;
+          const uploadPreset = cloudinaryUploadPreset || CLOUDINARY_UPLOAD_PRESET;
+          const filename = `photostrip-${Date.now()}.webp`;
+
+          const finalUrl = await uploadToCloudinary(blob, filename, cloudName, uploadPreset);
+          console.log("[Photobooth] Cloudinary upload successful:", finalUrl);
+
+          await addMemory({
+            type: "photobooth",
+            title: data.sessionStamp || `${data.sessionLayout.toUpperCase()} Colab Photostrip`,
+            description: `Collaborative LDR Photobox strip (${colabMode === "split" ? "Split-Screen" : colabMode === "alternating" ? "Turn-Based" : "Solo"}). Backdrop: ${availableBackgrounds.find((b) => b.value === data.sessionBg)?.label}.`,
+            imageUrl: finalUrl,
+            date: new Date().toISOString(),
+            creatorId: currentUser,
+            bgStyle: data.sessionBg,
+            filterClass: data.sessionFilter,
+            layout: data.sessionLayout,
+            photosList: myPhotos,
+            partnerPhotosList: partnerPhotos,
+            colabMode: colabMode,
+          } as any);
+
+          await updateDoc(roomDocRef, {
+            uploadedImageUrl: finalUrl,
+            isUploading: false
+          });
+
+          awardXp(55, `captured gorgeous collaborative LDR snaps! 📸🌸`);
+
+        } catch (err: any) {
+          console.error("[Photobooth] Failed to upload final photo strip:", err);
+          await updateDoc(roomDocRef, { isUploading: false });
+          alert(`Failed to save photo strip: ${err.message || err}`);
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [activeSubTab, roomId, currentUser, cloudinaryCloudName, cloudinaryUploadPreset]);
+
   // REAL WEBCAM & HAPTIC STATES
   const {
     stream: webcamStream,
@@ -361,6 +831,13 @@ export default function MemoriesView() {
       node.play().catch((err) => console.warn("Failed to play video stream:", err));
     }
   }, [webcamStream]);
+
+  const remoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    if (node && remoteStream) {
+      node.srcObject = remoteStream;
+      node.play().catch((err) => console.warn("Failed to play remote video stream:", err));
+    }
+  }, [remoteStream]);
 
   const triggerHaptic = (type: "light" | "medium" | "heavy" | "success" = "light") => {
     if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
@@ -448,7 +925,6 @@ export default function MemoriesView() {
     myPhotos: string[],
     partnerPhotosList: string[],
     colab: "split" | "alternating" | "solo",
-    stickers: { id: number; sticker: string; x: number; y: number }[],
     creationDate: string
   ): Promise<HTMLCanvasElement> => {
     const canvas = document.createElement("canvas");
@@ -669,19 +1145,6 @@ export default function MemoriesView() {
     ctx.fillText(dateStr, canvasWidth / 2, footerY + 14);
     ctx.restore();
 
-    // 5. Draw Stickers (Emojis)
-    ctx.save();
-    ctx.font = "40px sans-serif";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    for (const st of stickers) {
-      const xPx = (st.x / 100) * canvasWidth;
-      const yPx = (st.y / 100) * canvasHeight;
-      ctx.fillText(st.sticker, xPx, yPx);
-    }
-    ctx.restore();
-
     return canvas;
   };
 
@@ -696,7 +1159,6 @@ export default function MemoriesView() {
         photos,
         partnerPhotos,
         colabMode,
-        stickerPlacements,
         new Date().toISOString()
       );
       const dataUrl = canvas.toDataURL("image/png");
@@ -724,7 +1186,6 @@ export default function MemoriesView() {
         currentMem.photosList || [],
         currentMem.partnerPhotosList || [],
         currentMem.colabMode || "solo",
-        currentMem.stickersList || [],
         currentMem.date
       );
       const dataUrl = canvas.toDataURL("image/png");
@@ -945,8 +1406,7 @@ export default function MemoriesView() {
     }
   };
 
-  // Twin capturing systems for collaborative LDR snaps
-  const triggerSnapsLocal = async () => {
+  const startSynchronizedCapture = async () => {
     setIsSnapping(true);
     setShowPrintAnimation(false);
     setPhotos([]);
@@ -954,104 +1414,20 @@ export default function MemoriesView() {
     myPhotosRef.current = [];
     partnerPhotosRef.current = [];
 
-    const slotsCount = layout === "polaroid" ? 1 : layout === "2-cut" ? 2 : layout === "6-cut" ? 6 : 4;
-    const partnerPresets = currentUser === "user_a" ? userBPresets : userAPresets;
-
-    for (let i = 0; i < slotsCount; i++) {
-      // Countdown sequence for each snapshot
-      for (let sec = 3; sec > 0; sec--) {
-        setCountdown(sec);
-        triggerHaptic("light");
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      }
-      setCountdown(null);
-
-      // 1. Capture User Photo
-      let userPhoto = "";
-      if (mySource === "webcam" && useWebcam && webcamStream && videoElementRef.current) {
-        const video = videoElementRef.current;
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-        const ctx = canvas.getContext("2d");
-
-        if (ctx) {
-          ctx.translate(canvas.width, 0);
-          ctx.scale(-1, 1);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          userPhoto = canvas.toDataURL("image/jpeg");
-        }
-      } else if (mySource === "upload" && myUpload) {
-        userPhoto = myUpload;
-      } else {
-        userPhoto = photoboothSamplePhotos[i % photoboothSamplePhotos.length];
-      }
-
-      // Store my photo locally & update state
-      myPhotosRef.current.push(userPhoto);
-      setPhotos([...myPhotosRef.current]);
-
-      // If online collab is active, send my photo to partner
-      if (!isBotPartner) {
-        safeBroadcast("SNAP_PHOTO", { slotIndex: i, photo: userPhoto });
-
-        // Wait for partner's photo to arrive in partnerPhotosRef for up to 3 seconds
-        let retries = 0;
-        while (!partnerPhotosRef.current[i] && retries < 30) {
-          await new Promise((resolve) => setTimeout(resolve, 100));
-          retries++;
-        }
-
-        // If partner's photo still hasn't arrived, fallback to preset or mock sample
-        if (!partnerPhotosRef.current[i]) {
-          const partnerPhotoFallback = partnerSource === "preset"
-            ? partnerPresets[i % partnerPresets.length].url
-            : partnerSource === "upload" && partnerUpload
-              ? partnerUpload
-              : photoboothSamplePhotos[(i + 2) % photoboothSamplePhotos.length];
-          partnerPhotosRef.current[i] = partnerPhotoFallback;
-          setPartnerPhotos([...partnerPhotosRef.current]);
-        }
-      } else {
-        // Bot mode simulation: Select bot pose
-        const botPhoto = partnerSource === "preset"
-          ? partnerPresets[i % partnerPresets.length].url
-          : partnerSource === "upload" && partnerUpload
-            ? partnerUpload
-            : photoboothSamplePhotos[(i + 2) % photoboothSamplePhotos.length];
-
-        partnerPhotosRef.current.push(botPhoto);
-        setPartnerPhotos([...partnerPhotosRef.current]);
-      }
-
-      triggerHaptic("heavy");
-
-      // Flash overlay effect
-      const flash = document.createElement("div");
-      flash.className = "fixed inset-0 bg-white z-50 opacity-100 pointer-events-none transition-opacity duration-300";
-      document.body.appendChild(flash);
-      setTimeout(() => {
-        flash.style.opacity = "0";
-        setTimeout(() => flash.remove(), 300);
-      }, 50);
-
-      // 1.5s delay for couples to strike their next beautiful pose
-      if (i < slotsCount - 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      }
-    }
-
-    setIsSnapping(false);
-    setShowPrintAnimation(true);
-    awardXp(isBotPartner ? 25 : 55, `captured gorgeous collaborative LDR snaps! 📸🌸`);
-  };
-
-  const triggerSnaps = () => {
-    // Broadcast countdown start to partner if online
-    if (!isBotPartner) {
-      safeBroadcast("START_COUNTDOWN");
-    }
-    triggerSnapsLocal();
+    const roomDocRef = doc(db, "rooms", roomId);
+    await setDoc(roomDocRef, {
+      status: "counting",
+      countdown: 3,
+      currentIndex: 0,
+      sessionLayout: layout,
+      sessionBg: selectedBg,
+      sessionFilter: selectedFilter,
+      sessionStamp: selectedStamp,
+      sessionMaster: currentUser,
+      capturedPhotosA: {},
+      capturedPhotosB: {},
+      uploadedImageUrl: ""
+    }, { merge: true });
   };
 
   // Update drag constraints when tab shifts or memories change
@@ -1105,7 +1481,6 @@ export default function MemoriesView() {
         photos,
         partnerPhotos,
         colabMode,
-        stickerPlacements,
         new Date().toISOString()
       );
 
@@ -1129,7 +1504,6 @@ export default function MemoriesView() {
       layout: layout,
       photosList: photos,
       partnerPhotosList: partnerPhotos,
-      stickersList: stickerPlacements,
       colabMode: colabMode,
     } as any);
 
@@ -2034,54 +2408,7 @@ export default function MemoriesView() {
                   </div>
                 </div>
 
-                {/* 4. Stickers */}
-                <div className="space-y-2 bg-[var(--primary)]/5 p-3 rounded-2xl border border-[var(--primary)]/10 shadow-sm">
-                  <div className="flex justify-between items-center">
-                    <label className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-muted)] flex items-center gap-1">
-                      🎨 4. Artistic Flair Stickers
-                    </label>
-                    <span className="text-[8px] bg-[var(--primary)]/10 text-[var(--primary)] px-1.5 py-0.5 rounded font-mono uppercase font-black">
-                      Drag & Drop
-                    </span>
-                  </div>
 
-                  <p className="text-[9px] text-gray-500 font-medium">
-                    Drag any sticker onto the photo strip on the right, or click to paste to the center.
-                  </p>
-
-                  <div className="grid grid-cols-4 gap-2 pt-1">
-                    {[
-                      { emoji: "✨", label: "Sparkles", color: "bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-200" },
-                      { emoji: "🌸", label: "Blossom", color: "bg-pink-50 hover:bg-pink-100 text-pink-700 border-pink-200" },
-                      { emoji: "🧸", label: "Teddy", color: "bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200" },
-                      { emoji: "💖", label: "Heart", color: "bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200" },
-                      { emoji: "🎨", label: "Palette", color: "bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200" },
-                      { emoji: "🍋", label: "Lemon", color: "bg-lime-50 hover:bg-lime-100 text-lime-700 border-lime-200" },
-                      { emoji: "🎀", label: "Ribbon", color: "bg-red-50 hover:bg-red-100 text-rose-600 border-rose-200" },
-                      { emoji: "🍒", label: "Cherries", color: "bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200" },
-                      { emoji: "🌟", label: "Gold Star", color: "bg-yellow-100 hover:bg-yellow-200 text-yellow-800 border-yellow-300" },
-                      { emoji: "🎈", label: "Balloon", color: "bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200" },
-                      { emoji: "🎞️", label: "Retro Film", color: "bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200" },
-                      { emoji: "🐾", label: "Paws", color: "bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-100" },
-                    ].map((st) => (
-                      <button
-                        key={st.emoji}
-                        draggable="true"
-                        onDragStart={(e) => {
-                          e.dataTransfer.setData("text/plain", st.emoji);
-                        }}
-                        onClick={() => addStickerToStrip(st.emoji)}
-                        className={`group relative flex flex-col items-center justify-center p-2 rounded-xl border text-center transition-all duration-300 hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing shadow-sm cursor-pointer ${st.color}`}
-                        title="Drag me or Click to paste"
-                      >
-                        <span className="text-xl group-hover:animate-bounce">{st.emoji}</span>
-                        <span className="text-[8px] font-mono opacity-85 mt-1 font-bold truncate max-w-full">
-                          {st.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
 
                 {/* 5. Custom Text Stamps */}
                 <div className="space-y-1.5">
@@ -2117,26 +2444,6 @@ export default function MemoriesView() {
               {/* Photobooth Strip Canvas Wrapper */}
               <div
                 className="relative p-6 bg-white/40 border border-white rounded-3xl flex flex-col items-center w-full max-w-sm shadow-inner overflow-visible"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const sticker = e.dataTransfer.getData("text/plain");
-                  const rect = e.currentTarget.getBoundingClientRect();
-                  const x = ((e.clientX - rect.left) / rect.width) * 100;
-                  const y = ((e.clientY - rect.top) / rect.height) * 100;
-                  if (sticker) {
-                    setStickerPlacements((prev) => [
-                      ...prev,
-                      {
-                        id: Date.now() + Math.random(),
-                        sticker,
-                        x: Math.max(5, Math.min(x, 85)),
-                        y: Math.max(5, Math.min(y, 85)),
-                      },
-                    ]);
-                    awardXp(5, "placed an Artistic Flair sticker!");
-                  }
-                }}
               >
                 {/* Dedicated High-Resolution Capture Wrapper Container */}
                 <div id="photobooth-capture-container" className="relative p-1 bg-transparent overflow-visible inline-block">
@@ -2263,7 +2570,14 @@ export default function MemoriesView() {
 
                                   {/* Right half: Partner */}
                                   <div className="w-1/2 h-full relative overflow-hidden bg-slate-900 flex items-center justify-center">
-                                    {isBotPartner ? (
+                                    {remoteStream ? (
+                                      <video
+                                        ref={remoteVideoRef}
+                                        autoPlay
+                                        playsInline
+                                        className="w-full h-full object-cover scale-x-[-1]"
+                                      />
+                                    ) : isBotPartner ? (
                                       <div className="w-full h-full relative overflow-hidden">
                                         <img src={partnerPic} className="w-full h-full object-cover" />
                                         <div className="absolute inset-0 bg-black/20 flex flex-col items-center justify-center text-center p-1">
@@ -2314,7 +2628,14 @@ export default function MemoriesView() {
                                 >
                                   {isPartnerAlt ? (
                                     <div className="w-full h-full relative flex items-center justify-center">
-                                      {isBotPartner ? (
+                                      {remoteStream ? (
+                                        <video
+                                          ref={remoteVideoRef}
+                                          autoPlay
+                                          playsInline
+                                          className="w-full h-full object-cover scale-x-[-1]"
+                                        />
+                                      ) : isBotPartner ? (
                                         <img src={selectedPartnerPreset} className="w-full h-full object-cover" />
                                       ) : partnerSource === "preset" ? (
                                         <img src={selectedPartnerPreset} className="w-full h-full object-cover" />
@@ -2384,59 +2705,13 @@ export default function MemoriesView() {
                       </span>
                     </div>
 
-                    {/* Render interactive placed stickers with Framer Motion dragging */}
-                    {stickerPlacements.map((st) => (
-                      <motion.div
-                        key={st.id}
-                        drag
-                        dragMomentum={false}
-                        dragElastic={0.1}
-                        whileDrag={{ scale: 1.3, zIndex: 50 }}
-                        style={{
-                          position: "absolute",
-                          left: `${st.x}%`,
-                          top: `${st.y}%`,
-                          cursor: "grab",
-                          zIndex: 40,
-                        }}
-                        onDragEnd={(event, info) => {
-                          const container = document.getElementById("photobooth-strip-capture");
-                          if (!container) return;
-                          const rect = container.getBoundingClientRect();
 
-                          // Calculate coordinate offset percentage relative to parent container
-                          const xPct = ((info.point.x - rect.left) / rect.width) * 100;
-                          const yPct = ((info.point.y - rect.top) / rect.height) * 100;
-
-                          // Bounded limits to prevent escaping outer frame
-                          const boundedX = Math.max(0, Math.min(92, xPct));
-                          const boundedY = Math.max(0, Math.min(95, yPct));
-
-                          setStickerPlacements((prev) =>
-                            prev.map((p) => (p.id === st.id ? { ...p, x: boundedX, y: boundedY } : p))
-                          );
-                        }}
-                        className="text-3xl active:cursor-grabbing select-none hover:bg-white/40 rounded p-1 group flex items-center justify-center transition-all cursor-pointer"
-                        title="Drag to reposition, click X to remove"
-                      >
-                        {st.sticker}
-                        <span
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStickerPlacements((prev) => prev.filter((p) => p.id !== st.id));
-                          }}
-                          className="sticker-close-btn absolute -top-1.5 -right-1.5 bg-rose-500 text-white rounded-full w-3.5 h-3.5 flex items-center justify-center text-[8px] font-bold opacity-0 group-hover:opacity-100 transition-opacity z-50 cursor-pointer shadow"
-                        >
-                          ✕
-                        </span>
-                      </motion.div>
-                    ))}
                   </div>
                 </div>
 
                 {photos.length < (layout === "polaroid" ? 1 : layout === "2-cut" ? 2 : layout === "6-cut" ? 6 : 4) && (
                   <button
-                    onClick={triggerSnaps}
+                    onClick={startSynchronizedCapture}
                     disabled={isSnapping}
                     className="w-full max-w-[240px] mt-6 py-2.5 bg-rose-500 hover:bg-rose-600 disabled:opacity-60 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all z-10 active:scale-95 cursor-pointer"
                   >
@@ -2469,7 +2744,6 @@ export default function MemoriesView() {
                       triggerHaptic("medium");
                       setPhotos([]);
                       setPartnerPhotos([]);
-                      setStickerPlacements([]);
                     }}
                     className="w-full py-2 bg-black/5 hover:bg-black/10 text-gray-650 font-bold rounded-lg text-[10px] text-center transition-all active:scale-95 cursor-pointer"
                   >
@@ -2534,12 +2808,6 @@ export default function MemoriesView() {
                               setSelectedBg(item.bgStyle || "sakura");
                               setSelectedFilter(item.filterClass || "natural");
                               setSelectedStamp(item.title || "Us 🌸");
-
-                              if ((item as any).stickersList) {
-                                setStickerPlacements((item as any).stickersList);
-                              } else {
-                                setStickerPlacements([]);
-                              }
 
                               setShowPrintAnimation(true);
                             }}

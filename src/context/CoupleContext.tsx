@@ -66,6 +66,8 @@ interface CoupleContextProps {
   anniversaryDate: string; // ISO date
   birthdayA: string;
   birthdayB: string;
+  cloudinaryCloudName: string;
+  cloudinaryUploadPreset: string;
   triggerSurprise: (surpriseType: string) => void;
   activeSurprise: string | null;
   setActiveSurprise: (val: string | null) => void;
@@ -77,7 +79,7 @@ interface CoupleContextProps {
   adminResetMissions: () => Promise<void>;
   adminClearActivityLogs: () => Promise<void>;
   adminDeleteAllMemories: () => Promise<void>;
-  updateCoupleSettings: (annivDate: string, bdayA: string, bdayB: string) => Promise<void>;
+  updateCoupleSettings: (annivDate: string, bdayA: string, bdayB: string, cloudName?: string, uploadPreset?: string) => Promise<void>;
 }
 
 const CoupleContext = createContext<CoupleContextProps | undefined>(undefined);
@@ -448,6 +450,8 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
   const [birthdayA, setBirthdayA] = useState<string>("11-18");
   const [birthdayB, setBirthdayB] = useState<string>("04-05");
+  const [cloudinaryCloudName, setCloudinaryCloudName] = useState<string>("");
+  const [cloudinaryUploadPreset, setCloudinaryUploadPreset] = useState<string>("");
 
   // Firestore Real-Time Listeners
   useEffect(() => {
@@ -501,7 +505,13 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           description: "",
           imageUrl: m.image_url,
           date: m.date || new Date().toISOString(),
-          creatorId: "user_a",
+          creatorId: m.created_by || "user_a",
+          bgStyle: m.bg_style || "sakura",
+          filterClass: m.filter_class || "natural",
+          layout: m.layout || "4-cut",
+          photosList: m.photos_list || [],
+          partnerPhotosList: m.partner_photos_list || [],
+          colabMode: m.colab_mode || "solo",
           reactions: {},
           comments: [],
         });
@@ -556,11 +566,15 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         if (data.birthday_a) setBirthdayA(data.birthday_a);
         if (data.birthday_b) setBirthdayB(data.birthday_b);
+        if (data.cloudinary_cloud_name) setCloudinaryCloudName(data.cloudinary_cloud_name);
+        if (data.cloudinary_upload_preset) setCloudinaryUploadPreset(data.cloudinary_upload_preset);
       } else {
         setDoc(doc(db, "settings", "couple_settings"), {
           anniversary_date: "2024-10-15",
           birthday_a: "11-18",
-          birthday_b: "04-05"
+          birthday_b: "04-05",
+          cloudinary_cloud_name: "",
+          cloudinary_upload_preset: ""
         }).catch(err => console.error("Error seeding settings:", err));
       }
     });
@@ -791,7 +805,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   // Memories & Photobooth
-  const addMemory = async (memory: Omit<Memory, "id" | "reactions" | "comments"> & { bgStyle?: string; filterClass?: string }) => {
+  const addMemory = async (memory: any) => {
     try {
       await addDoc(collection(db, "memories"), {
         type: memory.type,
@@ -799,6 +813,13 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         image_url: memory.imageUrl,
         date: new Date(memory.date).toISOString().split("T")[0],
         created_at: new Date().toISOString(),
+        created_by: currentUser,
+        bg_style: memory.bgStyle || "",
+        filter_class: memory.filterClass || "",
+        layout: memory.layout || "",
+        photos_list: memory.photosList || [],
+        partner_photos_list: memory.partnerPhotosList || [],
+        colab_mode: memory.colabMode || "",
       });
       addActivity(`added a new memory: "${memory.title}"`);
       awardXp(40, `posting a memory`);
@@ -870,14 +891,24 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const updateCoupleSettings = async (annivDate: string, bdayA: string, bdayB: string) => {
+  const updateCoupleSettings = async (
+    annivDate: string,
+    bdayA: string,
+    bdayB: string,
+    cloudName?: string,
+    uploadPreset?: string
+  ) => {
     try {
-      await setDoc(doc(db, "settings", "couple_settings"), {
+      const updateData: any = {
         anniversary_date: annivDate,
         birthday_a: bdayA,
-        birthday_b: bdayB
-      }, { merge: true });
-      addActivity(`updated special milestone configurations (Anniversary & Birthdays) 🛠️`);
+        birthday_b: bdayB,
+      };
+      if (cloudName !== undefined) updateData.cloudinary_cloud_name = cloudName;
+      if (uploadPreset !== undefined) updateData.cloudinary_upload_preset = uploadPreset;
+
+      await setDoc(doc(db, "settings", "couple_settings"), updateData, { merge: true });
+      addActivity(`updated special milestone & storage configurations 🛠️`);
     } catch (e) {
       console.error("Error updating settings:", e);
       throw e;
@@ -1192,6 +1223,8 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         anniversaryDate,
         birthdayA,
         birthdayB,
+        cloudinaryCloudName,
+        cloudinaryUploadPreset,
         triggerSurprise,
         activeSurprise,
         setActiveSurprise,
