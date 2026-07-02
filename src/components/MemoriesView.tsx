@@ -114,6 +114,48 @@ export default function MemoriesView() {
     cloudinaryUploadPreset,
   } = useCouple();
 
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
+
+  // REAL WEBCAM & HAPTIC STATES
+  const {
+    stream: webcamStream,
+    isActive: useWebcam,
+    error: webcamError,
+    startCamera,
+    stopCamera
+  } = useCamera();
+
+  const videoElementRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef = useCallback((node: HTMLVideoElement | null) => {
+    videoElementRef.current = node;
+    if (node && webcamStream) {
+      node.srcObject = webcamStream;
+      node.play().catch((err) => console.warn("Failed to play video stream:", err));
+    }
+  }, [webcamStream]);
+
+  const remoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
+    if (node && remoteStream) {
+      node.srcObject = remoteStream;
+      node.play().catch((err) => console.warn("Failed to play remote video stream:", err));
+    }
+  }, [remoteStream]);
+
+  const triggerHaptic = (type: "light" | "medium" | "heavy" | "success" = "light") => {
+    if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
+      try {
+        if (type === "light") window.navigator.vibrate(12);
+        else if (type === "medium") window.navigator.vibrate(35);
+        else if (type === "heavy") window.navigator.vibrate(70);
+        else if (type === "success") window.navigator.vibrate([20, 40, 20]);
+      } catch (err) {
+        console.warn("Haptics vibrate failed:", err);
+      }
+    }
+  };
+
   const [activeSubTab, setActiveSubTab] = useState<"timeline" | "photobooth" | "journal">("timeline");
 
   // PHOTOBOOTH STATE
@@ -153,9 +195,7 @@ export default function MemoriesView() {
   const myPhotosRef = useRef<string[]>([]);
   const partnerPhotosRef = useRef<string[]>([]);
   const broadcastRef = useRef<BroadcastChannel | null>(null);
-  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const dataChannelRef = useRef<RTCDataChannel | null>(null);
+
 
   // Refs for tracking values inside BroadcastChannel event listeners to prevent loop reconstruction
   const selectedBgRef = useRef(selectedBg);
@@ -814,43 +854,7 @@ export default function MemoriesView() {
     return () => unsub();
   }, [activeSubTab, roomId, currentUser, cloudinaryCloudName, cloudinaryUploadPreset]);
 
-  // REAL WEBCAM & HAPTIC STATES
-  const {
-    stream: webcamStream,
-    isActive: useWebcam,
-    error: webcamError,
-    startCamera,
-    stopCamera
-  } = useCamera();
 
-  const videoElementRef = useRef<HTMLVideoElement | null>(null);
-  const videoRef = useCallback((node: HTMLVideoElement | null) => {
-    videoElementRef.current = node;
-    if (node && webcamStream) {
-      node.srcObject = webcamStream;
-      node.play().catch((err) => console.warn("Failed to play video stream:", err));
-    }
-  }, [webcamStream]);
-
-  const remoteVideoRef = useCallback((node: HTMLVideoElement | null) => {
-    if (node && remoteStream) {
-      node.srcObject = remoteStream;
-      node.play().catch((err) => console.warn("Failed to play remote video stream:", err));
-    }
-  }, [remoteStream]);
-
-  const triggerHaptic = (type: "light" | "medium" | "heavy" | "success" = "light") => {
-    if (typeof window !== "undefined" && window.navigator && window.navigator.vibrate) {
-      try {
-        if (type === "light") window.navigator.vibrate(12);
-        else if (type === "medium") window.navigator.vibrate(35);
-        else if (type === "heavy") window.navigator.vibrate(70);
-        else if (type === "success") window.navigator.vibrate([20, 40, 20]);
-      } catch (err) {
-        console.warn("Haptics vibrate failed:", err);
-      }
-    }
-  };
 
   // Strict single-click state management to prevent duplicate/rapid click increments
   const processingReactions = useRef<Record<string, boolean>>({});
