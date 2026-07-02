@@ -775,34 +775,37 @@ export default function HomeView() {
   };
 
   // ════════════════════════════════════════════════════════════
-  // 1. SPOTIFY WEB PLAYBACK SDK STATES
+  // 1. YOUTUBE WEB IFRAME API STATES & SEARCH UTILITY
   // ════════════════════════════════════════════════════════════
-  const [spotifyToken, setSpotifyToken] = useState("");
-  const [isSdkMode, setIsSdkMode] = useState(true); 
-  const [spotifyPlayer, setSpotifyPlayer] = useState<any>(null);
-  const [spotifyDeviceId, setSpotifyDeviceId] = useState<string | null>(null);
-  const [spotifyPlaybackState, setSpotifyPlaybackState] = useState<any>(null);
+  const [ytPlayer, setYtPlayer] = useState<any>(null);
+  const [isYtReady, setIsYtReady] = useState(false);
+  const [ytPlaybackState, setYtPlaybackState] = useState<number>(-1);
   const [spotifyErrorState, setSpotifyErrorState] = useState<string | null>(null);
-  const [isSdkConnected, setIsSdkConnected] = useState(false);
+  const [isSdkConnected, setIsSdkConnected] = useState(true);
+  const [spotifyDeviceId, setSpotifyDeviceId] = useState<string | null>("YouTube Stealth Audio");
+  const [spotifyToken, setSpotifyToken] = useState("youtube-active");
+  const [isSdkMode, setIsSdkMode] = useState(true);
+  const [spotifyPlaybackState, setSpotifyPlaybackState] = useState<any>(null);
+
+  const searchYouTubeVideo = async (artist: string, title: string): Promise<string> => {
+    const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
+    if (!apiKey) {
+      console.error("VITE_YOUTUBE_API_KEY is not defined");
+      return "";
+    }
+    const query = encodeURIComponent(`${artist} - ${title} (Audio)`);
+    try {
+      const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&maxResults=1&type=video&key=${apiKey}`);
+      const data = await res.json();
+      return data?.items?.[0]?.id?.videoId || "";
+    } catch (error) {
+      console.error("Error searching YouTube video:", error);
+      return "";
+    }
+  };
 
   // ════════════════════════════════════════════════════════════
-  // 2. REAL-TIME PIPEDREAM TOKEN LOADER
-  // ════════════════════════════════════════════════════════════
-  useEffect(() => {
-    const unsubToken = onSnapshot(doc(db, "system", "spotify_auth"), (snapshot) => {
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        if (data.access_token) {
-          setSpotifyToken(data.access_token);
-          localStorage.setItem("spotify_sdk_token", data.access_token);
-        }
-      }
-    });
-    return () => unsubToken();
-  }, []);
-
-  // ════════════════════════════════════════════════════════════
-  // 1. ISOLATED FIRESTORE PRODUCER (Hanya dipanggil saat KLIK MANUAL)
+  // 2. ISOLATED FIRESTORE PRODUCER (YouTube-driven)
   // ════════════════════════════════════════════════════════════
   const broadcastLocalAction = async (trackData: any, isPlayingAction: boolean) => {
     try {
@@ -815,8 +818,8 @@ export default function HomeView() {
         durationMs: trackData.durationMs,
         progressMs: trackData.progressMs || 0,
         isPlaying: isPlayingAction,
-        spotifyId: trackData.spotifyId,
-        commandTriggeredBy: currentUser, // user_a atau user_b
+        spotifyId: trackData.spotifyId, // YouTube videoId
+        commandTriggeredBy: currentUser,
         lastUpdated: Date.now()
       }, { merge: true });
     } catch (error) {
@@ -830,10 +833,10 @@ export default function HomeView() {
   };
 
   // ════════════════════════════════════════════════════════════
-  // 2. STRICT LISTEN ALONG SYNC ENGINE (CONSUMER)
+  // 3. STRICT LISTEN ALONG SYNC ENGINE (CONSUMER)
   // ════════════════════════════════════════════════════════════
   useEffect(() => {
-    if (!spotifyPlayer || !isSdkConnected || !spotifyToken || !spotifyDeviceId) return;
+    if (!ytPlayer || !isYtReady) return;
 
     const unsubPlayback = onSnapshot(doc(db, "rooms", "spotify_room"), (snapshot) => {
       if (!snapshot.exists()) return;
@@ -855,92 +858,105 @@ export default function HomeView() {
 
       // EKSEKUSI PERINTAH FLIGHT HANYA JIKA DIPICU OLEH PASANGAN (ANTI-PINGPONG)
       if (data.commandTriggeredBy !== currentUser) {
-        const currentTrackId = spotifyPlaybackState?.track_window?.current_track?.id;
-        const isCurrentPlaying = !spotifyPlaybackState?.paused;
-
         if (data.isPlaying) {
           const drift = Date.now() - (data.lastUpdated || Date.now());
           const targetPositionMs = data.progressMs + drift;
-          const timeDiff = Math.abs((spotifyPlaybackState?.position || 0) - targetPositionMs);
+          const targetPositionSeconds = Math.floor(targetPositionMs / 1000);
 
-          // Jika lagu sama, sedang berputar, dan jeda waktu di bawah 4 detik, amankan buffer! Jangan interupsi lagu!
-          if (currentTrackId === data.spotifyId && isCurrentPlaying && timeDiff < 4000) {
-            return; 
+          const currentVideoUrl = ytPlayer.getVideoUrl ? ytPlayer.getVideoUrl() : "";
+          const loadedVideoId = currentVideoUrl.includes("v=") ? currentVideoUrl.split("v=")[1].substring(0, 11) : "";
+
+          const isCurrentPlaying = ytPlaybackState === 1;
+          const currentPosition = ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0;
+          const timeDiff = Math.abs(currentPosition - targetPositionSeconds);
+
+          // DEBOUNCER: Jika video ID sudah cocok, sedang berputar, dan selisih waktu tipis, amankan buffer!
+          if (loadedVideoId === data.spotifyId && isCurrentPlaying && timeDiff < 4) {
+            return;
           }
 
-          fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-            method: "PUT",
-            body: JSON.stringify({
-              uris: [`spotify:track:${data.spotifyId}`],
-              position_ms: targetPositionMs
-            }),
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${spotifyToken}`
-            }
-          }).catch(err => console.error("Gagal sinkronisasi play pasangan:", err));
+          ytPlayer.loadVideoById(data.spotifyId, targetPositionSeconds);
+          ytPlayer.playVideo();
 
         } else {
+          const isCurrentPlaying = ytPlaybackState === 1;
           if (isCurrentPlaying) {
-            spotifyPlayer.pause().catch((err: any) => console.error("Gagal pause lokal:", err));
+            ytPlayer.pauseVideo();
           }
         }
       }
     });
 
     return () => unsubPlayback();
-  }, [spotifyPlayer, spotifyDeviceId, isSdkConnected, spotifyToken, currentUser, spotifyPlaybackState]);
+  }, [ytPlayer, isYtReady, currentUser, ytPlaybackState]);
 
   // ════════════════════════════════════════════════════════════
-  // 3. DAUR HIDUP INSTANCE SPOTIFY WEB SDK (MUTASI MURNI LOKAL)
+  // 4. DAUR HIDUP INSTANCE YOUTUBE WEB IFRAME API (INITIALIZER)
   // ════════════════════════════════════════════════════════════
   useEffect(() => {
-    if (!spotifyToken || !isSdkMode) return;
-
-    let script = document.getElementById("spotify-player-script") as HTMLScriptElement;
+    // Amankan agar script tidak di-inject berkali-kali ke dokumen DOM
+    let script = document.getElementById("youtube-player-script") as HTMLScriptElement;
     if (!script) {
       script = document.createElement("script");
-      script.id = "spotify-player-script";
-      script.src = "https://sdk.scdn.co/spotify-player.js";
+      script.id = "youtube-player-script";
+      script.src = "https://www.youtube.com/iframe_api";
       script.async = true;
       document.body.appendChild(script);
     }
 
-    const initPlayer = () => {
-      if (!window.Spotify || spotifyPlayer) return;
+    const initYoutubePlayer = () => {
+      const ytWindow = window as any;
+      if (!ytWindow.YT || !ytWindow.YT.Player) return;
 
-      const playerInstance = new window.Spotify.Player({
-        name: "Private Bubble Web Player 🎵",
-        getOAuthToken: (cb: (t: string) => void) => { cb(spotifyToken); },
-        volume: 0.5
+      new ytWindow.YT.Player("youtube-audio-engine", {
+        height: "1",
+        width: "1",
+        videoId: currentSong.spotifyId || "5lYlS8n8nZ9Lh6p3O6Y2y2",
+        playerVars: {
+          autoplay: 0,
+          controls: 0,
+          disablekb: 1,
+          fs: 0,
+          rel: 0,
+          showinfo: 0,
+          modestbranding: 1
+        },
+        events: {
+          onReady: (event: any) => {
+            setYtPlayer(event.target);
+            setIsYtReady(true);
+            setIsSdkConnected(true);
+          },
+          onStateChange: (event: any) => {
+            setYtPlaybackState(event.data);
+            const ytWindow = window as any;
+            if (event.data === ytWindow.YT.PlayerState.ENDED) {
+              window.dispatchEvent(new CustomEvent("spotifyTrackFinished"));
+            } else if (event.data === ytWindow.YT.PlayerState.PLAYING) {
+              setSongPlayState(true);
+            } else if (event.data === ytWindow.YT.PlayerState.PAUSED) {
+              setSongPlayState(false);
+            }
+          },
+          onError: (event: any) => {
+            console.error("YouTube Player Error:", event.data);
+            setSpotifyErrorState(`YouTube Player Error: Code ${event.data}`);
+          }
+        }
       });
-
-      playerInstance.addListener("ready", ({ device_id }: { device_id: string }) => {
-        setSpotifyDeviceId(device_id);
-        setIsSdkConnected(true);
-        setSpotifyErrorState(null);
-      });
-
-      playerInstance.addListener("player_state_changed", (state: any) => {
-        if (!state) return;
-        // Hanya update state internal untuk animasi piringan hitam/progress bar lokal
-        setSpotifyPlaybackState(state);
-      });
-
-      playerInstance.connect();
-      setSpotifyPlayer(playerInstance);
     };
 
-    if (window.Spotify) {
-      initPlayer();
+    const ytWindow = window as any;
+    if (ytWindow.YT && ytWindow.YT.Player) {
+      initYoutubePlayer();
     } else {
-      window.onSpotifyWebPlaybackSDKReady = () => {
-        initPlayer();
+      ytWindow.onYouTubeIframeAPIReady = () => {
+        initYoutubePlayer();
       };
     }
 
     return () => {};
-  }, [spotifyToken, isSdkMode, spotifyPlayer]);
+  }, []);
 
 const [fetchedQuote, setFetchedQuote] = useState<{ content: string; author: string } | null>(() => {
   try {
@@ -1086,18 +1102,8 @@ const handleProgressBarClick = (e: React.MouseEvent<HTMLDivElement>) => {
   const updatedSong = { ...currentSong, progressMs: newProg };
   broadcastLocalAction(updatedSong, currentSong.isPlaying);
 
-  if (isSdkConnected && spotifyPlayer && currentSong.spotifyId) {
-    fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        uris: [`spotify:track:${currentSong.spotifyId}`],
-        position_ms: newProg
-      }),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${spotifyToken}`
-      }
-    }).catch(err => console.error("Progress bar seek failed:", err));
+  if (isYtReady && ytPlayer && currentSong.spotifyId) {
+    ytPlayer.seekTo(Math.floor(newProg / 1000), true);
   } else {
     updateSongProgress(newProg);
   }
@@ -1125,42 +1131,90 @@ const handleSpotifyUrlSubmit = (e: React.FormEvent) => {
   setSpotifyError(null);
   if (!spotifyUrlInput.trim()) return;
 
-  // Extract Spotify Track ID from standard URLs
-  const regex = /(?:open\.spotify\.com\/track\/|spotify:track:)([a-zA-Z0-9]+)/i;
-  const match = spotifyUrlInput.match(regex);
+  // Extract YouTube Video ID
+  // e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ or https://youtu.be/dQw4w9WgXcQ
+  const ytRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/i;
+  const match = spotifyUrlInput.match(ytRegex);
+
+  // Or match Spotify Track ID fallback
+  const spotifyRegex = /(?:open\.spotify\.com\/track\/|spotify:track:)([a-zA-Z0-9]+)/i;
+  const spotifyMatch = spotifyUrlInput.match(spotifyRegex);
+
   if (match && match[1]) {
-    const trackId = match[1];
+    const videoId = match[1];
     const newSong = {
-      title: "Pasted Spotify Track",
-      artist: "Synchronized Track Player",
-      album: "Playing from Spotify Link",
+      title: "Pasted YouTube Video",
+      artist: "Synchronized Video Player",
+      album: "Playing from YouTube Link",
       artwork: "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?q=80&w=150&auto=format&fit=crop",
       durationMs: 240000,
       progressMs: 0,
       isPlaying: true,
-      spotifyId: trackId
+      spotifyId: videoId
     };
 
     broadcastLocalAction(newSong, true);
 
-    if (isSdkConnected && spotifyPlayer) {
-      fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-        method: "PUT",
-        body: JSON.stringify({
-          uris: [`spotify:track:${trackId}`],
-          position_ms: 0
-        }),
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${spotifyToken}`
-        }
-      }).catch(err => console.error("URL submit play failed:", err));
+    if (isYtReady && ytPlayer) {
+      ytPlayer.loadVideoById(videoId, 0);
+      ytPlayer.playVideo();
     } else {
       setSongPlayState(true);
     }
     setSpotifyUrlInput("");
+  } else if (spotifyMatch && spotifyMatch[1]) {
+    // If it's a Spotify link, search on YouTube Data API automatically!
+    searchYouTubeVideo("Spotify Pasted Track", spotifyMatch[1]).then((videoId) => {
+      const finalId = videoId || "5lYlS8n8nZ9Lh6p3O6Y2y2";
+      const newSong = {
+        title: "Pasted Spotify Track",
+        artist: "Synchronized Track Player",
+        album: "Playing from Spotify Link",
+        artwork: "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?q=80&w=150&auto=format&fit=crop",
+        durationMs: 240000,
+        progressMs: 0,
+        isPlaying: true,
+        spotifyId: finalId
+      };
+
+      broadcastLocalAction(newSong, true);
+
+      if (isYtReady && ytPlayer) {
+        ytPlayer.loadVideoById(finalId, 0);
+        ytPlayer.playVideo();
+      } else {
+        setSongPlayState(true);
+      }
+    });
+    setSpotifyUrlInput("");
   } else {
-    setSpotifyError("Invalid track URL. Please copy a track link from Spotify.");
+    // Treat as raw search query
+    searchYouTubeVideo("", spotifyUrlInput).then((videoId) => {
+      if (videoId) {
+        const newSong = {
+          title: spotifyUrlInput,
+          artist: "YouTube Search",
+          album: "YouTube Audio Sync",
+          artwork: "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?q=80&w=150&auto=format&fit=crop",
+          durationMs: 240000,
+          progressMs: 0,
+          isPlaying: true,
+          spotifyId: videoId
+        };
+
+        broadcastLocalAction(newSong, true);
+
+        if (isYtReady && ytPlayer) {
+          ytPlayer.loadVideoById(videoId, 0);
+          ytPlayer.playVideo();
+        } else {
+          setSongPlayState(true);
+        }
+      } else {
+        setSpotifyError("Could not find matching video on YouTube. Try a different query or link.");
+      }
+    });
+    setSpotifyUrlInput("");
   }
 };
 
@@ -1186,6 +1240,13 @@ const handleTrackSkip = async (direction: "next" | "prev") => {
   }
 
   const vibe = playlistTracks[nextIndex];
+
+  let ytId = vibe.youtubeId;
+  if (!ytId) {
+    ytId = await searchYouTubeVideo(vibe.artist, vibe.title);
+  }
+  if (!ytId) ytId = "5lYlS8n8nZ9Lh6p3O6Y2y2";
+
   const updatedSong = {
     title: vibe.title,
     artist: vibe.artist,
@@ -1194,23 +1255,14 @@ const handleTrackSkip = async (direction: "next" | "prev") => {
     durationMs: vibe.durationMs,
     progressMs: 0,
     isPlaying: true,
-    spotifyId: vibe.spotifyId,
+    spotifyId: ytId,
   };
 
   await broadcastLocalAction(updatedSong, true);
 
-  if (isSdkConnected && spotifyPlayer && vibe.spotifyId) {
-    fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-      method: "PUT",
-      body: JSON.stringify({
-        uris: [`spotify:track:${vibe.spotifyId}`],
-        position_ms: 0
-      }),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${spotifyToken}`
-      }
-    }).catch(err => console.error("Skip action failed:", err));
+  if (isYtReady && ytPlayer) {
+    ytPlayer.loadVideoById(ytId, 0);
+    ytPlayer.playVideo();
   } else {
     setSongPlayState(true);
   }
@@ -1251,18 +1303,9 @@ useEffect(() => {
     if (isRepeatActive) {
       const updatedSong = { ...currentSong, progressMs: 0, isPlaying: true };
       broadcastLocalAction(updatedSong, true);
-      if (isSdkConnected && spotifyPlayer && currentSong.spotifyId) {
-        fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-          method: "PUT",
-          body: JSON.stringify({
-            uris: [`spotify:track:${currentSong.spotifyId}`],
-            position_ms: 0
-          }),
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${spotifyToken}`
-          }
-        }).catch(err => console.error("Repeat sync play failed:", err));
+      if (isYtReady && ytPlayer && currentSong.spotifyId) {
+        ytPlayer.seekTo(0);
+        ytPlayer.playVideo();
       } else {
         updateSongProgress(0);
       }
@@ -1272,7 +1315,7 @@ useEffect(() => {
   };
   window.addEventListener("spotifyTrackFinished", handleFinished);
   return () => window.removeEventListener("spotifyTrackFinished", handleFinished);
-}, [isShuffleActive, isRepeatActive, currentSong]);
+}, [isShuffleActive, isRepeatActive, currentSong, isYtReady, ytPlayer]);
 
 const saveAndSyncNotes = async (notesList: any) => {
   // Left as compatibility wrapper, direct mutations are done in-place
@@ -2701,8 +2744,12 @@ return (
                     spotifyId: currentSong.spotifyId || "5lYlS8n8nZ9Lh6p3O6Y2y2"
                   }, nextPlayingState);
 
-                  if (isSdkConnected && spotifyPlayer) {
-                    spotifyPlayer.togglePlay().catch((err: any) => console.error(err));
+                  if (isYtReady && ytPlayer) {
+                    if (nextPlayingState) {
+                      ytPlayer.playVideo();
+                    } else {
+                      ytPlayer.pauseVideo();
+                    }
                   } else {
                     setSongPlayState(nextPlayingState);
                   }
@@ -2731,26 +2778,8 @@ return (
             </div>
           </div>
 
-          {/* Spotify iframe */}
-          {(() => {
-            const matchedVibe = playlistTracks.find(v => v.title.toLowerCase() === currentSong.title.toLowerCase());
-            const trackId = matchedVibe?.spotifyId || (currentSong as any).spotifyId || "5lYlS8n8nZ9Lh6p3O6Y2y2";
-            return (
-              <div className="my-3 overflow-hidden rounded-xl bg-[var(--text-muted)]/10 p-1 border border-[var(--border-color)] shadow-inner">
-                <iframe
-                  title="Spotify Embedded Stream Player"
-                  src={`https://open.spotify.com/embed/track/${trackId}?utm_source=generator&theme=0`}
-                  width="100%"
-                  height="80"
-                  frameBorder="0"
-                  allowFullScreen={false}
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  loading="lazy"
-                  className="opacity-90 hover:opacity-100 transition-opacity rounded-lg"
-                />
-              </div>
-            );
-          })()}
+          {/* YouTube Stealth Audio Engine */}
+          <div id="youtube-audio-engine" style={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }} />
 
           {/* Lyrics section */}
           <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
@@ -2800,8 +2829,15 @@ return (
                 return (
                   <button
                     key={vibe.title + vibe.spotifyId}
-                    onClick={() => {
+                    onClick={async () => {
                       triggerHaptic("light");
+                      
+                      let ytId = vibe.youtubeId;
+                      if (!ytId) {
+                        ytId = await searchYouTubeVideo(vibe.artist, vibe.title);
+                      }
+                      if (!ytId) ytId = "5lYlS8n8nZ9Lh6p3O6Y2y2";
+
                       const targetSong = {
                         title: vibe.title,
                         artist: vibe.artist,
@@ -2810,23 +2846,14 @@ return (
                         durationMs: vibe.durationMs,
                         progressMs: 0,
                         isPlaying: true,
-                        spotifyId: vibe.spotifyId,
+                        spotifyId: ytId,
                       };
 
                       broadcastLocalAction(targetSong, true);
 
-                      if (isSdkConnected && spotifyPlayer && vibe.spotifyId) {
-                        fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-                          method: "PUT",
-                          body: JSON.stringify({
-                            uris: [`spotify:track:${vibe.spotifyId}`],
-                            position_ms: 0
-                          }),
-                          headers: {
-                            "Content-Type": "application/json",
-                            "Authorization": `Bearer ${spotifyToken}`
-                          }
-                        }).catch(err => console.error("Playlist track play failed:", err));
+                      if (isYtReady && ytPlayer) {
+                        ytPlayer.loadVideoById(ytId, 0);
+                        ytPlayer.playVideo();
                       } else {
                         setSongPlayState(true);
                       }
