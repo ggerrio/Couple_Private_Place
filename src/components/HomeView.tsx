@@ -774,8 +774,6 @@ export default function HomeView() {
       setPlantParticles(prev => prev.filter(p => !newParticles.includes(p)));
     }, 1500);
   };
-
-  // ════════════════════════════════════════════════════════════
   // 1. YOUTUBE WEB IFRAME API STATES & SEARCH UTILITY
   // ════════════════════════════════════════════════════════════
   const [ytPlayer, setYtPlayer] = useState<any>(null);
@@ -787,6 +785,28 @@ export default function HomeView() {
   const [spotifyToken, setSpotifyToken] = useState("youtube-active");
   const [isSdkMode, setIsSdkMode] = useState(true);
   const [spotifyPlaybackState, setSpotifyPlaybackState] = useState<any>(null);
+  
+  const hasInitialSyncDone = React.useRef(false);
+
+  const isYouTubeId = (id: string | undefined): boolean => {
+    if (!id) return false;
+    return id.length === 11 && !id.includes(":");
+  };
+
+  const getSpotifyTrackMetadata = async (trackId: string): Promise<{ title: string; artist: string; artwork: string } | null> => {
+    try {
+      const res = await fetch(`https://open.spotify.com/oembed?url=https://open.spotify.com/track/${trackId}`);
+      const data = await res.json();
+      return {
+        title: data.title || "Pasted Track",
+        artist: data.author_name || "Spotify Sync",
+        artwork: data.thumbnail_url || "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?q=80&w=150&auto=format&fit=crop"
+      };
+    } catch (e) {
+      console.error("Error fetching Spotify metadata via oembed:", e);
+      return null;
+    }
+  };
 
   const searchYouTubeVideo = async (artist: string, title: string): Promise<string> => {
     const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
@@ -794,7 +814,8 @@ export default function HomeView() {
       console.error("VITE_YOUTUBE_API_KEY is not defined");
       return "";
     }
-    const query = encodeURIComponent(`${artist} - ${title} (Audio)`);
+    const cleanTitle = title.replace(/\(Official.*?\)/gi, "").replace(/\[Official.*?\]/gi, "").trim();
+    const query = encodeURIComponent(`${artist} ${cleanTitle}`);
     try {
       const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&q=${query}&maxResults=1&type=video&key=${apiKey}`);
       const data = await res.json();
@@ -845,6 +866,17 @@ export default function HomeView() {
 
       if (!data || !data.spotifyId || data.spotifyId === "5lYlS8n8nZ9Lh6p3O6Y2y2") return;
 
+      // Detect and auto-resolve Spotify legacy IDs
+      if (!isYouTubeId(data.spotifyId)) {
+        searchYouTubeVideo(data.artist, data.title).then((ytId) => {
+          if (ytId) {
+            const roomRef = doc(db, "rooms", "spotify_room");
+            setDoc(roomRef, { spotifyId: ytId }, { merge: true });
+          }
+        });
+        return;
+      }
+
       // UPDATE METADATA TAMPILAN KANVAS UI TANPA MEMICU RE-BROADCAST
       contextSyncSongToPartner({
         title: data.title,
@@ -857,8 +889,10 @@ export default function HomeView() {
         spotifyId: data.spotifyId,
       });
 
-      // EKSEKUSI PERINTAH FLIGHT HANYA JIKA DIPICU OLEH PASANGAN (ANTI-PINGPONG)
-      if (data.commandTriggeredBy !== currentUser) {
+      // EKSEKUSI PERINTAH FLIGHT JIKA DIPICU OLEH PASANGAN, ATAU UNTUK SINKRONISASI AWAL (ON-MOUNT)
+      if (data.commandTriggeredBy !== currentUser || !hasInitialSyncDone.current) {
+        hasInitialSyncDone.current = true;
+
         if (data.isPlaying) {
           const drift = Date.now() - (data.lastUpdated || Date.now());
           const targetPositionMs = data.progressMs + drift;
@@ -910,8 +944,8 @@ export default function HomeView() {
       if (!ytWindow.YT || !ytWindow.YT.Player) return;
 
       new ytWindow.YT.Player("youtube-audio-engine", {
-        height: "1",
-        width: "1",
+        height: "100%",
+        width: "100%",
         videoId: currentSong.spotifyId || "5lYlS8n8nZ9Lh6p3O6Y2y2",
         playerVars: {
           autoplay: 0,
@@ -947,6 +981,15 @@ export default function HomeView() {
       });
     };
 
+    let checkInterval: any = null;
+    const checkAndInit = () => {
+      const ytWindow = window as any;
+      if (ytWindow.YT && ytWindow.YT.Player) {
+        initYoutubePlayer();
+        if (checkInterval) clearInterval(checkInterval);
+      }
+    };
+
     const ytWindow = window as any;
     if (ytWindow.YT && ytWindow.YT.Player) {
       initYoutubePlayer();
@@ -954,9 +997,12 @@ export default function HomeView() {
       ytWindow.onYouTubeIframeAPIReady = () => {
         initYoutubePlayer();
       };
+      checkInterval = setInterval(checkAndInit, 500);
     }
 
-    return () => {};
+    return () => {
+      if (checkInterval) clearInterval(checkInterval);
+    };
   }, []);
 
 const [fetchedQuote, setFetchedQuote] = useState<{ content: string; author: string } | null>(() => {
@@ -2773,8 +2819,8 @@ return (
 
           {/* YouTube Video Overlay / Stealth Audio Engine */}
           <div 
-            className={`my-3 overflow-hidden rounded-xl border border-[var(--border-color)] bg-black aspect-video relative shadow-inner transition-all duration-300 ${showVideoOverlay ? 'block' : 'hidden'}`}
-            style={showVideoOverlay ? {} : { position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }}
+            className="my-3 overflow-hidden rounded-xl border border-[var(--border-color)] bg-black aspect-video relative shadow-inner transition-all duration-300"
+            style={showVideoOverlay ? { display: "block" } : { position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none", zIndex: -100 }}
           >
             <div id="youtube-audio-engine" className="w-full h-full" />
           </div>
