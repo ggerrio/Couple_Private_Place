@@ -62,7 +62,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851a1fec51b4d321f10723fa14a",
     durationMs: 200000,
-    spotifyId: "4kSKacywUJHdhyst4PL6pl",
     youtubeId: "gDnG_Hic2wU",
     glowColor: "rgba(239, 68, 68, 0.2)"
   },
@@ -72,7 +71,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851ff86a2044a57d3d1c3665a55",
     durationMs: 215000,
-    spotifyId: "6pJOaeH9nEMA1hAExxWiRP",
     youtubeId: "D8v7P8B0k_E",
     glowColor: "rgba(139, 92, 246, 0.22)"
   },
@@ -82,7 +80,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048519bbf0358fb086f43ffde5148",
     durationMs: 230000,
-    spotifyId: "1nYdkPCbHdYi4w7s2L6SHA",
     youtubeId: "77732s9y23A",
     glowColor: "rgba(245, 158, 11, 0.18)"
   },
@@ -92,7 +89,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d0000485110542e1524cbfe41bdb82ad3",
     durationMs: 245000,
-    spotifyId: "026wpXkLAjImiWOzzcJBHj",
     youtubeId: "cMplq2h7Yio",
     glowColor: "rgba(6, 182, 212, 0.2)"
   },
@@ -102,7 +98,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d0000485159ae8cf65d498afdd5585634",
     durationMs: 260000,
-    spotifyId: "4qG7hWhljsqqENL5PaLA2z",
     youtubeId: "rF8C1S3w3_w",
     glowColor: "rgba(236, 72, 153, 0.2)"
   },
@@ -112,7 +107,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048511624590458126fc8b8c64c2f",
     durationMs: 275000,
-    spotifyId: "4VSg5K1hnbmIg4PwRdY6wV",
     youtubeId: "rJABBmAMXnY",
     glowColor: "rgba(16, 185, 129, 0.2)"
   },
@@ -122,7 +116,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048511624590458126fc8b8c64c2f",
     durationMs: 290000,
-    spotifyId: "1NZs6n6hl8UuMaX0UC0YTz",
     youtubeId: "T5xcnjAG8pE",
     glowColor: "rgba(59, 130, 246, 0.2)"
   },
@@ -132,7 +125,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851aa27708d07f49c82ff0d0dae",
     durationMs: 205000,
-    spotifyId: "6GGtHZgBycCgGBUhZo81xe",
     youtubeId: "hKq8V5yVv2g",
     glowColor: "rgba(239, 68, 68, 0.2)"
   },
@@ -142,7 +134,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048518b58d20f1b77295730db15b4",
     durationMs: 220000,
-    spotifyId: "2o1pb13quMReXZqE7jWsgq",
     youtubeId: "Q1N7XG-7L9k",
     glowColor: "rgba(139, 92, 246, 0.22)"
   },
@@ -152,7 +143,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851a388a3f20d1bf2123249cc79",
     durationMs: 235000,
-    spotifyId: "56NkIxSZZiMpFP5ZNSxtnT",
     youtubeId: "knU9gRUWCJQ",
     glowColor: "rgba(245, 158, 11, 0.18)"
   },
@@ -162,7 +152,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851e3f1ba3de4659708c25d0f39",
     durationMs: 250000,
-    spotifyId: "2t0wwvR15fc3K1ey8OiOaN",
     youtubeId: "yPjOehv2vG4",
     glowColor: "rgba(6, 182, 212, 0.2)"
   },
@@ -172,7 +161,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048519a2665c5a1c7963d66d303f1",
     durationMs: 265000,
-    spotifyId: "3jXptpf8Z3aU9O1Bj6YCl0",
     youtubeId: "tP4w2QZf178",
     glowColor: "rgba(236, 72, 153, 0.2)"
   },
@@ -182,7 +170,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048515b7cbf4c2e0c4607dd56b137",
     durationMs: 280000,
-    spotifyId: "2QB8FwOszur18Ai7t2XnNi",
     youtubeId: "Y1H5Ue_u0y4",
     glowColor: "rgba(16, 185, 129, 0.2)"
   },
@@ -192,7 +179,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048517f22337546d61faca55e0f4f",
     durationMs: 295000,
-    spotifyId: "76GlO5H5RT6g7y0gev86Nk",
     youtubeId: "n3nPiBaikm0",
     glowColor: "rgba(59, 130, 246, 0.2)"
   },
@@ -202,7 +188,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851608a63ad5b18e99da94a3f73",
     durationMs: 210000,
-    spotifyId: "0ESIjVxnDnCDaTPo6sStHm",
     youtubeId: "D6y2p7m0N7M",
     glowColor: "rgba(239, 68, 68, 0.2)"
   },
@@ -212,7 +197,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851ed801e58a9ababdea6ac7ce4",
     durationMs: 225000,
-    spotifyId: "3KfbEIOC7YIv90FIfNSZpo",
     youtubeId: "5tV8nJ5Vq8s",
     glowColor: "rgba(139, 92, 246, 0.22)"
   },
@@ -222,7 +206,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048514ce8b4e42588bf18182a1ad2",
     durationMs: 240000,
-    spotifyId: "09x9v1o51dbqi5H0u7UGfp",
     youtubeId: "xVeeh6G07zE",
     glowColor: "rgba(245, 158, 11, 0.18)"
   },
@@ -232,7 +215,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851944e11093f0e01c60be5be8f",
     durationMs: 255000,
-    spotifyId: "0YZEYxd1oiqZRFhnnmTKKi",
     youtubeId: "qPLK5P2m6-k",
     glowColor: "rgba(6, 182, 212, 0.2)"
   },
@@ -242,7 +224,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851cab7ae4868e9f9ce6bdfdf43",
     durationMs: 270000,
-    spotifyId: "5dTHtzHFPyi8TlTtzoz1J9",
     youtubeId: "UCCyoocDxBAA",
     glowColor: "rgba(236, 72, 153, 0.2)"
   },
@@ -252,7 +233,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048516fc1b2193f39c1eac7ad253d",
     durationMs: 285000,
-    spotifyId: "6vWu5uWlox5TVDPl3LvoG3",
     youtubeId: "3gQ5B_M4jV4",
     glowColor: "rgba(16, 185, 129, 0.2)"
   },
@@ -262,7 +242,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851a47c6d8a934b4833c0916cc9",
     durationMs: 200000,
-    spotifyId: "0myRViRgmQ3J8izICXEAVO",
     youtubeId: "WvT5v7P7N7E",
     glowColor: "rgba(59, 130, 246, 0.2)"
   },
@@ -272,7 +251,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048515aa30ba7fff59083baccc773",
     durationMs: 215000,
-    spotifyId: "7IL8PSVwLOJxqYne6azxQv",
     youtubeId: "8z5V7v8sN7E",
     glowColor: "rgba(239, 68, 68, 0.2)"
   },
@@ -282,7 +260,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048513d3e53004945125cfeeeadc5",
     durationMs: 230000,
-    spotifyId: "5j7HESfa8OXs3hTqQ1ZvnR",
     youtubeId: "3f9V7v8sN7E",
     glowColor: "rgba(139, 92, 246, 0.22)"
   },
@@ -292,7 +269,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851ecaed060a7fd28be92069778",
     durationMs: 245000,
-    spotifyId: "2gANywSFYF58YFMPdDSAjC",
     youtubeId: "maTcoYsc1tU",
     glowColor: "rgba(245, 158, 11, 0.18)"
   },
@@ -302,7 +278,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048512e651648db439a9b5995e065",
     durationMs: 260000,
-    spotifyId: "1qcJdr8TYuGjFhjRoYNC3e",
     youtubeId: "8e8V_8xN7Ew",
     glowColor: "rgba(6, 182, 212, 0.2)"
   },
@@ -312,7 +287,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d0000485132a7d87248d1b75463483df5",
     durationMs: 275000,
-    spotifyId: "4IT6vDuKprKl6jyVndlY8V",
     youtubeId: "Yt5V7v8sN7E",
     glowColor: "rgba(236, 72, 153, 0.2)"
   },
@@ -322,7 +296,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851d2c9d673548c12ad1c32e38d",
     durationMs: 290000,
-    spotifyId: "7D5n2kpYH2WSqIyEO9MeXf",
     youtubeId: "ErvgV4P6Fzc",
     glowColor: "rgba(16, 185, 129, 0.2)"
   },
@@ -332,7 +305,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d00004851ac4ebd092fa2cf210e4c8023",
     durationMs: 205000,
-    spotifyId: "5WbfFTuIldjL9x7W6y5l7R",
     youtubeId: "dQw4w9WgXcQ",
     glowColor: "rgba(59, 130, 246, 0.2)"
   },
@@ -342,7 +314,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d0000485134f2d9844b4114bd781d5bc4",
     durationMs: 220000,
-    spotifyId: "3z9OnsnvM6SFN2dzrSDdVO",
     youtubeId: "1f5V7v8sN7E",
     glowColor: "rgba(239, 68, 68, 0.2)"
   },
@@ -352,7 +323,6 @@ const CURATED_ROMANTIC_VIBES = [
     album: "Romantic Vibe",
     artwork: "https://i.scdn.co/image/ab67616d000048517fcead687e99583072cc217b",
     durationMs: 235000,
-    spotifyId: "1gZADNt16Oh23jWyMYRk4p",
     youtubeId: "Tt5V7v8sN7E",
     glowColor: "rgba(139, 92, 246, 0.22)"
   }
@@ -1462,7 +1432,7 @@ export default function HomeView() {
         artwork: vibe.artwork,
         durationMs: vibe.durationMs,
       },
-      vibe.youtubeId || vibe.spotifyId,
+      vibe.youtubeId,
       0
     );
   };
