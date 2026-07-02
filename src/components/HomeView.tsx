@@ -1033,9 +1033,59 @@ const [spotifyError, setSpotifyError] = useState<string | null>(null);
 const [likedSongs, setLikedSongs] = useState<Record<string, boolean>>({});
 const [showLyrics, setShowLyrics] = useState(true);
 const [isLinkMode, setIsLinkMode] = useState(false);
-const [playlistUrl, setPlaylistUrl] = useState("https://open.spotify.com/playlist/1ZGxVEsURt38tN5gEr6LCJ");
+const [playlistUrl, setPlaylistUrl] = useState("https://music.youtube.com/playlist?list=PLdf4QJ5Wy29c");
 const [playlistTracks, setPlaylistTracks] = useState<any[]>(CURATED_ROMANTIC_VIBES);
 const [isLoadingPlaylist, setIsLoadingPlaylist] = useState(false);
+
+useEffect(() => {
+  const fetchPlaylistTracks = async () => {
+    const apiKey = import.meta.env.VITE_YOUTUBE_API_KEY;
+    if (!apiKey) return;
+    try {
+      setIsLoadingPlaylist(true);
+      const res = await fetch(
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=PLdf4QJ5Wy29c&key=${apiKey}`
+      );
+      const data = await res.json();
+      if (data && data.items) {
+        const tracks = data.items.map((item: any) => {
+          const snippet = item.snippet;
+          const videoId = snippet?.resourceId?.videoId;
+          const title = snippet?.title || "Unknown Track";
+          let displayTitle = title;
+          let displayArtist = "YouTube Music";
+          
+          if (title.includes(" - ")) {
+            const parts = title.split(" - ");
+            displayArtist = parts[0].trim();
+            displayTitle = parts[1].replace(/\(Official.*?\)/gi, "").replace(/\[Official.*?\]/gi, "").trim();
+          } else if (snippet?.videoOwnerChannelTitle) {
+            displayArtist = snippet.videoOwnerChannelTitle.replace(/ - Topic$/i, "");
+          }
+          
+          return {
+            title: displayTitle,
+            artist: displayArtist,
+            album: "YouTube Music Playlist",
+            artwork: snippet?.thumbnails?.medium?.url || snippet?.thumbnails?.default?.url || "https://images.unsplash.com/photo-1614680376593-902f74fa0d41?q=80&w=150&auto=format&fit=crop",
+            durationMs: 240000,
+            spotifyId: videoId,
+            glowColor: "rgba(139, 92, 246, 0.22)",
+          };
+        });
+        if (tracks.length > 0) {
+          setPlaylistTracks(tracks);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch playlist tracks:", error);
+    } finally {
+      setIsLoadingPlaylist(false);
+    }
+  };
+
+  fetchPlaylistTracks();
+}, []);
 
 const [isShuffleActive, setIsShuffleActive] = useState<boolean>(() => {
   return localStorage.getItem("spotify_shuffle_active") === "true";
