@@ -264,10 +264,10 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const docRefA = doc(db, "profiles", "user_a");
       const docRefB = doc(db, "profiles", "user_b");
-      
+
       let docA = await getDoc(docRefA);
       let docB = await getDoc(docRefB);
-      
+
       // Auto-seed profile slots if Firestore is brand new (using clean placeholders)
       if (!docA.exists()) {
         console.log("[DEBUG AUTH] Seeding initial empty slot for Partner A");
@@ -283,7 +283,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         await setDoc(docRefA, initialA);
         docA = await getDoc(docRefA);
       }
-      
+
       if (!docB.exists()) {
         console.log("[DEBUG AUTH] Seeding initial empty slot for Partner B");
         const initialB = {
@@ -298,10 +298,10 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         await setDoc(docRefB, initialB);
         docB = await getDoc(docRefB);
       }
-      
+
       const valA = docA.exists() ? docA.data() : null;
       const valB = docB.exists() ? docB.data() : null;
-      
+
       if (valA?.auth_id === authUserId) {
         console.log("[DEBUG AUTH] Found matching slot: user_a");
         setCurrentUser("user_a");
@@ -329,7 +329,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Extract real user details from Google authentication details
       const googleName = auth.currentUser.displayName || (slotId === "user_a" ? "Partner A" : "Partner B");
       const googleAvatar = auth.currentUser.photoURL || (slotId === "user_a" ? DEFAULT_AVATAR_A : DEFAULT_AVATAR_B);
-      
+
       await setDoc(doc(db, "profiles", slotId), {
         id: slotId,
         auth_id: auth.currentUser.uid,
@@ -339,7 +339,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         mood: "happy",
         updated_at: new Date().toISOString()
       }, { merge: true });
-      
+
       setCurrentUser(slotId);
       setIsOnboarding(false);
     } catch (e) {
@@ -380,23 +380,23 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return saved ? JSON.parse(saved) : initialUserB;
   });
 
-  const [memories, setMemories] = useState<Memory[]>(() => 
+  const [memories, setMemories] = useState<Memory[]>(() =>
     getInitialListState("couple_memories", initialMemories)
   );
 
-  const [journals, setJournals] = useState<Journal[]>(() => 
+  const [journals, setJournals] = useState<Journal[]>(() =>
     getInitialListState("couple_journals", initialJournals)
   );
 
-  const [letters, setLetters] = useState<Letter[]>(() => 
+  const [letters, setLetters] = useState<Letter[]>(() =>
     getInitialListState("couple_letters", initialLetters)
   );
 
-  const [timeCapsules, setTimeCapsules] = useState<TimeCapsule[]>(() => 
+  const [timeCapsules, setTimeCapsules] = useState<TimeCapsule[]>(() =>
     getInitialListState("couple_time_capsules", initialTimeCapsules)
   );
 
-  const [missions, setMissions] = useState<Mission[]>(() => 
+  const [missions, setMissions] = useState<Mission[]>(() =>
     getInitialListState("couple_missions", initialMissions)
   );
 
@@ -422,11 +422,11 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const [currentSong, setCurrentSong] = useState<Song>(initialSpotifySong);
 
-  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => 
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() =>
     getInitialListState("couple_activity_logs", initialLogs)
   );
 
-  const [moodHistory, setMoodHistory] = useState<MoodHistoryEntry[]>(() => 
+  const [moodHistory, setMoodHistory] = useState<MoodHistoryEntry[]>(() =>
     getInitialListState("couple_mood_history", initialMoodHistory)
   );
 
@@ -580,23 +580,16 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     });
 
-    const unsubSpotify = onSnapshot(doc(db, "settings", "spotify_state"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.updatedBy !== currentUser) {
-          setCurrentSong({
-            title: data.title,
-            artist: data.artist,
-            album: data.album,
-            artwork: data.artwork,
-            durationMs: data.durationMs,
-            progressMs: data.progressMs,
-            isPlaying: data.isPlaying,
-            spotifyId: data.spotifyId,
-          });
-        }
-      }
-    });
+    // NOTE: There used to be a second onSnapshot listener here on
+    // "settings/spotify_state" — a leftover from the old Spotify Web
+    // Playback SDK integration. Nothing in the app writes to that document
+    // anymore; the single source of truth for the shared player is now
+    // "rooms/spotify_room", owned and synced by HomeView.tsx via
+    // syncSongToPartner(). Keeping this listener alive meant it could fire
+    // with stale/empty data on every reconnect and silently overwrite
+    // currentSong right after HomeView had just synced it correctly — the
+    // root cause of "sync gak jalan / lagu gak sesuai link yang di-paste".
+    // It has been removed.
 
     return () => {
       unsubProfiles();
@@ -604,7 +597,6 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       unsubLogs();
       unsubMissions();
       unsubSettings();
-      unsubSpotify();
     };
   }, [session, currentUser]);
 
@@ -685,16 +677,25 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     localStorage.setItem("couple_theme", theme);
   }, [theme]);
 
-  // Simulate Spotify track updates
+  // Local progress ticker — purely cosmetic (keeps the progress bar
+  // animating between real syncs from Firestore). It intentionally no
+  // longer dispatches "spotifyTrackFinished" itself: the real YouTube
+  // player (see HomeView.tsx onStateChange) is the sole authority on when
+  // a track has actually ended. This ticker used to fire that event too,
+  // based on `durationMs` — which for pasted links is a hardcoded guess
+  // (240000ms), not the video's real length — causing premature or
+  // duplicate track skips that had nothing to do with the actual audio.
   useEffect(() => {
     let interval: any = null;
     if (currentSong.isPlaying) {
       interval = setInterval(() => {
         setCurrentSong((prev) => {
           const nextProgress = prev.progressMs + 1000;
-          if (nextProgress >= prev.durationMs) {
-            window.dispatchEvent(new CustomEvent("spotifyTrackFinished"));
-            return { ...prev, progressMs: 0 };
+          // Yield authority to actual YouTube player: do not cap progress at durationMs
+          // if it's using the fallback duration (240000ms) to prevent premature cut-off.
+          const isFallbackDuration = prev.durationMs === 240000;
+          if (nextProgress >= prev.durationMs && !isFallbackDuration) {
+            return { ...prev, progressMs: prev.durationMs };
           }
           return { ...prev, progressMs: nextProgress };
         });
@@ -845,7 +846,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (updates.title !== undefined) dbUpdates.title = updates.title;
       if (updates.imageUrl !== undefined) dbUpdates.image_url = updates.imageUrl;
       if (updates.date !== undefined) dbUpdates.date = new Date(updates.date).toISOString().split("T")[0];
-      
+
       await updateDoc(docRef, dbUpdates);
       addActivity(`edited a milestone memory: "${updates.title || 'Untitled'}"`);
     } catch (e) {
