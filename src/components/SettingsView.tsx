@@ -6,6 +6,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useCouple } from "../context/CoupleContext";
 import { uploadBase64Image } from "../firebaseClient";
+import { db } from "../firebaseClient";
+import { doc, onSnapshot } from "firebase/firestore";
 import {
   Palette,
   ShieldAlert,
@@ -23,6 +25,8 @@ import {
   ChevronUp,
   AlertTriangle,
   CheckCircle2,
+  UserX,
+  Users,
 } from "lucide-react";
 import { ThemeType } from "../types";
 
@@ -50,6 +54,7 @@ export default function SettingsView() {
     adminResetMissions,
     adminClearActivityLogs,
     adminDeleteAllMemories,
+    adminKickSlot,
   } = useCouple();
 
   const ADMIN_EMAIL = "pratamagerrio@gmail.com";
@@ -58,6 +63,48 @@ export default function SettingsView() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminActionResult, setAdminActionResult] = useState<string | null>(null);
   const [adminActionLoading, setAdminActionLoading] = useState<string | null>(null);
+
+  // Live slot status — fetched from Firestore in real time
+  const [slotStatus, setSlotStatus] = useState<{
+    a: { name: string; email: string | null; claimed: boolean; avatar: string };
+    b: { name: string; email: string | null; claimed: boolean; avatar: string };
+  }>({
+    a: { name: "Partner A", email: null, claimed: false, avatar: "" },
+    b: { name: "Partner B", email: null, claimed: false, avatar: "" },
+  });
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const unsubA = onSnapshot(doc(db, "profiles", "user_a"), (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setSlotStatus((prev) => ({
+          ...prev,
+          a: {
+            name: d.name || "Partner A",
+            email: d.email || null,
+            claimed: !!d.auth_id,
+            avatar: d.avatar_url || "",
+          },
+        }));
+      }
+    });
+    const unsubB = onSnapshot(doc(db, "profiles", "user_b"), (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setSlotStatus((prev) => ({
+          ...prev,
+          b: {
+            name: d.name || "Partner B",
+            email: d.email || null,
+            claimed: !!d.auth_id,
+            avatar: d.avatar_url || "",
+          },
+        }));
+      }
+    });
+    return () => { unsubA(); unsubB(); };
+  }, [isAdmin]);
 
   // Admin Anniversary & Birthday States
   const [newAnniversary, setNewAnniversary] = useState(anniversaryDate);
@@ -504,6 +551,66 @@ export default function SettingsView() {
                 </div>
 
 
+
+                {/* Manage User Slots */}
+                <div className="bg-white/5 border border-orange-500/20 rounded-xl p-4 space-y-3">
+                  <p className="text-xs font-bold text-orange-100 flex items-center gap-2 border-b border-orange-500/10 pb-2">
+                    <Users className="w-4 h-4 text-orange-400" />
+                    Manage User Slots
+                  </p>
+                  <p className="text-[9px] text-orange-400/70 leading-relaxed">
+                    Only 2 slots are allowed. You (admin) are in Slot B. Kicking a slot resets it to unclaimed — that user will need to re-join.
+                  </p>
+
+                  {/* Slot A */}
+                  <div className="flex items-center gap-3 p-3 bg-black/20 rounded-xl border border-white/5">
+                    <div className="relative flex-shrink-0">
+                      {slotStatus.a.avatar
+                        ? <img src={slotStatus.a.avatar} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-orange-400/30" referrerPolicy="no-referrer" />
+                        : <div className="w-9 h-9 rounded-full bg-orange-500/10 border-2 border-orange-400/20 flex items-center justify-center"><UserX className="w-4 h-4 text-orange-400" /></div>
+                      }
+                      <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-900 ${slotStatus.a.claimed ? "bg-emerald-400" : "bg-gray-500"}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-white truncate">{slotStatus.a.name}</p>
+                      <p className="text-[9px] font-mono text-orange-400/70 truncate">
+                        {slotStatus.a.claimed ? "🟢 Slot A · Claimed" : "⚫ Slot A · Empty"}
+                      </p>
+                    </div>
+                    {slotStatus.a.claimed && (
+                      <button
+                        onClick={() => runAdminAction(
+                          "eject Slot A user (they will be logged out)",
+                          () => adminKickSlot("user_a")
+                        )}
+                        disabled={!!adminActionLoading}
+                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/40 border border-orange-500/30 hover:border-orange-400/60 rounded-lg text-orange-200 text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50"
+                      >
+                        <UserX className={`w-3.5 h-3.5 ${adminActionLoading === "eject Slot A user (they will be logged out)" ? "animate-bounce" : ""}`} />
+                        Kick
+                      </button>
+                    )}
+                    {!slotStatus.a.claimed && (
+                      <span className="flex-shrink-0 px-2 py-1 bg-gray-500/10 border border-gray-500/20 rounded-lg text-gray-500 text-[9px] font-mono">Empty</span>
+                    )}
+                  </div>
+
+                  {/* Slot B (admin self) */}
+                  <div className="flex items-center gap-3 p-3 bg-black/20 rounded-xl border border-purple-500/20">
+                    <div className="relative flex-shrink-0">
+                      {slotStatus.b.avatar
+                        ? <img src={slotStatus.b.avatar} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-purple-400/40" referrerPolicy="no-referrer" />
+                        : <div className="w-9 h-9 rounded-full bg-purple-500/10 border-2 border-purple-400/20 flex items-center justify-center"><Shield className="w-4 h-4 text-purple-400" /></div>
+                      }
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-900 bg-emerald-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-purple-100 truncate">{slotStatus.b.name}</p>
+                      <p className="text-[9px] font-mono text-purple-400/70">🟢 Slot B · Admin (You)</p>
+                    </div>
+                    <span className="flex-shrink-0 px-2 py-1 bg-purple-500/10 border border-purple-500/20 rounded-lg text-purple-300 text-[9px] font-bold">Admin</span>
+                  </div>
+                </div>
 
                 {/* Result banner */}
                 {adminActionResult && (

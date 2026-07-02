@@ -79,6 +79,7 @@ interface CoupleContextProps {
   adminResetMissions: () => Promise<void>;
   adminClearActivityLogs: () => Promise<void>;
   adminDeleteAllMemories: () => Promise<void>;
+  adminKickSlot: (slotId: "user_a" | "user_b") => Promise<void>;
   updateCoupleSettings: (annivDate: string, bdayA: string, bdayB: string, cloudName?: string, uploadPreset?: string) => Promise<void>;
 }
 
@@ -891,6 +892,26 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  /**
+   * Admin-only: Kick a user out of their slot by resetting auth_id to null.
+   * The kicked user will be redirected to onboarding on next page load.
+   */
+  const adminKickSlot = async (slotId: "user_a" | "user_b") => {
+    try {
+      await updateDoc(doc(db, "profiles", slotId), {
+        auth_id: null,
+        name: slotId === "user_a" ? "Partner A (Empty)" : "Partner B (Empty)",
+        avatar_url: slotId === "user_a" ? DEFAULT_AVATAR_A : DEFAULT_AVATAR_B,
+        status: "Waiting for connection...",
+        updated_at: new Date().toISOString(),
+      });
+      addActivity(`admin ejected ${slotId} slot and reset it to unclaimed 🛠️`);
+    } catch (e) {
+      console.error("Admin kick slot error:", e);
+      throw e;
+    }
+  };
+
   const updateCoupleSettings = async (
     annivDate: string,
     bdayA: string,
@@ -1236,6 +1257,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         adminResetMissions,
         adminClearActivityLogs,
         adminDeleteAllMemories,
+        adminKickSlot,
         updateCoupleSettings,
       }}
     >

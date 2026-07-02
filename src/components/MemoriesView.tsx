@@ -5,7 +5,8 @@
 
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useCouple } from "../context/CoupleContext";
-import { uploadBase64Image, db, uploadToCloudinary, CLOUDINARY_CLOUD_NAME, CLOUDINARY_UPLOAD_PRESET } from "../firebaseClient";
+import { db } from "../firebaseClient";
+import { uploadImage } from "../services/cloudinary";
 import { useCamera } from "../hooks/useCamera";
 import { doc, setDoc, updateDoc, onSnapshot, deleteDoc, getDoc, collection } from "firebase/firestore";
 import { motion, AnimatePresence } from "motion/react";
@@ -170,6 +171,7 @@ export default function MemoriesView() {
   const [showPrintAnimation, setShowPrintAnimation] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
   const [dragConstraints, setDragConstraints] = useState({ left: 0, right: 0 });
+  const [stickerPlacements, setStickerPlacements] = useState<{ id: number; sticker: string; x: number; y: number }[]>([]);
 
   // LDR COLLABORATIVE STATES
   const [colabMode, setColabMode] = useState<"split" | "alternating" | "solo">("split");
@@ -309,7 +311,7 @@ export default function MemoriesView() {
           if (msg.payload.layout !== undefined && msg.payload.layout !== layoutRef.current) setLayout(msg.payload.layout);
           break;
         case "START_COUNTDOWN":
-          triggerSnapsLocal();
+          startSynchronizedCapture();
           break;
         case "SNAP_PHOTO":
           partnerPhotosRef.current[msg.payload.slotIndex] = msg.payload.photo;
@@ -802,24 +804,26 @@ export default function MemoriesView() {
             new Date().toISOString()
           );
 
-          let quality = 0.85;
+          let quality = 0.80;
           let blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+          if (!blob) {
+            // Fallback to PNG if WebP fails
+            blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+          }
           if (!blob) throw new Error("Blob generation failed");
 
-          while (blob.size > 200 * 1024 && quality > 0.3) {
-            quality -= 0.1;
+          // Compress loop targeting 100KB-150KB, maximum 200KB
+          while (blob.size > 200 * 1024 && quality > 0.15) {
+            quality -= 0.08;
             const nextBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
             if (nextBlob) blob = nextBlob;
           }
 
           console.log(`[Photobooth] Combined strip compressed successfully. Size: ${(blob.size / 1024).toFixed(1)} KB`);
 
-          const cloudName = cloudinaryCloudName || CLOUDINARY_CLOUD_NAME;
-          const uploadPreset = cloudinaryUploadPreset || CLOUDINARY_UPLOAD_PRESET;
-          const filename = `photostrip-${Date.now()}.webp`;
-
-          const finalUrl = await uploadToCloudinary(blob, filename, cloudName, uploadPreset);
-          console.log("[Photobooth] Cloudinary upload successful:", finalUrl);
+          const uploadRes = await uploadImage(blob);
+          const finalUrl = uploadRes.secure_url;
+          console.log("[Photobooth] Cloudinary upload successful via service:", finalUrl);
 
           await addMemory({
             type: "photobooth",
@@ -852,7 +856,7 @@ export default function MemoriesView() {
     });
 
     return () => unsub();
-  }, [activeSubTab, roomId, currentUser, cloudinaryCloudName, cloudinaryUploadPreset]);
+  }, [activeSubTab, roomId, currentUser]);
 
 
 
@@ -1471,7 +1475,6 @@ export default function MemoriesView() {
       return;
     }
 
-    let finalBase64 = "";
     let finalImageUrl = "";
 
     try {
@@ -1488,9 +1491,24 @@ export default function MemoriesView() {
         new Date().toISOString()
       );
 
-      finalBase64 = canvas.toDataURL("image/png");
-      const filename = `photostrip-${Date.now()}-${Math.floor(Math.random() * 1000)}.png`;
-      finalImageUrl = await uploadBase64Image(finalBase64, filename);
+      let quality = 0.80;
+      let blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+      if (!blob) {
+        blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      }
+      if (!blob) throw new Error("Blob generation failed");
+
+      while (blob.size > 200 * 1024 && quality > 0.15) {
+        quality -= 0.08;
+        const nextBlob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality));
+        if (nextBlob) blob = nextBlob;
+      }
+
+      console.log(`[Photobooth Manual Save] Compressed successfully. Size: ${(blob.size / 1024).toFixed(1)} KB`);
+
+      const uploadRes = await uploadImage(blob);
+      finalImageUrl = uploadRes.secure_url;
+      console.log("[Photobooth Manual Save] Cloudinary upload successful:", finalImageUrl);
     } catch (err) {
       console.error("Failed to render strip for timeline save:", err);
       finalImageUrl = photos[0];

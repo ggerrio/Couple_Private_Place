@@ -4,6 +4,12 @@
  */
 
 import React, { useState, useRef, useEffect } from "react";
+import { auth } from "../firebaseClient";
+import { db } from "../firebaseClient";
+import {
+  collection, doc, addDoc, updateDoc, setDoc, getDoc,
+  onSnapshot, increment, arrayUnion, serverTimestamp, query, orderBy, deleteDoc, getDocs
+} from "firebase/firestore";
 import { useCouple } from "../context/CoupleContext";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -33,27 +39,129 @@ export default function PlayView() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
-  // No partner cursor simulation
 
-  // Canvas context cache
+  // ponytail: stroke-based streaming — no blobs, no dataURL, no 1MB limit
+  const STROKES_COL = collection(db, "rooms", "sketch_room", "strokes");
+  const activeStrokeId = useRef<string | null>(null);
+  const lastFlushRef = useRef(0);
+  const pendingPoints = useRef<{x:number,y:number}[]>([]);
+  const renderedStrokes = useRef<Set<string>>(new Set());
+
+  // Flush buffered points to the active stroke doc (throttled ~80ms)
+  const flushPoints = () => {
+    if (!activeStrokeId.current || pendingPoints.current.length === 0) return;
+    const pts = pendingPoints.current.splice(0);
+    updateDoc(doc(db, "rooms", "sketch_room", "strokes", activeStrokeId.current), {
+      points: arrayUnion(...pts),
+    });
+  };
+
+  // onSnapshot: replay strokes to canvas as they stream in
   useEffect(() => {
-    if (activePlaySubTab === "canvas") {
-      const canvas = canvasRef.current;
-      if (canvas) {
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.lineCap = "round";
-          ctx.lineJoin = "round";
-          // Seed initial white board
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          saveToHistory();
-        }
-      }
-    }
+    const unsub = onSnapshot(query(STROKES_COL, orderBy("createdAt", "asc")), (snap) => {
+      const ctx = canvasRef.current?.getContext("2d");
+      if (!ctx) return;
+      snap.docChanges().forEach((change) => {
+        if (change.type === "removed") return; // clear handled separately
+        const s = change.doc.data();
+        const pts: {x:number,y:number}[] = s.points ?? [];
+        if (pts.length < 2) return;
+        // Skip strokes the local user is actively drawing (already on canvas)
+        if (change.doc.id === activeStrokeId.current) return;
+        // Full-redraw for this stroke (incremental would need tracking per-point cursor)
+        ctx.save();
+        ctx.strokeStyle = s.color ?? "#000000";
+        ctx.lineWidth = s.size ?? 5;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+        ctx.restore();
+        renderedStrokes.current.add(change.doc.id);
+      });
+    });
+    return unsub;
+  }, []);
+
+  // Canvas init on tab switch
+  useEffect(() => {
+    if (activePlaySubTab !== "canvas") return;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    saveToHistory();
   }, [activePlaySubTab]);
 
-  // Partner drawing simulation loop removed
+  const getPoint = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const sx = canvas.width / rect.width;
+    const sy = canvas.height / rect.height;
+    const src = (e as React.TouchEvent).touches?.[0] ?? (e as React.MouseEvent);
+    return { x: (src.clientX - rect.left) * sx, y: (src.clientY - rect.top) * sy };
+  };
+
+  const startStroke = async (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if ((e as React.TouchEvent).touches) (e as React.TouchEvent).preventDefault();
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+    const pt = getPoint(e);
+    ctx.strokeStyle = tool === "eraser" ? "#ffffff" : color;
+    ctx.lineWidth = brushSize;
+    ctx.beginPath();
+    ctx.moveTo(pt.x, pt.y);
+    setIsDrawing(true);
+    // Create stroke doc in Firestore
+    const ref = await addDoc(STROKES_COL, {
+      color: tool === "eraser" ? "#ffffff" : color,
+      size: brushSize,
+      points: [pt],
+      createdAt: serverTimestamp(),
+    });
+    activeStrokeId.current = ref.id;
+    pendingPoints.current = [];
+  };
+
+  const continueStroke = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !activeStrokeId.current) return;
+    if ((e as React.TouchEvent).touches) (e as React.TouchEvent).preventDefault();
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    const pt = getPoint(e);
+    if (tool === "brush" || tool === "eraser") {
+      ctx.lineTo(pt.x, pt.y);
+      ctx.stroke();
+      pendingPoints.current.push(pt);
+      const now = Date.now();
+      if (now - lastFlushRef.current > 80) {
+        lastFlushRef.current = now;
+        flushPoints();
+      }
+    } else if (tool === "circle") {
+      ctx.arc(pt.x, pt.y, brushSize * 3, 0, Math.PI * 2);
+      ctx.stroke();
+      setIsDrawing(false);
+    } else if (tool === "square") {
+      ctx.strokeRect(pt.x - brushSize * 3, pt.y - brushSize * 3, brushSize * 6, brushSize * 6);
+      setIsDrawing(false);
+    }
+  };
+
+  const endStroke = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    flushPoints(); // final flush
+    activeStrokeId.current = null;
+    saveToHistory();
+    awardXp(5, "collaborative sketching");
+  };
 
   const saveToHistory = () => {
     const canvas = canvasRef.current;
@@ -64,201 +172,123 @@ export default function PlayView() {
     }
   };
 
-  const handleDrawingStart = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
-
-      setIsDrawing(true);
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.strokeStyle = tool === "eraser" ? "#ffffff" : color;
-        ctx.lineWidth = brushSize;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-      }
-    }
-  };
-
-  const handleDrawingMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = (e.clientX - rect.left) * scaleX;
-      const y = (e.clientY - rect.top) * scaleY;
-
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        if (tool === "brush" || tool === "eraser") {
-          ctx.lineTo(x, y);
-          ctx.stroke();
-        } else if (tool === "circle") {
-          // simple preview-less placement for stability
-          ctx.arc(x, y, brushSize * 3, 0, Math.PI * 2);
-          ctx.stroke();
-          setIsDrawing(false); // only one shape
-        } else if (tool === "square") {
-          ctx.strokeRect(x - brushSize * 3, y - brushSize * 3, brushSize * 6, brushSize * 6);
-          setIsDrawing(false);
-        }
-      }
-    }
-  };
-
-  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (canvas && e.touches.length > 0) {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = (touch.clientX - rect.left) * scaleX;
-      const y = (touch.clientY - rect.top) * scaleY;
-
-      setIsDrawing(true);
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.strokeStyle = tool === "eraser" ? "#ffffff" : color;
-        ctx.lineWidth = brushSize;
-        ctx.beginPath();
-        ctx.moveTo(x, y);
-      }
-    }
-  };
-
-  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return;
-    const canvas = canvasRef.current;
-    if (canvas && e.touches.length > 0) {
-      e.preventDefault();
-      const touch = e.touches[0];
-      const rect = canvas.getBoundingClientRect();
-      const scaleX = canvas.width / rect.width;
-      const scaleY = canvas.height / rect.height;
-      const x = (touch.clientX - rect.left) * scaleX;
-      const y = (touch.clientY - rect.top) * scaleY;
-
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        if (tool === "brush" || tool === "eraser") {
-          ctx.lineTo(x, y);
-          ctx.stroke();
-        } else if (tool === "circle") {
-          ctx.arc(x, y, brushSize * 3, 0, Math.PI * 2);
-          ctx.stroke();
-          setIsDrawing(false);
-        } else if (tool === "square") {
-          ctx.strokeRect(x - brushSize * 3, y - brushSize * 3, brushSize * 6, brushSize * 6);
-          setIsDrawing(false);
-        }
-      }
-    }
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
-    if (isDrawing) {
-      setIsDrawing(false);
-      saveToHistory();
-      awardXp(5, "collaborative sketching");
-    }
-  };
-
-  const handleDrawingEnd = () => {
-    if (isDrawing) {
-      setIsDrawing(false);
-      saveToHistory();
-      awardXp(5, "collaborative sketching");
-    }
-  };
-
+  // Undo: local only (history stack)
   const handleUndo = () => {
-    if (historyIndex > 0) {
-      const prevIdx = historyIndex - 1;
-      setHistoryIndex(prevIdx);
-      const img = new Image();
-      img.src = history[prevIdx];
-      img.onload = () => {
-        const ctx = canvasRef.current?.getContext("2d");
-        ctx?.clearRect(0, 0, 600, 400);
-        ctx?.drawImage(img, 0, 0);
-      };
-    }
+    if (historyIndex <= 0) return;
+    const prevIdx = historyIndex - 1;
+    setHistoryIndex(prevIdx);
+    const img = new Image();
+    img.src = history[prevIdx];
+    img.onload = () => {
+      const ctx = canvasRef.current?.getContext("2d");
+      ctx?.clearRect(0, 0, 600, 400);
+      ctx?.drawImage(img, 0, 0);
+    };
   };
 
-  const handleClear = () => {
+  // Clear: wipe canvas + delete all stroke docs
+  const handleClear = async () => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
-    if (canvas && ctx) {
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      saveToHistory();
-    }
+    if (!canvas || !ctx) return;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    saveToHistory();
+    renderedStrokes.current.clear();
+    const snap = await getDocs(STROKES_COL);
+    snap.forEach((d) => deleteDoc(d.ref));
   };
 
   // --- GAMES HUB STATE ---
   const [activeGame, setActiveGame] = useState<"ttt" | "connect4" | "dare" | "quiz" | "wouldYouRather">("ttt");
 
-  // TIC TAC TOE STATE
-  const [board, setBoard] = useState<(string | null)[]>(Array(9).fill(null));
-  const [tttTurn, setTttTurn] = useState<"O" | "X">("O"); // O = Partner A, X = Partner B
-  const [tttWinner, setTttWinner] = useState<string | null>(null);
-  const [scores, setScores] = useState({ userA: 2, userB: 3 });
+  // TIC TAC TOE — Firestore as single source of truth with UID-based ownership
+  // ponytail: playerO_uid / playerX_uid claimed on first move — no hardcoded slots
+  const TTT_DOC = doc(db, "game_state", "ttt");
+  const [tttState, setTttState] = useState<{
+    board: (string | null)[];
+    turn: "O" | "X";
+    winner: string | null;
+    scores: { userA: number; userB: number };
+    playerO_uid: string | null;
+    playerX_uid: string | null;
+  }>({
+    board: Array(9).fill(null),
+    turn: "O",
+    winner: null,
+    scores: { userA: 0, userB: 0 },
+    playerO_uid: null,
+    playerX_uid: null,
+  });
+
+  useEffect(() => {
+    const unsub = onSnapshot(TTT_DOC, (snap) => {
+      if (snap.exists()) {
+        const d = snap.data();
+        setTttState({
+          board: d.board ?? Array(9).fill(null),
+          turn: d.turn ?? "O",
+          winner: d.winner ?? null,
+          scores: d.scores ?? { userA: 0, userB: 0 },
+          playerO_uid: d.playerO_uid ?? null,
+          playerX_uid: d.playerX_uid ?? null,
+        });
+      }
+    });
+    return unsub;
+  }, []);
 
   const checkTTTWinner = (b: (string | null)[]) => {
-    const lines = [
-      [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
-      [0, 3, 6], [1, 4, 7], [2, 5, 8], // cols
-      [0, 4, 8], [2, 4, 6],            // diagonals
-    ];
-    for (let i = 0; i < lines.length; i++) {
-      const [a, c, d] = lines[i];
-      if (b[a] && b[a] === b[c] && b[a] === b[d]) {
-        return b[a];
-      }
+    const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for (const [a, c, d] of lines) {
+      if (b[a] && b[a] === b[c] && b[a] === b[d]) return b[a];
     }
-    if (b.every((cell) => cell !== null)) return "draw";
-    return null;
+    return b.every(Boolean) ? "draw" : null;
   };
 
-  const playTTTCell = (idx: number) => {
-    if (board[idx] || tttWinner) return;
+  const playTTTCell = async (idx: number) => {
+    const { board, turn, winner, playerO_uid, playerX_uid } = tttState;
+    const uid = auth.currentUser?.uid;
+    if (!uid || board[idx] || winner) return;
 
-    // O = Partner A, X = Partner B
-    const cellValue = tttTurn;
-    const nextBoard = [...board];
-    nextBoard[idx] = cellValue;
-    setBoard(nextBoard);
-
-    const winRes = checkTTTWinner(nextBoard);
-    if (winRes) {
-      setTttWinner(winRes);
-      if (winRes === "O") {
-        setScores((prev) => ({ ...prev, userA: prev.userA + 1 }));
-        awardXp(40, `winning Tic Tac Toe as ${userA.name}`);
-      } else if (winRes === "X") {
-        setScores((prev) => ({ ...prev, userB: prev.userB + 1 }));
-        awardXp(40, `winning Tic Tac Toe as ${userB.name}`);
-      } else {
-        awardXp(15, "completing a draw match");
-      }
+    // Auto-claim symbol on first move if slot is open
+    if (turn === "O" && !playerO_uid) {
+      await setDoc(TTT_DOC, { playerO_uid: uid }, { merge: true });
+    } else if (turn === "X" && !playerX_uid) {
+      await setDoc(TTT_DOC, { playerX_uid: uid }, { merge: true });
     } else {
-      setTttTurn(tttTurn === "O" ? "X" : "O");
+      // Guard: only the assigned player may move
+      if (turn === "O" && uid !== playerO_uid) return;
+      if (turn === "X" && uid !== playerX_uid) return;
+    }
+
+    const nextBoard = [...board];
+    nextBoard[idx] = turn;
+    const winRes = checkTTTWinner(nextBoard);
+    const nextTurn = turn === "O" ? "X" : "O";
+    await setDoc(TTT_DOC, {
+      board: nextBoard,
+      turn: winRes ? turn : nextTurn,
+      winner: winRes ?? null,
+    }, { merge: true });
+    if (winRes === "O") {
+      await updateDoc(TTT_DOC, { "scores.userA": increment(1) });
+      awardXp(40, `winning Tic Tac Toe as ${userA.name}`);
+    } else if (winRes === "X") {
+      await updateDoc(TTT_DOC, { "scores.userB": increment(1) });
+      awardXp(40, `winning Tic Tac Toe as ${userB.name}`);
+    } else if (winRes === "draw") {
+      awardXp(15, "completing a draw match");
     }
   };
 
-  const resetTTT = () => {
-    setBoard(Array(9).fill(null));
-    setTttWinner(null);
-    setTttTurn("O");
-  };
+  const resetTTT = () => setDoc(TTT_DOC, {
+    board: Array(9).fill(null),
+    turn: "O",
+    winner: null,
+    playerO_uid: null,
+    playerX_uid: null,
+  }, { merge: true });
 
   // WOULD YOU RATHER STATE
   const [wyrIndex, setWyrIndex] = useState(0);
@@ -381,25 +411,25 @@ export default function PlayView() {
             <div className="lg:col-span-8 flex flex-col justify-center">
               <div className="glass-panel p-6 rounded-2xl flex flex-col items-center justify-center min-h-[360px] text-center relative overflow-hidden">
                 
-                {/* GAME A: TIC TAC TOE */}
+                {/* GAME A: TIC TAC TOE — state from Firestore onSnapshot */}
                 {activeGame === "ttt" && (
                   <div className="space-y-4 w-full max-w-sm">
                     <div className="flex items-center justify-between pb-3 border-b">
                       <div className="text-left">
                         <span className="text-[10px] text-[var(--text-muted)] block font-mono">Score Board</span>
-                        <span className="text-xs font-bold">{userA.name.split(" ")[0]} {scores.userA} - {scores.userB} {userB.name.split(" ")[0]}</span>
+                        <span className="text-xs font-bold">{userA.name.split(" ")[0]} {tttState.scores.userA} - {tttState.scores.userB} {userB.name.split(" ")[0]}</span>
                       </div>
                       <div className="text-right">
                         <span className="text-[10px] text-[var(--text-muted)] block">Turn Indicator</span>
                         <span className="text-xs font-bold bg-[var(--primary)]/10 px-2 py-0.5 rounded border border-[var(--primary)]/20 text-[var(--primary)]">
-                          {tttTurn === "O" ? `${userA.name} (O)` : `${userB.name} (X)`}
+                          {tttState.turn === "O" ? `${userA.name} (O)` : `${userB.name} (X)`}
                         </span>
                       </div>
                     </div>
 
                     {/* The 3x3 Board Grid */}
                     <div className="grid grid-cols-3 gap-2 mx-auto w-56 h-56 mt-4">
-                      {board.map((cell, idx) => (
+                      {tttState.board.map((cell, idx) => (
                         <button
                           key={idx}
                           onClick={() => playTTTCell(idx)}
@@ -412,13 +442,13 @@ export default function PlayView() {
                     </div>
 
                     {/* Win overlay announcement */}
-                    {tttWinner && (
+                    {tttState.winner && (
                       <div className="pt-4 space-y-2">
                         <p className="text-sm font-bold text-emerald-600 flex items-center justify-center gap-1">
                           <Trophy className="w-4 h-4 fill-current text-yellow-500" />
-                          {tttWinner === "draw"
+                          {tttState.winner === "draw"
                             ? "Draw Match! Well played."
-                            : `${tttWinner === "O" ? userA.name : userB.name} won the match!`}
+                            : `${tttState.winner === "O" ? userA.name : userB.name} won the match!`}
                         </p>
                         <button
                           onClick={resetTTT}
@@ -671,13 +701,13 @@ export default function PlayView() {
                   ref={canvasRef}
                   width={600}
                   height={400}
-                  onMouseDown={handleDrawingStart}
-                  onMouseMove={handleDrawingMove}
-                  onMouseUp={handleDrawingEnd}
-                  onMouseLeave={handleDrawingEnd}
-                  onTouchStart={handleTouchStart}
-                  onTouchMove={handleTouchMove}
-                  onTouchEnd={handleTouchEnd}
+                  onMouseDown={startStroke}
+                  onMouseMove={continueStroke}
+                  onMouseUp={endStroke}
+                  onMouseLeave={endStroke}
+                  onTouchStart={startStroke}
+                  onTouchMove={continueStroke}
+                  onTouchEnd={endStroke}
                   className="w-full h-[280px] min-[400px]:h-[320px] sm:h-[400px] touch-none"
                 />
 
