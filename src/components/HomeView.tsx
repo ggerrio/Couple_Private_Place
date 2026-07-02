@@ -632,6 +632,7 @@ export default function HomeView() {
   // STATE FOR SPOTLIGHT MEMORY OF THE DAY
   const [spotlightMemory, setSpotlightMemory] = useState<Memory | null>(null);
   const [rotationCountdown, setRotationCountdown] = useState<string>("24h");
+  const [showVideoOverlay, setShowVideoOverlay] = useState(false);
 
   useEffect(() => {
     if (!memories || memories.length === 0) {
@@ -2542,97 +2543,39 @@ return (
                   <Music className={`w-3 h-3 ${currentSong.isPlaying ? 'animate-pulse' : ''}`} style={{ color: activeHighlightColor }} />
                   Listening Together
                 </span>
-                <span className="text-[8px] text-[var(--text-muted)] tracking-wider mt-0.5 uppercase font-mono block">Room Connected Sync</span>
+                <span className="text-[8px] text-[var(--text-muted)] tracking-wider mt-0.5 uppercase font-mono block">YouTube Audio Sync</span>
               </div>
             </div>
-            {/* Mode toggle */}
+            {/* Video overlay toggle */}
             <label className="flex items-center gap-2 bg-[var(--text-muted)]/10 px-3 py-1.5 rounded-full border border-[var(--border-color)] cursor-pointer select-none">
-              <span className="text-[8px] font-mono text-[var(--text-muted)] uppercase tracking-widest">Link Mode</span>
+              <span className="text-[8px] font-mono text-[var(--text-muted)] uppercase tracking-widest">{showVideoOverlay ? "Hide Video" : "Show Video"}</span>
               <div className="relative">
-                <input type="checkbox" checked={isLinkMode} onChange={(e) => setIsLinkMode(e.target.checked)} className="sr-only" />
-                <div className="w-7 h-4 rounded-full transition-colors" style={isLinkMode ? { backgroundColor: activeHighlightColor } : { backgroundColor: "rgba(var(--text-muted-rgb, 120,120,120), 0.1)", border: "1px solid var(--border-color)" }} />
-                <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform duration-200 ${isLinkMode ? 'translate-x-3' : ''}`} />
+                <input type="checkbox" checked={showVideoOverlay} onChange={(e) => setShowVideoOverlay(e.target.checked)} className="sr-only" />
+                <div className="w-7 h-4 rounded-full transition-colors" style={showVideoOverlay ? { backgroundColor: activeHighlightColor } : { backgroundColor: "rgba(var(--text-muted-rgb, 120,120,120), 0.1)", border: "1px solid var(--border-color)" }} />
+                <div className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full transition-transform duration-200 ${showVideoOverlay ? 'translate-x-3' : ''}`} />
               </div>
             </label>
           </div>
 
-
-          {/* SDK Token box (default SDK mode) */}
-          {!isLinkMode && (
-            <div className="mb-4 p-3.5 rounded-2xl border space-y-2" style={{ backgroundColor: activeHighlightColor + '0d', borderColor: activeHighlightColor + '20' }}>
-              <div className="flex items-center justify-between">
-                <span className="text-[8px] font-mono uppercase tracking-widest flex items-center gap-1.5 font-bold" style={{ color: activeHighlightColor }}>
-                  <Wifi className={`w-3 h-3 ${isSdkConnected ? 'animate-pulse' : 'text-[var(--text-muted)]/30'}`} style={isSdkConnected ? { color: activeHighlightColor } : undefined} />
-                  Spotify Premium Token
-                </span>
-                <a href="https://developer.spotify.com/documentation/web-playback-sdk/tutorials/getting-started" target="_blank" rel="noopener noreferrer"
-                  className="text-[8px] hover:opacity-85 hover:underline flex items-center gap-1 font-bold uppercase" style={{ color: activeHighlightColor }}>
-                  Get Token ↗
-                </a>
+          {/* YouTube Video URL / Search Input */}
+          <div className="mb-4 space-y-2 p-3.5 rounded-2xl border" style={{ backgroundColor: activeHighlightColor + '0d', borderColor: activeHighlightColor + '20' }}>
+            <form onSubmit={handleSpotifyUrlSubmit} className="space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-[8px] font-mono text-[var(--text-muted)] uppercase tracking-widest">Search Track or Paste YouTube Link</span>
+                {spotifyError && <span className="text-rose-500 font-mono text-[8px] font-bold animate-pulse">{spotifyError}</span>}
               </div>
-              <div className="relative">
-                <input
-                  type="password"
-                  placeholder="Paste Spotify OAuth Token (BQC...)"
-                  value={spotifyToken}
-                  onChange={(e) => setSpotifyToken(e.target.value)}
-                  className="w-full pl-3 pr-12 py-2 text-xs font-mono bg-white/50 border border-[var(--border-color)] rounded-xl text-[var(--text-main)] placeholder-[var(--text-muted)]/40 focus:outline-none focus:border-[var(--primary)]/50 transition-all"
-                />
-                {spotifyToken && (
-                  <button onClick={() => setSpotifyToken("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-main)] text-[8px] font-bold uppercase">Clear</button>
-                )}
-              </div>
-              <div className="text-[8px] font-mono">
-                {spotifyErrorState ? (
-                  <p className="text-rose-500 flex items-center gap-1 font-semibold">
-                    <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" /> {spotifyErrorState}
-                  </p>
-                ) : isSdkConnected ? (
-                  <p className="flex items-center gap-1.5 font-semibold" style={{ color: activeHighlightColor }}>
-                    <span className="w-1.5 h-1.5 rounded-full animate-ping" style={{ backgroundColor: activeHighlightColor }} />
-                    Ready · Device: <span className="text-[var(--text-main)] bg-[var(--text-muted)]/10 px-1.5 py-0.5 rounded border border-[var(--border-color)] font-bold">{spotifyDeviceId?.substring(0, 12)}...</span>
-                  </p>
-                ) : (
-                  <p className="text-[var(--text-muted)]/50 flex items-center gap-1 uppercase tracking-wider text-[7px]">
-                    <span className="w-1 h-1 bg-[var(--text-muted)]/30 rounded-full" /> Waiting for token...
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Link Mode: playlist URL + direct track paste */}
-          {isLinkMode && (
-            <div className="mb-4 space-y-3 p-3.5 rounded-2xl border" style={{ backgroundColor: activeHighlightColor + '0d', borderColor: activeHighlightColor + '20' }}>
-              <form onSubmit={handleSpotifyUrlSubmit} className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-[8px] font-mono text-[var(--text-muted)] uppercase tracking-widest">Paste Spotify Track URL</span>
-                  {spotifyError && <span className="text-rose-500 font-mono text-[8px] font-bold animate-pulse">{spotifyError}</span>}
-                </div>
-                <div className="relative flex items-center">
-                  <input
-                    type="text"
-                    placeholder="https://open.spotify.com/track/..."
-                    value={spotifyUrlInput}
-                    onChange={(e) => setSpotifyUrlInput(e.target.value)}
-                    className="w-full bg-white/50 border border-[var(--border-color)] rounded-xl py-2 pl-3 pr-20 text-xs text-[var(--text-main)] placeholder-[var(--text-muted)]/45 outline-none transition-all"
-                    style={{ focusBorderColor: activeHighlightColor }}
-                  />
-                  <button type="submit" className="absolute right-1.5 top-1.5 bottom-1.5 text-white text-[8px] font-black uppercase px-3 rounded-lg active:scale-95 transition-all cursor-pointer" style={{ backgroundColor: activeHighlightColor }}>Sync</button>
-                </div>
-              </form>
-              <div className="pt-2 border-t border-[var(--border-color)] space-y-1.5">
-                <span className="text-[8px] font-mono text-[var(--text-muted)] uppercase tracking-widest block">Playlist to Sync From</span>
+              <div className="relative flex items-center">
                 <input
                   type="text"
-                  placeholder="Paste Spotify Playlist Link..."
-                  value={playlistUrl}
-                  onChange={(e) => setPlaylistUrl(e.target.value)}
-                  className="w-full bg-white/50 border border-[var(--border-color)] rounded-xl py-2 px-3 text-xs text-[var(--text-main)] placeholder-[var(--text-muted)]/45 outline-none"
+                  placeholder="e.g., Bruno Mars - Die With A Smile"
+                  value={spotifyUrlInput}
+                  onChange={(e) => setSpotifyUrlInput(e.target.value)}
+                  className="w-full bg-slate-50/50 border border-[var(--border-color)] rounded-xl py-2 pl-3 pr-20 text-xs text-[var(--text-main)] placeholder-[var(--text-muted)]/45 outline-none transition-all focus:border-[var(--primary)]/50"
                 />
+                <button type="submit" className="absolute right-1.5 top-1.5 bottom-1.5 text-white text-[8px] font-black uppercase px-3 rounded-lg active:scale-95 transition-all cursor-pointer" style={{ backgroundColor: activeHighlightColor }}>Sync</button>
               </div>
-            </div>
-          )}
+            </form>
+          </div>
 
           {/* Vinyl + Track Info */}
           <div className="flex items-center gap-5 my-3 p-4 border rounded-2xl relative overflow-hidden" style={{ backgroundColor: activeHighlightColor + '0d', borderColor: activeHighlightColor + '10' }}>
@@ -2778,8 +2721,13 @@ return (
             </div>
           </div>
 
-          {/* YouTube Stealth Audio Engine */}
-          <div id="youtube-audio-engine" style={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }} />
+          {/* YouTube Video Overlay / Stealth Audio Engine */}
+          <div 
+            className={`my-3 overflow-hidden rounded-xl border border-[var(--border-color)] bg-black aspect-video relative shadow-inner transition-all duration-300 ${showVideoOverlay ? 'block' : 'hidden'}`}
+            style={showVideoOverlay ? {} : { position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }}
+          >
+            <div id="youtube-audio-engine" className="w-full h-full" />
+          </div>
 
           {/* Lyrics section */}
           <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
