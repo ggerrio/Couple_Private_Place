@@ -678,21 +678,17 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [theme]);
 
   // Local progress ticker — purely cosmetic (keeps the progress bar
-  // animating between real syncs from Firestore). It intentionally no
-  // longer dispatches "spotifyTrackFinished" itself: the real YouTube
-  // player (see HomeView.tsx onStateChange) is the sole authority on when
-  // a track has actually ended. This ticker used to fire that event too,
-  // based on `durationMs` — which for pasted links is a hardcoded guess
-  // (240000ms), not the video's real length — causing premature or
-  // duplicate track skips that had nothing to do with the actual audio.
+  // animating between real syncs from Firestore). It is 100% passive: it
+  // ONLY increments progressMs locally for UI smoothness, but NEVER dispatches
+  // Firestore/database writes, NEVER triggers finished skips, and NEVER
+  // overwrites any track metadata.
   useEffect(() => {
     let interval: any = null;
     if (currentSong.isPlaying) {
       interval = setInterval(() => {
         setCurrentSong((prev) => {
+          if (!prev.isPlaying) return prev;
           const nextProgress = prev.progressMs + 1000;
-          // Yield authority to actual YouTube player: do not cap progress at durationMs
-          // if it's using the fallback duration (240000ms) to prevent premature cut-off.
           const isFallbackDuration = prev.durationMs === 240000;
           if (nextProgress >= prev.durationMs && !isFallbackDuration) {
             return { ...prev, progressMs: prev.durationMs };

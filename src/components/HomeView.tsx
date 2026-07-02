@@ -645,31 +645,20 @@ const YT_PLACEHOLDER_VIDEO_ID = "5lYlS8n8nZ9Lh6p3O6Y2y2";
 // ════════════════════════════════════════════════════════════
 // MODULE-LEVEL YOUTUBE IFRAME API LOADER (singleton)
 // ════════════════════════════════════════════════════════════
-// This lives OUTSIDE the component on purpose. `window.onYouTubeIframeAPIReady`
-// is a single global slot — if it's (re)assigned inside a component's
-// useEffect, every remount/re-render risks clobbering a callback another
-// mount was waiting on. By resolving a single cached Promise here, any
-// number of component instances/mounts can safely `await` the same
-// readiness signal without racing each other or losing the reference.
-let youtubeApiLoadingPromise: Promise<void> | null = null;
-function loadYouTubeIframeApi(): Promise<void> {
-  const ytWindow = window as any;
-
-  if (ytWindow.YT && ytWindow.YT.Player) {
-    return Promise.resolve();
-  }
-
-  if (youtubeApiLoadingPromise) {
-    return youtubeApiLoadingPromise;
-  }
-
-  youtubeApiLoadingPromise = new Promise((resolve) => {
+let youtubeIframeApiPromise: Promise<void> | null = null;
+const loadYouTubeIframeApi = (): Promise<void> => {
+  if (youtubeIframeApiPromise) return youtubeIframeApiPromise;
+  youtubeIframeApiPromise = new Promise<void>((resolve) => {
+    const ytWindow = window as any;
+    if (ytWindow.YT && ytWindow.YT.Player) {
+      resolve();
+      return;
+    }
     const existingCallback = ytWindow.onYouTubeIframeAPIReady;
     ytWindow.onYouTubeIframeAPIReady = () => {
       if (typeof existingCallback === "function") existingCallback();
       resolve();
     };
-
     if (!document.getElementById("youtube-player-script")) {
       const script = document.createElement("script");
       script.id = "youtube-player-script";
@@ -678,9 +667,8 @@ function loadYouTubeIframeApi(): Promise<void> {
       document.body.appendChild(script);
     }
   });
-
-  return youtubeApiLoadingPromise;
-}
+  return youtubeIframeApiPromise;
+};
 
 export default function HomeView() {
   const {
@@ -849,30 +837,10 @@ export default function HomeView() {
       setPlantParticles(prev => prev.filter(p => !newParticles.includes(p)));
     }, 1500);
   };
+  
   // ════════════════════════════════════════════════════════════
-  // YOUTUBE AUDIO ENGINE — full rewrite
+  // YOUTUBE AUDIO ENGINE — clean-slate rebuild
   // ════════════════════════════════════════════════════════════
-  // Design rules this block follows:
-  //  1. There is exactly ONE live YT.Player instance at any time. It lives
-  //     in a ref (ytPlayerLiveRef), never in React state, so nothing about
-  //     React's render cycle can cause a second instance to be created on
-  //     top of the DOM node the first one owns.
-  //  2. `ytPlayer` / `isYtReady` stay as React state purely so the rest of
-  //     the component (buttons, progress bar, etc.) can read "is a player
-  //     available yet" and re-render when that flips — every downstream
-  //     call site keeps working exactly as before.
-  //  3. The Firestore listener (sync engine) does not depend on playback
-  //     state. Playback state changes many times a second while a video is
-  //     loading (unstarted → buffering → playing); depending on it caused
-  //     the listener to unsubscribe/resubscribe from Firestore over and
-  //     over. Playback state is tracked in a ref for internal reads.
-  //  4. Every ID that reaches the player goes through resolveYouTubeId()
-  //     first. Nothing calls loadVideoById with a raw, unvalidated field.
-  //  5. Every local write carries a nonce so the listener can recognize
-  //     its own echo and skip re-executing playback commands, without
-  //     ever skipping the metadata/UI sync.
-
-  const [ytPlayer, setYtPlayer] = useState<any>(null);
   const [isYtReady, setIsYtReady] = useState(false);
   const [ytPlaybackState, setYtPlaybackState] = useState<number>(-1);
   const [spotifyErrorState, setSpotifyErrorState] = useState<string | null>(null);
@@ -882,15 +850,10 @@ export default function HomeView() {
   const [isSdkMode, setIsSdkMode] = useState(true);
   const [spotifyPlaybackState, setSpotifyPlaybackState] = useState<any>(null);
 
-  // Single source of truth for the actual player object. Effects read and
-  // write this directly; it is never replaced by React state.
+  // Houses the active YT.Player instance. Never stored in React useState state.
   const ytPlayerLiveRef = React.useRef<any>(null);
-  // Mirrors ytPlaybackState for use inside callbacks/effects that must NOT
-  // re-run every time playback state changes.
   const ytPlaybackStateRef = React.useRef<number>(-1);
   const hasInitialSyncDone = React.useRef(false);
-  // Nonce of the last write *this* client made to Firestore, so the
-  // listener can recognize its own echo coming back.
   const lastSentCommandNonce = React.useRef<string | null>(null);
 
   const isYouTubeId = (id: string | undefined): boolean => {
@@ -916,8 +879,6 @@ export default function HomeView() {
     }
   };
 
-  // Single source of truth for turning "whatever ID we have" (which may be
-  // a legacy Spotify ID) into a real, playable YouTube video ID.
   const resolveYouTubeId = async (
     rawId: string | undefined,
     artist: string,
@@ -943,75 +904,119 @@ export default function HomeView() {
     }
   };
 
-  // ════════════════════════════════════════════════════════════
-  // FIRESTORE PRODUCER — the only place that writes to "spotify_room"
-  // ════════════════════════════════════════════════════════════
-  const broadcastLocalAction = async (trackData: any, isPlayingAction: boolean) => {
+  // Unified controller for playing a track
+  const playYouTubeTrack = async (
+    track: { title: string; artist: string; album?: string; artwork: string; durationMs: number },
+    youtubeId: string,
+    seekSeconds: number = 0
+  ) => {
+    const nonce = Math.random().toString(36).substring(2, 15);
+    lastSentCommandNonce.current = nonce;
+
+    // 1. Update the local player synchronously via Ref instance for instant native response
+    const player = ytPlayerLiveRef.current;
+    if (player && isYtReady) {
+      player.loadVideoById(youtubeId, seekSeconds);
+      player.playVideo();
+    }
+
+    // 2. Update local state
+    contextSyncSongToPartner({
+      title: track.title,
+      artist: track.artist,
+      album: track.album || "",
+      artwork: track.artwork,
+      durationMs: track.durationMs,
+      progressMs: seekSeconds * 1000,
+      isPlaying: true,
+      spotifyId: youtubeId,
+    });
+
+    // 3. Broadcast to Firestore
     try {
       const roomRef = doc(db, "rooms", "spotify_room");
-      const nonce = `${currentUser}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      lastSentCommandNonce.current = nonce;
       await setDoc(roomRef, {
-        title: trackData.title,
-        artist: trackData.artist,
-        album: trackData.album || "",
-        artwork: trackData.artwork,
-        durationMs: trackData.durationMs,
-        progressMs: trackData.progressMs || 0,
-        isPlaying: isPlayingAction,
-        spotifyId: trackData.spotifyId, // YouTube videoId
-        commandTriggeredBy: currentUser,
+        title: track.title,
+        artist: track.artist,
+        album: track.album || "",
+        artwork: track.artwork,
+        durationMs: track.durationMs,
+        progressMs: seekSeconds * 1000,
+        isPlaying: true,
+        spotifyId: youtubeId,
         commandNonce: nonce,
+        commandTriggeredBy: currentUser,
         lastUpdated: Date.now()
       }, { merge: true });
     } catch (error) {
-      console.error("Gagal mengirim aksi lokal ke Firestore:", error);
+      console.error("Error broadcasting playYouTubeTrack:", error);
     }
   };
 
-  // Compatibility wrapper for click and URL submit handlers
-  const syncSongToPartner = async (trackData: any) => {
-    await broadcastLocalAction(trackData, trackData.isPlaying !== false);
-  };
+  // Unified controller for toggle play/pause
+  const togglePlayPause = async () => {
+    triggerHaptic("medium");
+    const nextPlayingState = !currentSong.isPlaying;
+    const nonce = Math.random().toString(36).substring(2, 15);
+    lastSentCommandNonce.current = nonce;
 
-  // Runs the actual player command locally, right now — used by every
-  // "play this track" call site so the user hears/see the change
-  // immediately instead of waiting on a Firestore round-trip.
-  const commandLocalPlayback = (videoId: string, seekSeconds: number = 0) => {
     const player = ytPlayerLiveRef.current;
-    if (!player) {
-      setSongPlayState(true);
-      return;
+    if (player && isYtReady) {
+      if (nextPlayingState) {
+        player.playVideo();
+      } else {
+        player.pauseVideo();
+      }
     }
-    player.loadVideoById(videoId, seekSeconds);
-    player.playVideo();
+
+    contextSyncSongToPartner({
+      ...currentSong,
+      isPlaying: nextPlayingState,
+    });
+
+    try {
+      const roomRef = doc(db, "rooms", "spotify_room");
+      await setDoc(roomRef, {
+        isPlaying: nextPlayingState,
+        commandNonce: nonce,
+        commandTriggeredBy: currentUser,
+        lastUpdated: Date.now()
+      }, { merge: true });
+    } catch (error) {
+      console.error("Error broadcasting togglePlayPause:", error);
+    }
   };
 
-  // One entry point for "start playing this track". Resolves the ID if
-  // needed, writes to Firestore, and drives the local player — used by
-  // the search bar, playlist clicks, and track skip so the same correct
-  // sequence runs everywhere instead of being duplicated ad hoc.
-  const playYouTubeTrack = async (
-    trackMeta: { title: string; artist: string; album?: string; artwork: string; durationMs: number },
-    rawId: string | undefined,
-    seekSeconds: number = 0
-  ) => {
-    const ytId = await resolveYouTubeId(rawId, trackMeta.artist, trackMeta.title);
+  // Unified controller for seeking
+  const seekToPosition = async (positionMs: number) => {
+    const nonce = Math.random().toString(36).substring(2, 15);
+    lastSentCommandNonce.current = nonce;
 
-    await broadcastLocalAction(
-      {
-        ...trackMeta,
-        progressMs: seekSeconds * 1000,
-        spotifyId: ytId,
-      },
-      true
-    );
+    const player = ytPlayerLiveRef.current;
+    if (player && isYtReady) {
+      player.seekTo(Math.floor(positionMs / 1000), true);
+    }
 
-    commandLocalPlayback(ytId, seekSeconds);
+    contextSyncSongToPartner({
+      ...currentSong,
+      progressMs: positionMs,
+    });
+
+    try {
+      const roomRef = doc(db, "rooms", "spotify_room");
+      await setDoc(roomRef, {
+        progressMs: positionMs,
+        commandNonce: nonce,
+        commandTriggeredBy: currentUser,
+        lastUpdated: Date.now()
+      }, { merge: true });
+    } catch (error) {
+      console.error("Error broadcasting seekToPosition:", error);
+    }
   };
 
   // ════════════════════════════════════════════════════════════
-  // FIRESTORE CONSUMER — the "Listen Along" sync engine
+  // SOLID PRODUCER-CONSUMER SYNC ARCHITECTURE
   // ════════════════════════════════════════════════════════════
   useEffect(() => {
     if (!isYtReady) return;
@@ -1024,11 +1029,7 @@ export default function HomeView() {
       const data = snapshot.data();
       if (!data || !data.spotifyId || data.spotifyId === YT_PLACEHOLDER_VIDEO_ID) return;
 
-      // Update the UI (title/artist/artwork/etc). This must run on every
-      // valid snapshot — including the echo of our own writes — because
-      // this app has no other path that puts a locally-picked track into
-      // `currentSong`. Skipping this for "our own" writes is what makes
-      // pasted links/clicked tracks never show up.
+      // 1. Instantly execute contextSyncSongToPartner at the absolute entry point
       contextSyncSongToPartner({
         title: data.title,
         artist: data.artist,
@@ -1040,27 +1041,14 @@ export default function HomeView() {
         spotifyId: data.spotifyId,
       });
 
-      // Detect and auto-resolve legacy Spotify IDs before anything tries to load them
-      if (!isYouTubeId(data.spotifyId)) {
-        resolveYouTubeId(data.spotifyId, data.artist, data.title).then((ytId) => {
-          const roomRef = doc(db, "rooms", "spotify_room");
-          setDoc(roomRef, { spotifyId: ytId }, { merge: true });
-        });
-        return;
-      }
-
-      // From here on we only decide whether to issue a *new* playback
-      // command (seek/load/play/pause) to the local player. Our own echo
-      // is skipped because commandLocalPlayback() already handled it
-      // synchronously when the action was triggered.
+      // 2. Strict cryptographic own-echo check: block local player reload loop
       const isOwnEcho = !!data.commandNonce && data.commandNonce === lastSentCommandNonce.current;
       if (isOwnEcho) {
         hasInitialSyncDone.current = true;
         return;
       }
 
-      // Apply the command if it came from the partner, or this is the
-      // very first snapshot we've seen (initial sync on mount/reconnect).
+      // Apply the command if it came from the partner, or this is the initial sync
       if (data.commandTriggeredBy !== currentUser || !hasInitialSyncDone.current) {
         hasInitialSyncDone.current = true;
 
@@ -1076,8 +1064,6 @@ export default function HomeView() {
           const currentPosition = player.getCurrentTime ? player.getCurrentTime() : 0;
           const timeDiff = Math.abs(currentPosition - targetPositionSeconds);
 
-          // Already on the right video, already playing, close enough in
-          // time — don't reload/seek and risk a rebuffer for nothing.
           if (loadedVideoId === data.spotifyId && isCurrentPlaying && timeDiff < 4) {
             return;
           }
@@ -1091,35 +1077,26 @@ export default function HomeView() {
     });
 
     return () => unsubPlayback();
-    // Intentionally NOT depending on ytPlaybackState — that value changes
-    // multiple times per second while a video loads, and re-subscribing
-    // to Firestore on every tick is exactly the kind of churn that made
-    // playback flaky. currentUser can change (device/profile switch), so
-    // it stays as a dependency.
   }, [isYtReady, currentUser]);
 
   // ════════════════════════════════════════════════════════════
-  // PLAYER LIFECYCLE — create once, destroy once
+  // CLEAN PLAYER LIFECYCLE ENGINE
   // ════════════════════════════════════════════════════════════
   useEffect(() => {
     let isCancelled = false;
 
+    // Explicitly verify DOM readiness
+    if (!document.getElementById("youtube-audio-engine")) return;
+
     loadYouTubeIframeApi().then(() => {
       if (isCancelled) return;
 
-      // Guard against a second instance ever stacking on the same DOM
-      // node, no matter what re-triggers this effect.
       if (ytPlayerLiveRef.current) {
         ytPlayerLiveRef.current.destroy();
         ytPlayerLiveRef.current = null;
       }
 
       const ytWindow = window as any;
-
-      // Always boot with the neutral placeholder — never a raw spotifyId,
-      // since that field can legitimately hold a 22-char Spotify ID that
-      // the YouTube player cannot resolve. The sync engine above loads the
-      // real track once it's confirmed to be a valid YouTube id.
       const player = new ytWindow.YT.Player("youtube-audio-engine", {
         height: "100%",
         width: "100%",
@@ -1137,7 +1114,6 @@ export default function HomeView() {
           onReady: (event: any) => {
             if (isCancelled) return;
             ytPlayerLiveRef.current = event.target;
-            setYtPlayer(event.target);
             setIsYtReady(true);
             setIsSdkConnected(true);
           },
@@ -1149,14 +1125,6 @@ export default function HomeView() {
               window.dispatchEvent(new CustomEvent("spotifyTrackFinished"));
             } else if (event.data === ytWindow.YT.PlayerState.PLAYING) {
               setSongPlayState(true);
-              const realDurationSec = event.target.getDuration ? event.target.getDuration() : 0;
-              if (realDurationSec > 0) {
-                const realDurationMs = Math.floor(realDurationSec * 1000);
-                if (Math.abs((currentSong.durationMs || 0) - realDurationMs) > 2000) {
-                  const roomRef = doc(db, "rooms", "spotify_room");
-                  setDoc(roomRef, { durationMs: realDurationMs }, { merge: true }).catch(err => console.error(err));
-                }
-              }
             } else if (event.data === ytWindow.YT.PlayerState.PAUSED) {
               setSongPlayState(false);
             }
@@ -1177,7 +1145,6 @@ export default function HomeView() {
         ytPlayerLiveRef.current.destroy();
         ytPlayerLiveRef.current = null;
       }
-      setYtPlayer(null);
       setIsYtReady(false);
     };
   }, []);
@@ -1372,15 +1339,7 @@ export default function HomeView() {
     const rect = e.currentTarget.getBoundingClientRect();
     const pct = (e.clientX - rect.left) / rect.width;
     const newProg = Math.floor(pct * currentSong.durationMs);
-
-    const updatedSong = { ...currentSong, progressMs: newProg };
-    broadcastLocalAction(updatedSong, currentSong.isPlaying);
-
-    if (isYtReady && ytPlayer && currentSong.spotifyId) {
-      ytPlayer.seekTo(Math.floor(newProg / 1000), true);
-    } else {
-      updateSongProgress(newProg);
-    }
+    seekToPosition(newProg);
   };
 
   const toggleLike = (title: string) => {
@@ -1541,21 +1500,14 @@ export default function HomeView() {
   useEffect(() => {
     const handleFinished = () => {
       if (isRepeatActive) {
-        const updatedSong = { ...currentSong, progressMs: 0, isPlaying: true };
-        broadcastLocalAction(updatedSong, true);
-        if (isYtReady && ytPlayer && currentSong.spotifyId) {
-          ytPlayer.seekTo(0);
-          ytPlayer.playVideo();
-        } else {
-          updateSongProgress(0);
-        }
+        seekToPosition(0);
       } else {
         handleTrackSkip("next");
       }
     };
     window.addEventListener("spotifyTrackFinished", handleFinished);
     return () => window.removeEventListener("spotifyTrackFinished", handleFinished);
-  }, [isShuffleActive, isRepeatActive, currentSong, isYtReady, ytPlayer]);
+  }, [isShuffleActive, isRepeatActive, currentSong, isYtReady]);
 
   const saveAndSyncNotes = async (notesList: any) => {
     // Left as compatibility wrapper, direct mutations are done in-place
@@ -2755,7 +2707,7 @@ export default function HomeView() {
           {/* Dynamic ambient glow behind the whole card based on active track */}
           <div
             className="absolute inset-0 transition-all duration-1000 ease-in-out pointer-events-none"
-            style={{ background: `radial-gradient(circle at 50% 30%, ${activeGlowColor} 0%, transparent 72%)` }}
+            style={{ backgroundImage: `radial-gradient(circle at 50% 30%, ${activeGlowColor} 0%, transparent 72%)` }}
           />
           {/* Decorative floating dots */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
@@ -2912,30 +2864,7 @@ export default function HomeView() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    triggerHaptic("medium");
-                    const nextPlayingState = !currentSong.isPlaying;
-
-                    broadcastLocalAction({
-                      title: currentSong.title,
-                      artist: currentSong.artist,
-                      album: currentSong.album,
-                      artwork: currentSong.artwork,
-                      durationMs: currentSong.durationMs,
-                      progressMs: spotifyPlaybackState?.position || currentSong.progressMs || 0,
-                      spotifyId: currentSong.spotifyId || "5lYlS8n8nZ9Lh6p3O6Y2y2"
-                    }, nextPlayingState);
-
-                    if (isYtReady && ytPlayer) {
-                      if (nextPlayingState) {
-                        ytPlayer.playVideo();
-                      } else {
-                        ytPlayer.pauseVideo();
-                      }
-                    } else {
-                      setSongPlayState(nextPlayingState);
-                    }
-                  }}
+                  onClick={togglePlayPause}
                   className="w-11 h-11 text-white active:scale-95 rounded-full transition-all hover:scale-105 flex items-center justify-center cursor-pointer"
                   style={{ backgroundColor: activeHighlightColor, boxShadow: `0 4px 15px ${activeHighlightColor}40` }}
                 >
@@ -3015,7 +2944,7 @@ export default function HomeView() {
                   const isActive = currentSong.title.toLowerCase() === vibe.title.toLowerCase();
                   return (
                     <button
-                      key={vibe.title + vibe.spotifyId}
+                      key={vibe.title + vibe.youtubeId}
                       onClick={async () => {
                         triggerHaptic("light");
 
@@ -3027,7 +2956,7 @@ export default function HomeView() {
                             artwork: vibe.artwork,
                             durationMs: vibe.durationMs,
                           },
-                          vibe.youtubeId || vibe.spotifyId,
+                          vibe.youtubeId,
                           0
                         );
                       }}
