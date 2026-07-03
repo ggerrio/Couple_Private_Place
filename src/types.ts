@@ -8,12 +8,14 @@ export interface Profile {
   name: string;
   avatar: string;
   mood: string;       // e.g. "happy" | "cozy" | "sleepy" | "excited" | "loved"
+  moodNote?: string;  // e.g. custom text entered alongside mood
   status: string;     // e.g. "Drinking Coffee", "Coding", "Working"
   xp: number;
   level: number;
   latitude?: number;
   longitude?: number;
   weatherCity?: string;
+  gender?: "pria" | "wanita";
 }
 
 export interface Comment {
@@ -40,6 +42,7 @@ export interface Memory {
   partnerPhotosList?: string[];
   colabMode?: "split" | "alternating" | "solo";
   stickersList?: { id: number; sticker: string; x: number; y: number }[];
+  showOnTimeline?: boolean;
 }
 
 export interface Journal {
@@ -52,6 +55,8 @@ export interface Journal {
   mood: string;       // e.g. "cozy" | "excited" | "peaceful" | "sleepy"
   imageUrl?: string;
   tags: string[];
+  creatorId?: "user_a" | "user_b";
+  editedAt?: string;
 }
 
 export interface Letter {
@@ -91,6 +96,7 @@ export interface Song {
   durationMs: number;
   progressMs: number;
   isPlaying: boolean;
+  videoId?: string; // YouTube video ID — when set, iframe renders real audio
 }
 
 export interface ActivityLog {
@@ -122,6 +128,24 @@ export interface DrawCursor {
   x: number;
   y: number;
   isDrawing: boolean;
+}
+
+export interface PhotoboothRoom {
+  code: string;
+  hostId: "user_a" | "user_b";
+  guestId: "user_a" | "user_b" | null;
+  layout: string;
+  bg: string;
+  filter: string;
+  caption?: string;
+  stripPreset?: string;
+  state: "waiting" | "countdown" | "captured" | "editing" | "done";
+  round: number;
+  totalRounds: number;
+  countdownStartAt: number | null;
+  photosA: string[];
+  photosB: string[];
+  createdAt: string;
 }
 
 export type ThemeType =

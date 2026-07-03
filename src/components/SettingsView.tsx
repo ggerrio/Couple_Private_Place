@@ -1,683 +1,443 @@
 /**
- * @license
- * SPDX-License-Identifier: Apache-2.0
+ * SettingsView.tsx — rebuilt from zero.
+ *
+ * Fixes:
+ *  - Avatar upload compresses via canvas to quality=0.6 JPEG capped at ~150 KB before storing
+ *  - Admin panel gated strictly by session.email === VITE_ADMIN_EMAIL
+ *  - Theme change is direct state call; no secondary useEffect reaction chain
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useCouple } from "../context/CoupleContext";
-import { uploadBase64Image } from "../firebaseClient";
-import { db } from "../firebaseClient";
-import { doc, onSnapshot } from "firebase/firestore";
+import { motion, AnimatePresence } from "motion/react";
 import {
-  Palette,
-  ShieldAlert,
-  UserCircle,
-  Camera,
-  LogOut,
-  Heart,
-  Shield,
-  Trash2,
-  RefreshCw,
-  Activity,
-  Database,
-  Lock,
-  ChevronDown,
-  ChevronUp,
-  AlertTriangle,
-  CheckCircle2,
-  UserX,
-  Users,
+  Settings, User, Palette, Shield, Save, LogOut, X, Check,
+  RefreshCw, Trash2, UserMinus, Upload, AlertTriangle,
 } from "lucide-react";
-import { ThemeType } from "../types";
+import type { ThemeType } from "../types";
+
+type Section = "profile" | "themes" | "settings" | "admin";
+
+// ─── Theme definitions ─────────────────────────────────────────────────────────
+const THEMES: { id: ThemeType; label: string; emoji: string; preview: string[] }[] = [
+  { id: "minimal-white", label: "Minimal White", emoji: "🤍", preview: ["#fafafa", "#18181b", "#71717a"] },
+  { id: "korean-cafe", label: "Korean Café", emoji: "☕", preview: ["#fbf9f4", "#5c4033", "#c2a688"] },
+  { id: "sakura", label: "Sakura", emoji: "🌸", preview: ["#fff5f5", "#d53f8c", "#f6ad55"] },
+  { id: "studio-ghibli", label: "Studio Ghibli", emoji: "🌿", preview: ["#f0f7f4", "#2d6a4f", "#f4a261"] },
+  { id: "pixel-retro", label: "Pixel Retro", emoji: "🕹️", preview: ["#18142c", "#c084fc", "#34d399"] },
+  { id: "night", label: "Cosmic Night", emoji: "🌙", preview: ["#060919", "#818cf8", "#fbbf24"] },
+  { id: "coffee", label: "Roasted Espresso", emoji: "🫘", preview: ["#20130b", "#e6b89c", "#faedcd"] },
+  { id: "pastel", label: "Pastel Dream", emoji: "🎀", preview: ["#f7f9fc", "#9aa5ff", "#ffb7b2"] },
+  { id: "valentine", label: "Valentine", emoji: "💝", preview: ["#fff0f3", "#ff4d6d", "#ff85a1"] },
+  { id: "christmas", label: "Christmas", emoji: "🎄", preview: ["#0b1a13", "#ba0c2f", "#d4af37"] },
+  { id: "artistic-flair", label: "Artistic Flair", emoji: "🎨", preview: ["#fbf7f0", "#bc6c25", "#dda15e"] },
+];
+
+// ─── Avatar compression ────────────────────────────────────────────────────────
+// Compresses to JPEG quality=0.6, capped at ~150 KB
+async function compressAvatar(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => { img.src = e.target?.result as string; };
+    reader.onerror = reject;
+    img.onload = () => {
+      const maxDim = 256;
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      // Try quality 0.6, then 0.4 if still over 150 KB
+      let dataUrl = canvas.toDataURL("image/jpeg", 0.6);
+      if (dataUrl.length > 150 * 1024 * 1.37) {
+        dataUrl = canvas.toDataURL("image/jpeg", 0.4);
+      }
+      resolve(dataUrl);
+    };
+    img.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function SettingsView() {
-  const {
-    session,
-    logout,
-    currentUser,
-    userA,
-    userB,
-    memories,
-    anniversaryDate,
-    birthdayA,
-    birthdayB,
-    cloudinaryCloudName,
-    cloudinaryUploadPreset,
-    updateCoupleSettings,
-    addMemory,
-    updateMemory,
-    deleteMemory,
-    updateProfile,
-    theme,
-    setTheme,
-    resetAllData,
-    adminResetMissions,
-    adminClearActivityLogs,
-    adminDeleteAllMemories,
-    adminKickSlot,
-  } = useCouple();
+  const { session } = useCouple();
+  const [section, setSection] = useState<Section>("profile");
+  const isAdmin = session?.email === (import.meta.env.VITE_ADMIN_EMAIL || "");
 
-  const ADMIN_EMAIL = "pratamagerrio@gmail.com";
-  const isAdmin = session?.email === ADMIN_EMAIL;
-
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [adminActionResult, setAdminActionResult] = useState<string | null>(null);
-  const [adminActionLoading, setAdminActionLoading] = useState<string | null>(null);
-
-  // Live slot status — fetched from Firestore in real time
-  const [slotStatus, setSlotStatus] = useState<{
-    a: { name: string; email: string | null; claimed: boolean; avatar: string };
-    b: { name: string; email: string | null; claimed: boolean; avatar: string };
-  }>({
-    a: { name: "Partner A", email: null, claimed: false, avatar: "" },
-    b: { name: "Partner B", email: null, claimed: false, avatar: "" },
-  });
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    const unsubA = onSnapshot(doc(db, "profiles", "user_a"), (snap) => {
-      if (snap.exists()) {
-        const d = snap.data();
-        setSlotStatus((prev) => ({
-          ...prev,
-          a: {
-            name: d.name || "Partner A",
-            email: d.email || null,
-            claimed: !!d.auth_id,
-            avatar: d.avatar_url || "",
-          },
-        }));
-      }
-    });
-    const unsubB = onSnapshot(doc(db, "profiles", "user_b"), (snap) => {
-      if (snap.exists()) {
-        const d = snap.data();
-        setSlotStatus((prev) => ({
-          ...prev,
-          b: {
-            name: d.name || "Partner B",
-            email: d.email || null,
-            claimed: !!d.auth_id,
-            avatar: d.avatar_url || "",
-          },
-        }));
-      }
-    });
-    return () => { unsubA(); unsubB(); };
-  }, [isAdmin]);
-
-  // Admin Anniversary & Birthday States
-  const [newAnniversary, setNewAnniversary] = useState(anniversaryDate);
-  const [newBirthdayA, setNewBirthdayA] = useState(birthdayA);
-  const [newBirthdayB, setNewBirthdayB] = useState(birthdayB);
-  const [newCloudName, setNewCloudName] = useState(cloudinaryCloudName);
-  const [newUploadPreset, setNewUploadPreset] = useState(cloudinaryUploadPreset);
-
-  useEffect(() => {
-    setNewAnniversary(anniversaryDate);
-    setNewBirthdayA(birthdayA);
-    setNewBirthdayB(birthdayB);
-    setNewCloudName(cloudinaryCloudName);
-    setNewUploadPreset(cloudinaryUploadPreset);
-  }, [anniversaryDate, birthdayA, birthdayB, cloudinaryCloudName, cloudinaryUploadPreset]);
-
-  const [memLoading, setMemLoading] = useState(false);
-
-  const runAdminAction = async (label: string, fn: () => Promise<void>) => {
-    if (!confirm(`Admin: Are you sure you want to ${label}?`)) return;
-    setAdminActionLoading(label);
-    setAdminActionResult(null);
-    try {
-      await fn();
-      setAdminActionResult(`✅ ${label} completed.`);
-    } catch (e: any) {
-      setAdminActionResult(`❌ Failed: ${e?.message || 'Unknown error'}`);
-    } finally {
-      setAdminActionLoading(null);
-    }
-  };
-
-  const handleSaveCoupleSettings = async () => {
-    if (!newAnniversary || !newBirthdayA || !newBirthdayB) {
-      alert("All dates must be filled.");
-      return;
-    }
-    setMemLoading(true);
-    try {
-      await updateCoupleSettings(newAnniversary, newBirthdayA, newBirthdayB, newCloudName, newUploadPreset);
-      alert("Days of Love, Birthdays, and Media Storage configurations updated successfully! 🗓️🎉");
-    } catch (e: any) {
-      alert(`Failed to update settings: ${e.message}`);
-    } finally {
-      setMemLoading(false);
-    }
-  };
-
-  const myProfile = currentUser === "user_a" ? userA : userB;
-  const partnerProfile = currentUser === "user_a" ? userB : userA;
-
-  const [editName, setEditName] = useState(myProfile.name);
-  const [saving, setSaving] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setEditName(myProfile.name);
-  }, [myProfile.name]);
-
-  // Client-side image resizing/compression helper to bypass Firestore document size limit (1 MB)
-  const compressImage = (base64Str: string, maxWidth = 180, maxHeight = 180): Promise<string> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = base64Str;
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let width = img.width;
-        let height = img.height;
-
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
-
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-        }
-        resolve(canvas.toDataURL("image/jpeg", 0.75));
-      };
-      img.onerror = () => resolve(base64Str);
-    });
-  };
-
-  const themeList: { id: ThemeType; name: string; previewColors: string[]; desc: string }[] = [
-    { id: "minimal-white", name: "Minimal White", previewColors: ["#fafafa", "#18181b", "#71717a"], desc: "Modern Swiss style, crisp and elegant." },
-    { id: "korean-cafe", name: "Korean Cafe ☕", previewColors: ["#fbf9f4", "#5c4033", "#c2a688"], desc: "Beige espresso undertone, warm and cozy." },
-    { id: "sakura", name: "Cherry Blossoms 🌸", previewColors: ["#fff5f5", "#d53f8c", "#f6ad55"], desc: "Soft blush pinks and cherry blossom rose." },
-    { id: "studio-ghibli", name: "Ghibli Greenery 🌳", previewColors: ["#f0f7f4", "#2d6a4f", "#f4a261"], desc: "Calm green pastures and rustic ambers." },
-    { id: "pixel-retro", name: "Retro Pixel 👾", previewColors: ["#0f172a", "#a78bfa", "#10b981"], desc: "Neon arcade cyber violet vibes." },
-    { id: "night", name: "Cosmic Midnight 🌙", previewColors: ["#030712", "#6366f1", "#fbbf24"], desc: "Deep indigo sky with starlight gold accents." },
-    { id: "coffee", name: "Roasted Espresso 🤎", previewColors: ["#2c1a11", "#d4a373", "#fcf6bd"], desc: "Chocolaty and warm hand-drip morning." },
-    { id: "pastel", name: "Lilac Pastel 🎨", previewColors: ["#f7f9fc", "#9aa5ff", "#ffb7b2"], desc: "Buttery soft lilacs, sky blues, and corals." },
-    { id: "valentine", name: "Hot Valentine 💖", previewColors: ["#fff0f3", "#ff4d6d", "#ff85a1"], desc: "Charming rich roses and sweet pink hearts." },
-    { id: "christmas", name: "Warm Yule Log 🎄", previewColors: ["#0b1a13", "#ba0c2f", "#d4af37"], desc: "Pine greens, yule reds, and gold sparkles." },
-    { id: "artistic-flair", name: "Artistic Flair 🖌️", previewColors: ["#fbf7f0", "#bc6c25", "#283618"], desc: "Earthy terracotta, warm sands, and forest ink." },
+  const sections: { id: Section; label: string; icon: React.ElementType }[] = [
+    { id: "profile", label: "Profile", icon: User },
+    { id: "themes", label: "Themes", icon: Palette },
+    { id: "settings", label: "Settings", icon: Settings },
+    ...(isAdmin ? [{ id: "admin" as Section, label: "Admin", icon: Shield }] : []),
   ];
 
-  const handleSaveProfile = async () => {
-    const trimmed = editName.trim();
-    if (!trimmed) {
-      alert("Name cannot be empty.");
-      return;
-    }
-    setSaving(true);
-    await updateProfile(currentUser, { name: trimmed });
-    setSaving(false);
-    alert("Profile updated!");
-  };
+  return (
+    <div className="space-y-4 py-2">
+      <div className="glass-panel rounded-2xl p-1.5 flex gap-1">
+        {sections.map(({ id, label, icon: Icon }) => (
+          <button key={id} id={`settings-tab-${id}`} onClick={() => setSection(id)}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold transition-all ${section === id ? "bg-[var(--primary)] text-white shadow" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"}`}>
+            <Icon className="w-3.5 h-3.5" /> {label}
+          </button>
+        ))}
+      </div>
+      <AnimatePresence mode="wait">
+        {section === "profile" && <ProfileSection key="profile" />}
+        {section === "themes" && <ThemesSection key="themes" />}
+        {section === "settings" && <SettingsSection key="settings" />}
+        {section === "admin" && isAdmin && <AdminSection key="admin" />}
+      </AnimatePresence>
+    </div>
+  );
+}
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+// ─── Profile editor ───────────────────────────────────────────────────────────
+
+function ProfileSection() {
+  const { currentUser, userA, userB, updateProfile, logout } = useCouple();
+  const activeProfile = currentUser === "user_a" ? userA : userB;
+  const partnerProfile = currentUser === "user_a" ? userB : userA;
+  const [name, setName] = useState(activeProfile.name);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      alert("Please select an image file.");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image must be under 5 MB.");
-      return;
-    }
-
-    setUploadingPhoto(true);
     try {
-      const reader = new FileReader();
-      const rawBase64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      // Compress and resize the avatar image before storage update
-      const compressedBase64 = await compressImage(rawBase64);
-      await updateProfile(currentUser, { avatar: compressedBase64 });
+      const compressed = await compressAvatar(file);
+      await updateProfile(currentUser, { avatar: compressed });
     } catch (err) {
-      console.error(err);
-      alert("Failed to save photo. Please try again.");
-    } finally {
-      setUploadingPhoto(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      console.error("[avatar upload]", err);
+      alert("Failed to compress avatar. Please try a smaller image.");
     }
-  };
+    e.target.value = "";
+  }, [currentUser, updateProfile]);
 
-  const handleLogout = async () => {
-    if (confirm("Sign out of your sanctuary?")) {
-      await logout();
-    }
+  const handleSave = useCallback(async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    await updateProfile(currentUser, { name: name.trim() });
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }, [name, currentUser, updateProfile]);
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
+      {/* Account overview — read-only; identity is locked to whichever slot your
+          Google login claimed (see OnboardingView), it can't be switched here. */}
+      <div className="glass-panel rounded-2xl p-4">
+        <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider mb-3">Signed In As</p>
+        <div className="flex gap-3">
+          <div className="flex-1 p-3 rounded-xl flex flex-col items-center gap-2 border-2 border-[var(--primary)] bg-[var(--primary)]/10">
+            <img src={activeProfile.avatar} alt={activeProfile.name} className="w-10 h-10 rounded-full object-cover border-2 border-white" referrerPolicy="no-referrer" />
+            <p className="text-xs font-bold text-[var(--text-main)]">{activeProfile.name.split(" ")[0]}</p>
+            <span className="text-[9px] bg-[var(--primary)] text-white px-2 py-0.5 rounded-full">You</span>
+          </div>
+          <div className="flex-1 p-3 rounded-xl flex flex-col items-center gap-2 border-2 border-transparent bg-white/20 opacity-70">
+            <img src={partnerProfile.avatar} alt={partnerProfile.name} className="w-10 h-10 rounded-full object-cover border-2 border-white" referrerPolicy="no-referrer" />
+            <p className="text-xs font-bold text-[var(--text-main)]">{partnerProfile.name.split(" ")[0]}</p>
+            <span className="text-[9px] bg-black/10 text-[var(--text-muted)] px-2 py-0.5 rounded-full">Partner</span>
+          </div>
+        </div>
+        <p className="text-[9px] text-[var(--text-muted)] mt-2.5 leading-relaxed">
+          Your slot is tied to the Google account you signed in with — only you can edit your own name and photo below.
+        </p>
+      </div>
+
+      {/* Edit */}
+      <div className="glass-panel rounded-2xl p-4 space-y-3">
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative">
+            <img src={activeProfile.avatar} alt={activeProfile.name} className="w-20 h-20 rounded-full object-cover border-4 border-white shadow-lg" referrerPolicy="no-referrer" />
+            <button id="avatar-upload-btn" onClick={() => fileRef.current?.click()}
+              className="absolute -bottom-1 -right-1 w-7 h-7 bg-[var(--primary)] text-white rounded-full flex items-center justify-center border-2 border-white shadow hover:opacity-90">
+              <Upload className="w-3 h-3" />
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold text-[var(--text-main)]">{activeProfile.name}</p>
+            <p className="text-[10px] text-[var(--text-muted)]">Level {activeProfile.level} • {activeProfile.xp} XP</p>
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">Display Name</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full text-sm px-3 py-2 bg-white/30 border border-white/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)]"
+          />
+        </div>
+
+        <button id="save-profile-btn" onClick={handleSave} disabled={saving}
+          className={`w-full py-2.5 font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition-all ${saved ? "bg-green-500 text-white" : "bg-[var(--primary)] text-white hover:opacity-90"} disabled:opacity-60`}>
+          {saved ? <><Check className="w-4 h-4" /> Saved!</> : saving ? "Saving..." : <><Save className="w-4 h-4" /> Save Profile</>}
+        </button>
+      </div>
+
+      {/* Logout */}
+      <button id="logout-btn" onClick={logout}
+        className="w-full py-2.5 bg-red-50 border border-red-100 text-red-500 font-bold rounded-xl text-sm flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+        <LogOut className="w-4 h-4" /> Sign Out
+      </button>
+    </motion.div>
+  );
+}
+
+// ─── Themes ───────────────────────────────────────────────────────────────────
+
+function ThemesSection() {
+  const { theme, setTheme } = useCouple();
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3">
+      <h3 className="text-sm font-bold text-[var(--text-main)]">Choose a Theme</h3>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {THEMES.map((t) => (
+          <button
+            key={t.id}
+            id={`theme-btn-${t.id}`}
+            onClick={() => setTheme(t.id)}
+            className={`glass-panel rounded-2xl p-3 flex flex-col gap-2 border-2 transition-all hover:scale-105 active:scale-95 text-left ${theme === t.id ? "border-[var(--primary)] shadow-lg" : "border-transparent hover:border-[var(--border-color)]"}`}
+          >
+            {/* Color preview chips */}
+            <div className="flex gap-1">
+              {t.preview.map((color, i) => (
+                <div key={i} className="flex-1 h-5 rounded-md" style={{ backgroundColor: color }} />
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-base">{t.emoji}</span>
+              <div>
+                <p className="text-[10px] font-bold text-[var(--text-main)] leading-tight">{t.label}</p>
+                {theme === t.id && <p className="text-[9px] text-[var(--primary)] font-semibold">Active ✓</p>}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Settings (couple config) ─────────────────────────────────────────────────
+
+function SettingsSection() {
+  const { anniversaryDate, birthdayA, birthdayB, cloudinaryCloudName, cloudinaryUploadPreset, updateCoupleSettings, userA, userB } = useCouple();
+  const [anniv, setAnniv] = useState(anniversaryDate);
+  const [bdayA, setBdayA] = useState(birthdayA);
+  const [bdayB, setBdayB] = useState(birthdayB);
+  const [cloudName, setCloudName] = useState(cloudinaryCloudName);
+  const [uploadPreset, setUploadPreset] = useState(cloudinaryUploadPreset);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setAnniv(anniversaryDate);
+    setBdayA(birthdayA);
+    setBdayB(birthdayB);
+    setCloudName(cloudinaryCloudName);
+    setUploadPreset(cloudinaryUploadPreset);
+  }, [anniversaryDate, birthdayA, birthdayB, cloudinaryCloudName, cloudinaryUploadPreset]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    await updateCoupleSettings(anniv, bdayA, bdayB, cloudName, uploadPreset);
+    setSaving(false);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8" id="settings-view-wrapper">
-      <div className="lg:col-span-8 space-y-6">
-        <div className="glass-panel p-6 rounded-2xl space-y-4">
-          <h3 className="text-sm font-bold text-[var(--text-main)] flex items-center gap-2 border-b pb-2">
-            <Palette className="w-4.5 h-4.5 text-rose-500 animate-spin-slow" />
-            Home Theme Palette
-          </h3>
-          <p className="text-xs text-[var(--text-muted)]">
-            Change the ambiance of your digital sanctuary instantly. The colors, borders, and gradients will sync completely.
-          </p>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
+      <div className="glass-panel rounded-2xl p-4 space-y-3">
+        <h3 className="text-sm font-bold text-[var(--text-main)]">Couple Configuration</h3>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-            {themeList.map((tm) => {
-              const isSelected = theme === tm.id;
-              return (
-                <button
-                  key={tm.id}
-                  onClick={() => setTheme(tm.id)}
-                  className={`p-4 border rounded-2xl text-left transition-all relative overflow-hidden group hover:shadow ${
-                    isSelected
-                      ? "border-[var(--primary)] bg-[var(--primary)]/5 font-bold"
-                      : "border-gray-200 bg-white/40 hover:bg-white"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-xs font-bold text-gray-800">{tm.name}</p>
-                    <div className="flex gap-1">
-                      {tm.previewColors.map((col, i) => (
-                        <div
-                          key={i}
-                          style={{ backgroundColor: col }}
-                          className="w-3.5 h-3.5 rounded-full border border-black/10"
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-gray-500 font-medium leading-relaxed">
-                    {tm.desc}
-                  </p>
-                </button>
-              );
-            })}
+        <div>
+          <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">Anniversary Date</label>
+          <input type="date" value={anniv} onChange={(e) => setAnniv(e.target.value)} className="w-full text-sm px-3 py-2 bg-white/30 border border-white/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)]" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">Birthday {userA.name.split(" ")[0]} (MM-DD-YY)</label>
+            <input value={bdayA} onChange={(e) => setBdayA(e.target.value)} placeholder="11-18-97" className="w-full text-sm px-3 py-2 bg-white/30 border border-white/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)]" />
           </div>
+          <div>
+            <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">Birthday {userB.name.split(" ")[0]} (MM-DD-YY)</label>
+            <input value={bdayB} onChange={(e) => setBdayB(e.target.value)} placeholder="04-05-99" className="w-full text-sm px-3 py-2 bg-white/30 border border-white/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)]" />
+          </div>
+        </div>
+
+        <div>
+          <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">Cloudinary Cloud Name</label>
+          <input value={cloudName} onChange={(e) => setCloudName(e.target.value)} placeholder="Enter Cloudinary Cloud Name" className="w-full text-sm px-3 py-2 bg-white/30 border border-white/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)]" />
+        </div>
+
+        <div>
+          <label className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block mb-1">Cloudinary Upload Preset</label>
+          <input value={uploadPreset} onChange={(e) => setUploadPreset(e.target.value)} placeholder="Enter Cloudinary Upload Preset" className="w-full text-sm px-3 py-2 bg-white/30 border border-white/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)]" />
+        </div>
+
+        <button id="save-settings-btn" onClick={handleSave} disabled={saving}
+          className={`w-full py-2.5 font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition-all ${saved ? "bg-green-500 text-white" : "bg-[var(--primary)] text-white hover:opacity-90"} disabled:opacity-60`}>
+          {saved ? <><Check className="w-4 h-4" /> Saved!</> : saving ? "Saving..." : <><Save className="w-4 h-4" /> Save Settings</>}
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Admin Panel ──────────────────────────────────────────────────────────────
+// Strictly gated to session.email === VITE_ADMIN_EMAIL
+
+function AdminSection() {
+  const { adminResetMissions, adminClearActivityLogs, adminDeleteAllMemories, adminKickSlot, adminDeleteAllSketches, adminDeleteAllNotes, adminResetTTTScore, resetAllData, userA, userB } = useCouple();
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+
+  const execute = async (key: string, fn: () => Promise<void> | void) => {
+    setConfirm(null);
+    await fn();
+    setDone(key);
+    setTimeout(() => setDone(null), 3000);
+  };
+
+  const actions = [
+    {
+      id: "reset-missions",
+      label: "Reset All Missions",
+      desc: "Mark all missions as incomplete",
+      icon: RefreshCw,
+      color: "text-amber-600",
+      bg: "bg-amber-50 border-amber-100",
+      fn: adminResetMissions,
+    },
+    {
+      id: "reset-ttt-score",
+      label: "Reset Tic Tac Toe Scores",
+      desc: "Reset current score counter to 0-0",
+      icon: RefreshCw,
+      color: "text-indigo-600",
+      bg: "bg-indigo-50 border-indigo-100",
+      fn: adminResetTTTScore,
+    },
+    {
+      id: "clear-logs",
+      label: "Clear Activity Logs",
+      desc: "Delete all activity log entries from Firestore",
+      icon: Trash2,
+      color: "text-red-500",
+      bg: "bg-red-50 border-red-100",
+      fn: adminClearActivityLogs,
+    },
+    {
+      id: "delete-memories",
+      label: "Purge All Memories",
+      desc: "Permanently delete every timeline memory from Firestore",
+      icon: Trash2,
+      color: "text-red-600",
+      bg: "bg-red-50 border-red-200",
+      fn: adminDeleteAllMemories,
+    },
+    {
+      id: "delete-sketches",
+      label: "Purge Sketch Gallery",
+      desc: "Permanently delete all saved sketches from Firestore",
+      icon: Trash2,
+      color: "text-rose-600",
+      bg: "bg-rose-50 border-rose-100",
+      fn: adminDeleteAllSketches,
+    },
+    {
+      id: "delete-notes",
+      label: "Purge Sweet Notes",
+      desc: "Permanently delete all sticky notes from Firestore",
+      icon: Trash2,
+      color: "text-purple-600",
+      bg: "bg-purple-50 border-purple-100",
+      fn: adminDeleteAllNotes,
+    },
+    {
+      id: "kick-user-a",
+      label: `Kick ${userA.name.split(" ")[0]} (Slot A)`,
+      desc: "Reset slot A so another person can claim it",
+      icon: UserMinus,
+      color: "text-orange-600",
+      bg: "bg-orange-50 border-orange-100",
+      fn: () => adminKickSlot("user_a"),
+    },
+    {
+      id: "kick-user-b",
+      label: `Kick ${userB.name.split(" ")[0]} (Slot B)`,
+      desc: "Reset slot B so another person can claim it",
+      icon: UserMinus,
+      color: "text-orange-600",
+      bg: "bg-orange-50 border-orange-100",
+      fn: () => adminKickSlot("user_b"),
+    },
+    {
+      id: "full-reset",
+      label: "Factory Reset (Local)",
+      desc: "Reset all localStorage state to defaults. Firestore unchanged.",
+      icon: AlertTriangle,
+      color: "text-red-700",
+      bg: "bg-red-100 border-red-300",
+      fn: resetAllData,
+    },
+  ];
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-3">
+      <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+        <Shield className="w-4 h-4 text-amber-600 flex-shrink-0" />
+        <div>
+          <p className="text-xs font-bold text-amber-800">Admin Panel</p>
+          <p className="text-[10px] text-amber-600">Restricted access. Actions are immediate and irreversible.</p>
         </div>
       </div>
 
-      <div className="lg:col-span-4 space-y-6">
-        <div className="glass-panel p-6 rounded-2xl space-y-4">
-          <h3 className="text-sm font-bold text-[var(--text-main)] flex items-center gap-2 border-b pb-2">
-            <UserCircle className="w-4.5 h-4.5 text-rose-500" />
-            My Profile
-          </h3>
-
-          <div className="flex flex-col items-center gap-3 pt-1">
-            <div className="relative group">
-              <img
-                src={myProfile.avatar}
-                alt={myProfile.name}
-                className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
-                referrerPolicy="no-referrer"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingPhoto}
-                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
-              >
-                <Camera className="w-6 h-6" />
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePhotoChange}
-              />
-            </div>
-            <p className="text-[10px] text-gray-400">
-              {uploadingPhoto ? "Uploading..." : "Tap photo to change"}
-            </p>
-
-            <div className="w-full space-y-1">
-              <label className="text-[10px] text-[var(--text-muted)] font-bold">Display Name</label>
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="w-full bg-black/5 text-xs px-3 py-2 outline-none rounded-lg border border-transparent focus:border-[var(--primary)]"
-                placeholder="Your name"
-              />
-            </div>
-
-            <button
-              onClick={handleSaveProfile}
-              disabled={saving}
-              className="w-full py-2 bg-[var(--primary)] text-white hover:opacity-90 active:scale-95 text-xs font-bold rounded-lg transition-all disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save Profile"}
-            </button>
-          </div>
-
-          <div className="border-t border-gray-100 pt-4 space-y-2">
-            <p className="text-[10px] text-[var(--text-muted)] font-bold uppercase tracking-wider">Your Partner</p>
-            <div className="flex items-center gap-3 p-3 bg-black/5 rounded-xl">
-              <img
-                src={partnerProfile.avatar}
-                alt={partnerProfile.name}
-                className="w-10 h-10 rounded-full object-cover border-2 border-white shadow"
-                referrerPolicy="no-referrer"
-              />
+      {actions.map((action) => (
+        <div key={action.id} className={`border rounded-xl p-3 ${action.bg}`}>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-start gap-2">
+              <action.icon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${action.color}`} />
               <div>
-                <p className="text-xs font-bold text-gray-800">{partnerProfile.name}</p>
-                <p className="text-[10px] text-gray-400">{partnerProfile.status}</p>
+                <p className="text-xs font-bold text-gray-800">{action.label}</p>
+                <p className="text-[10px] text-gray-500">{action.desc}</p>
               </div>
-              <Heart className="w-4 h-4 text-rose-400 ml-auto" />
             </div>
-          </div>
-
-          {session?.email && (
-            <p className="text-[10px] text-gray-400 font-mono truncate">
-              Signed in as {session.email}
-            </p>
-          )}
-
-          <button
-            onClick={handleLogout}
-            className="w-full py-2 bg-black/5 hover:bg-black/10 text-gray-700 border border-gray-200 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Sign Out
-          </button>
-        </div>
-
-        <div className="glass-panel p-6 rounded-2xl space-y-4 border-red-200">
-          <h3 className="text-sm font-bold text-red-600 flex items-center gap-2 border-b border-red-100 pb-2">
-            <ShieldAlert className="w-4.5 h-4.5 text-red-500 animate-pulse" />
-            Sanctuary Danger Zone
-          </h3>
-
-          <p className="text-[10px] text-gray-500 leading-relaxed">
-            Wiping the sanctuary completely deletes all letters, photobooth prints, levels, garden plant hydration, and logs. It will immediately rehydrate the default seed layout. This is irreversible.
-          </p>
-
-          <button
-            onClick={() => {
-              if (confirm("Are you absolutely sure you want to completely clear and reset our Private Sanctuary? This will wipe your letters and journals!")) {
-                resetAllData();
-                alert("Private Sanctuary rehydrated successfully!");
-                window.location.reload();
-              }
-            }}
-            className="w-full py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold rounded-lg transition-all"
-          >
-            Reset Digital Sanctuary
-          </button>
-        </div>
-
-        {/* ── ADMIN PANEL: Only for pratamagerrio@gmail.com ── */}
-        {isAdmin && (
-          <div className="glass-panel rounded-2xl overflow-hidden border-2 border-purple-300/50 shadow-lg">
-            {/* Header toggle */}
-            <button
-              onClick={() => setAdminOpen(!adminOpen)}
-              className="w-full p-5 flex items-center justify-between bg-gradient-to-r from-purple-900/80 to-indigo-900/80 text-white"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-purple-500/20 border border-purple-400/30 rounded-xl flex items-center justify-center">
-                  <Shield className="w-4.5 h-4.5 text-purple-300" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-purple-100 flex items-center gap-2">
-                    Admin Control Panel
-                    <Lock className="w-3 h-3 text-purple-400" />
-                  </p>
-                  <p className="text-[9px] text-purple-400 font-mono uppercase tracking-widest">Restricted · {ADMIN_EMAIL}</p>
-                </div>
+            {confirm === action.id ? (
+              <div className="flex gap-1.5 flex-shrink-0">
+                <button id={`admin-confirm-${action.id}`} onClick={() => execute(action.id, action.fn as any)}
+                  className="px-3 py-1 bg-red-500 text-white text-[10px] font-bold rounded-lg hover:bg-red-600">
+                  Confirm
+                </button>
+                <button onClick={() => setConfirm(null)} className="px-3 py-1 bg-gray-200 text-gray-600 text-[10px] font-bold rounded-lg">
+                  <X className="w-3 h-3" />
+                </button>
               </div>
-              {adminOpen ? <ChevronUp className="w-4 h-4 text-purple-300" /> : <ChevronDown className="w-4 h-4 text-purple-300" />}
-            </button>
-
-            {adminOpen && (
-              <div className="p-5 space-y-5 bg-gradient-to-br from-purple-950/30 to-slate-950/50 border-t border-purple-500/20">
-                {/* Stats Row */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white/5 border border-purple-500/10 rounded-xl p-3 text-center">
-                    <Database className="w-4 h-4 text-purple-400 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-purple-200">{memories.length}</p>
-                    <p className="text-[8px] text-purple-400 font-mono uppercase tracking-widest">Total Memories</p>
-                  </div>
-                  <div className="bg-white/5 border border-purple-500/10 rounded-xl p-3 text-center">
-                    <Activity className="w-4 h-4 text-purple-400 mx-auto mb-1" />
-                    <p className="text-2xl font-bold text-purple-200">2</p>
-                    <p className="text-[8px] text-purple-400 font-mono uppercase tracking-widest">Active Users</p>
-                  </div>
-                </div>
-
-                {/* Special Milestones Configuration (Days of Love & Birthdays) */}
-                <div className="bg-white/5 border border-purple-500/15 rounded-xl p-4 space-y-4">
-                  <p className="text-xs font-bold text-purple-100 flex items-center gap-2 border-b border-purple-500/10 pb-2">
-                    <Heart className="w-4 h-4 text-rose-400 fill-rose-400 animate-pulse" />
-                    Special Milestones (HomeView Card)
-                  </p>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-[9px] text-purple-300 font-semibold mb-1 uppercase tracking-wider">Days of Love Anniversary Date</label>
-                      <input
-                        type="date"
-                        value={newAnniversary}
-                        onChange={(e) => setNewAnniversary(e.target.value)}
-                        disabled={memLoading}
-                        className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all font-mono"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[9px] text-purple-300 font-semibold mb-1 uppercase tracking-wider">Han-byul Birthday (MM-DD)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 11-18"
-                          value={newBirthdayA}
-                          onChange={(e) => setNewBirthdayA(e.target.value)}
-                          disabled={memLoading}
-                          className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] text-purple-300 font-semibold mb-1 uppercase tracking-wider">Nic-young Birthday (MM-DD)</label>
-                        <input
-                          type="text"
-                          placeholder="e.g. 04-05"
-                          value={newBirthdayB}
-                          onChange={(e) => setNewBirthdayB(e.target.value)}
-                          disabled={memLoading}
-                          className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all font-mono"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div>
-                        <label className="block text-[9px] text-purple-300 font-semibold mb-1 uppercase tracking-wider">Cloudinary Cloud Name</label>
-                        <input
-                          type="text"
-                          placeholder="Cloud Name"
-                          value={newCloudName}
-                          onChange={(e) => setNewCloudName(e.target.value)}
-                          disabled={memLoading}
-                          className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all font-mono"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[9px] text-purple-300 font-semibold mb-1 uppercase tracking-wider">Cloudinary Upload Preset</label>
-                        <input
-                          type="text"
-                          placeholder="Upload Preset"
-                          value={newUploadPreset}
-                          onChange={(e) => setNewUploadPreset(e.target.value)}
-                          disabled={memLoading}
-                          className="w-full bg-black/40 border border-purple-500/20 text-purple-100 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-purple-400 transition-all font-mono"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end pt-1">
-                    <button
-                      type="button"
-                      onClick={handleSaveCoupleSettings}
-                      disabled={memLoading || (
-                        newAnniversary === anniversaryDate &&
-                        newBirthdayA === birthdayA &&
-                        newBirthdayB === birthdayB &&
-                        newCloudName === cloudinaryCloudName &&
-                        newUploadPreset === cloudinaryUploadPreset
-                      )}
-                      className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:opacity-40 disabled:hover:bg-purple-600 text-white text-xs font-bold rounded-lg transition-all active:scale-95 flex items-center justify-center"
-                    >
-                      {memLoading ? "Saving..." : "Save Settings"}
-                    </button>
-                  </div>
-                </div>
-
-
-
-                {/* Manage User Slots */}
-                <div className="bg-white/5 border border-orange-500/20 rounded-xl p-4 space-y-3">
-                  <p className="text-xs font-bold text-orange-100 flex items-center gap-2 border-b border-orange-500/10 pb-2">
-                    <Users className="w-4 h-4 text-orange-400" />
-                    Manage User Slots
-                  </p>
-                  <p className="text-[9px] text-orange-400/70 leading-relaxed">
-                    Only 2 slots are allowed. You (admin) are in Slot B. Kicking a slot resets it to unclaimed — that user will need to re-join.
-                  </p>
-
-                  {/* Slot A */}
-                  <div className="flex items-center gap-3 p-3 bg-black/20 rounded-xl border border-white/5">
-                    <div className="relative flex-shrink-0">
-                      {slotStatus.a.avatar
-                        ? <img src={slotStatus.a.avatar} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-orange-400/30" referrerPolicy="no-referrer" />
-                        : <div className="w-9 h-9 rounded-full bg-orange-500/10 border-2 border-orange-400/20 flex items-center justify-center"><UserX className="w-4 h-4 text-orange-400" /></div>
-                      }
-                      <span className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-900 ${slotStatus.a.claimed ? "bg-emerald-400" : "bg-gray-500"}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-white truncate">{slotStatus.a.name}</p>
-                      <p className="text-[9px] font-mono text-orange-400/70 truncate">
-                        {slotStatus.a.claimed ? "🟢 Slot A · Claimed" : "⚫ Slot A · Empty"}
-                      </p>
-                    </div>
-                    {slotStatus.a.claimed && (
-                      <button
-                        onClick={() => runAdminAction(
-                          "eject Slot A user (they will be logged out)",
-                          () => adminKickSlot("user_a")
-                        )}
-                        disabled={!!adminActionLoading}
-                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-orange-500/20 hover:bg-orange-500/40 border border-orange-500/30 hover:border-orange-400/60 rounded-lg text-orange-200 text-[10px] font-bold transition-all active:scale-95 disabled:opacity-50"
-                      >
-                        <UserX className={`w-3.5 h-3.5 ${adminActionLoading === "eject Slot A user (they will be logged out)" ? "animate-bounce" : ""}`} />
-                        Kick
-                      </button>
-                    )}
-                    {!slotStatus.a.claimed && (
-                      <span className="flex-shrink-0 px-2 py-1 bg-gray-500/10 border border-gray-500/20 rounded-lg text-gray-500 text-[9px] font-mono">Empty</span>
-                    )}
-                  </div>
-
-                  {/* Slot B (admin self) */}
-                  <div className="flex items-center gap-3 p-3 bg-black/20 rounded-xl border border-purple-500/20">
-                    <div className="relative flex-shrink-0">
-                      {slotStatus.b.avatar
-                        ? <img src={slotStatus.b.avatar} alt="" className="w-9 h-9 rounded-full object-cover border-2 border-purple-400/40" referrerPolicy="no-referrer" />
-                        : <div className="w-9 h-9 rounded-full bg-purple-500/10 border-2 border-purple-400/20 flex items-center justify-center"><Shield className="w-4 h-4 text-purple-400" /></div>
-                      }
-                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-slate-900 bg-emerald-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-purple-100 truncate">{slotStatus.b.name}</p>
-                      <p className="text-[9px] font-mono text-purple-400/70">🟢 Slot B · Admin (You)</p>
-                    </div>
-                    <span className="flex-shrink-0 px-2 py-1 bg-purple-500/10 border border-purple-500/20 rounded-lg text-purple-300 text-[9px] font-bold">Admin</span>
-                  </div>
-                </div>
-
-                {/* Result banner */}
-                {adminActionResult && (
-                  <div className={`flex items-center gap-2 p-3 rounded-xl text-xs font-semibold ${
-                    adminActionResult.startsWith("✅")
-                      ? "bg-emerald-500/15 border border-emerald-500/20 text-emerald-300"
-                      : "bg-red-500/15 border border-red-500/20 text-red-300"
-                  }`}>
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    {adminActionResult}
-                  </div>
-                )}
-
-                {/* Action buttons */}
-                <div className="space-y-2.5">
-                  <p className="text-[8px] font-mono text-purple-400 uppercase tracking-widest">Admin Actions</p>
-
-                  <button
-                    onClick={() => runAdminAction("reset all daily missions", adminResetMissions)}
-                    disabled={!!adminActionLoading}
-                    className="w-full flex items-center gap-3 p-3.5 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/20 hover:border-purple-400/40 rounded-xl text-left transition-all disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-4 h-4 text-purple-300 flex-shrink-0 ${adminActionLoading === "reset all daily missions" ? "animate-spin" : ""}`} />
-                    <div>
-                      <p className="text-xs font-bold text-purple-100">Reset Daily Missions</p>
-                      <p className="text-[9px] text-purple-400">Clears all completed mission states</p>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => runAdminAction("clear all activity logs", adminClearActivityLogs)}
-                    disabled={!!adminActionLoading}
-                    className="w-full flex items-center gap-3 p-3.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 hover:border-amber-400/40 rounded-xl text-left transition-all disabled:opacity-50"
-                  >
-                    <Activity className={`w-4 h-4 text-amber-300 flex-shrink-0 ${adminActionLoading === "clear all activity logs" ? "animate-pulse" : ""}`} />
-                    <div>
-                      <p className="text-xs font-bold text-amber-100">Clear Activity Logs</p>
-                      <p className="text-[9px] text-amber-400">Removes all activity history entries</p>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={() => runAdminAction("delete ALL memories permanently", adminDeleteAllMemories)}
-                    disabled={!!adminActionLoading}
-                    className="w-full flex items-center gap-3 p-3.5 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-400/40 rounded-xl text-left transition-all disabled:opacity-50"
-                  >
-                    <Trash2 className={`w-4 h-4 text-red-300 flex-shrink-0 ${adminActionLoading === "delete ALL memories permanently" ? "animate-bounce" : ""}`} />
-                    <div>
-                      <p className="text-xs font-bold text-red-100">Delete All Memories</p>
-                      <p className="text-[9px] text-red-400">⚠️ Permanent — this cannot be undone</p>
-                    </div>
-                  </button>
-                </div>
-
-                <div className="pt-2 border-t border-purple-500/10">
-                  <div className="flex items-center gap-2 p-2.5 bg-white/5 rounded-xl border border-white/5">
-                    <AlertTriangle className="w-3 h-3 text-amber-400 flex-shrink-0" />
-                    <p className="text-[8px] text-purple-400 leading-relaxed">
-                      Admin actions are permanent and affect both users. Use with caution. This panel is only visible to <span className="text-purple-300 font-bold">{ADMIN_EMAIL}</span>.
-                    </p>
-                  </div>
-                </div>
-              </div>
+            ) : done === action.id ? (
+              <span className="text-[10px] text-green-600 font-bold flex-shrink-0 flex items-center gap-1">
+                <Check className="w-3 h-3" /> Done
+              </span>
+            ) : (
+              <button id={`admin-btn-${action.id}`} onClick={() => setConfirm(action.id)}
+                className={`flex-shrink-0 px-3 py-1.5 text-[10px] font-bold rounded-lg border ${action.color} bg-white/60 border-current hover:bg-white/90 transition-all`}>
+                Execute
+              </button>
             )}
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      ))}
+    </motion.div>
   );
 }

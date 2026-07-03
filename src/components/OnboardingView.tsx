@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useCouple, DEFAULT_AVATAR_A, DEFAULT_AVATAR_B } from "../context/CoupleContext";
 import { db } from "../firebaseClient";
 import { collection, onSnapshot } from "firebase/firestore";
-import { Heart, Sparkles, LogOut, CheckCircle, ShieldAlert } from "lucide-react";
+import { Heart, Sparkles, LogOut, CheckCircle, ShieldAlert, User } from "lucide-react";
 import { motion } from "motion/react";
 
 export default function OnboardingView() {
@@ -13,8 +13,8 @@ export default function OnboardingView() {
   
   // Real-time slot status from database
   const [slotsStatus, setSlotsStatus] = useState<{
-    user_a: { claimed: boolean; name: string };
-    user_b: { claimed: boolean; name: string };
+    user_a: { claimed: boolean; name: string; avatarUrl?: string };
+    user_b: { claimed: boolean; name: string; avatarUrl?: string };
   }>({
     user_a: { claimed: false, name: "Partner A" },
     user_b: { claimed: false, name: "Partner B" },
@@ -35,10 +35,12 @@ export default function OnboardingView() {
         user_a: {
           claimed: !!slotA?.auth_id,
           name: slotA?.name || "Partner A",
+          avatarUrl: slotA?.avatar_url || slotA?.avatar,
         },
         user_b: {
           claimed: !!slotB?.auth_id,
           name: slotB?.name || "Partner B",
+          avatarUrl: slotB?.avatar_url || slotB?.avatar,
         },
       });
     }, (err) => {
@@ -106,31 +108,42 @@ export default function OnboardingView() {
               slotsStatus.user_a.claimed
                 ? "border-gray-200/50 bg-gray-100/10 opacity-50 cursor-not-allowed"
                 : selectedSlot === "user_a"
-                ? "border-rose-400 bg-white/70 shadow-lg ring-2 ring-rose-300 scale-[1.02]"
+                ? "border-blue-400 bg-white/70 shadow-lg ring-2 ring-blue-300 scale-[1.02]"
                 : "border-white/40 bg-white/30 hover:bg-white/40 hover:scale-[1.01] cursor-pointer"
             }`}
           >
-            <img
-              src={DEFAULT_AVATAR_A}
-              alt="Partner A"
-              className="w-20 h-20 rounded-full object-cover border-2 border-pink-200 shadow bg-white"
-            />
+            {slotsStatus.user_a.claimed && slotsStatus.user_a.avatarUrl ? (
+              <img
+                src={slotsStatus.user_a.avatarUrl}
+                alt={slotsStatus.user_a.name}
+                className="w-20 h-20 rounded-full object-cover border border-blue-200 dark:border-blue-900 shadow-md bg-white"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/20 text-blue-400 dark:text-blue-300 flex items-center justify-center shadow-inner">
+                <User className="w-10 h-10" />
+              </div>
+            )}
             <span className="text-sm font-black mt-3 text-gray-800">
               {slotsStatus.user_a.name}
             </span>
-            <span className="text-[10px] text-gray-400 font-mono mt-1">Slot A</span>
+            <div className="flex items-center gap-1.5 mt-1 justify-center">
+              <span className="text-[10px] text-gray-400 font-mono">Slot A</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 border border-blue-100 flex items-center gap-0.5">
+                Pria ♂️
+              </span>
+            </div>
 
             {/* Badges */}
             {slotsStatus.user_a.claimed ? (
-              <span className="mt-3 text-[9px] font-bold uppercase tracking-wider text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+              <span className="mt-3.5 text-[9px] font-bold uppercase tracking-wider text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex items-center gap-1">
                 <ShieldAlert className="w-3 h-3" /> Occupied
               </span>
             ) : selectedSlot === "user_a" ? (
-              <span className="mt-3 text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+              <span className="mt-3.5 text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" /> Selected
               </span>
             ) : (
-              <span className="mt-3 text-[9px] font-bold uppercase tracking-wider text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full">
+              <span className="mt-3.5 text-[9px] font-bold uppercase tracking-wider text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full">
                 Available
               </span>
             )}
@@ -150,31 +163,42 @@ export default function OnboardingView() {
               slotsStatus.user_b.claimed
                 ? "border-gray-200/50 bg-gray-100/10 opacity-50 cursor-not-allowed"
                 : selectedSlot === "user_b"
-                ? "border-rose-400 bg-white/70 shadow-lg ring-2 ring-rose-300 scale-[1.02]"
+                ? "border-pink-400 bg-white/70 shadow-lg ring-2 ring-pink-300 scale-[1.02]"
                 : "border-white/40 bg-white/30 hover:bg-white/40 hover:scale-[1.01] cursor-pointer"
             }`}
           >
-            <img
-              src={DEFAULT_AVATAR_B}
-              alt="Partner B"
-              className="w-20 h-20 rounded-full object-cover border-2 border-blue-200 shadow bg-white"
-            />
+            {slotsStatus.user_b.claimed && slotsStatus.user_b.avatarUrl ? (
+              <img
+                src={slotsStatus.user_b.avatarUrl}
+                alt={slotsStatus.user_b.name}
+                className="w-20 h-20 rounded-full object-cover border border-pink-200 dark:border-pink-900 shadow-md bg-white"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-full border border-pink-200 dark:border-pink-900 bg-pink-50 dark:bg-pink-950/20 text-pink-400 dark:text-pink-300 flex items-center justify-center shadow-inner">
+                <User className="w-10 h-10" />
+              </div>
+            )}
             <span className="text-sm font-black mt-3 text-gray-800">
               {slotsStatus.user_b.name}
             </span>
-            <span className="text-[10px] text-gray-400 font-mono mt-1">Slot B</span>
+            <div className="flex items-center gap-1.5 mt-1 justify-center">
+              <span className="text-[10px] text-gray-400 font-mono">Slot B</span>
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-pink-50 text-pink-600 border border-pink-100 flex items-center gap-0.5">
+                Wanita ♀️
+              </span>
+            </div>
 
             {/* Badges */}
             {slotsStatus.user_b.claimed ? (
-              <span className="mt-3 text-[9px] font-bold uppercase tracking-wider text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+              <span className="mt-3.5 text-[9px] font-bold uppercase tracking-wider text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full flex items-center gap-1">
                 <ShieldAlert className="w-3 h-3" /> Occupied
               </span>
             ) : selectedSlot === "user_b" ? (
-              <span className="mt-3 text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center gap-1">
+              <span className="mt-3.5 text-[9px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full flex items-center gap-1">
                 <CheckCircle className="w-3 h-3" /> Selected
               </span>
             ) : (
-              <span className="mt-3 text-[9px] font-bold uppercase tracking-wider text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full">
+              <span className="mt-3.5 text-[9px] font-bold uppercase tracking-wider text-blue-500 bg-blue-50 px-2.5 py-1 rounded-full">
                 Available
               </span>
             )}
@@ -187,22 +211,36 @@ export default function OnboardingView() {
           </p>
         )}
 
-        <div className="space-y-3 pt-2">
+        <div className="space-y-3.5 pt-2">
           <button
             type="button"
             onClick={handleClaim}
             disabled={!selectedSlot || loading}
-            className="w-full py-3.5 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+            className={`w-full py-3.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all shadow-md active:scale-95 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+              loading
+                ? "bg-gray-200 dark:bg-zinc-800 text-gray-500 dark:text-zinc-400 animate-pulse"
+                : !selectedSlot
+                ? "bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500"
+                : selectedSlot === "user_a"
+                ? "bg-blue-500 hover:bg-blue-600 text-white border border-blue-600"
+                : "bg-rose-500 hover:bg-rose-600 text-white border border-rose-600"
+            }`}
           >
-            {loading ? "Claiming..." : "Confirm & Enter Sanctuary"}
+            {loading ? (
+              "Claiming..."
+            ) : !selectedSlot ? (
+              "Select Your Partner Slot Above"
+            ) : (
+              `Confirm & Enter as ${selectedSlot === "user_a" ? slotsStatus.user_a.name : slotsStatus.user_b.name} 💖`
+            )}
           </button>
 
           <button
             type="button"
             onClick={logout}
-            className="w-full py-2 bg-transparent text-gray-500 hover:text-gray-700 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-1.5"
+            className="w-full py-2.5 bg-transparent text-gray-500 hover:text-rose-500 dark:text-zinc-400 dark:hover:text-rose-400 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors border border-dashed border-gray-200 dark:border-zinc-700 rounded-xl hover:bg-white/50"
           >
-            <LogOut className="w-4 h-4" /> Switch Account
+            <LogOut className="w-3.5 h-3.5" /> Switch Account
           </button>
         </div>
       </motion.div>
