@@ -968,7 +968,7 @@ function SketchCanvas() {
           <button
             id="sketch-undo-btn"
             onClick={handleUndo}
-            disabled={strokesDocs.filter((d) => d.data().userId === currentUser).length === 0}
+            disabled={strokesDocs.filter((s) => s.userId === currentUser).length === 0}
             className="p-1.5 rounded-xl border border-white/50 text-[var(--text-main)] bg-white/30 hover:bg-white/50 disabled:opacity-30 transition-all"
             title="Undo"
           >
