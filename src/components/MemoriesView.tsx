@@ -2235,7 +2235,8 @@ function JournalSection() {
     deleteJournal,
     updateJournal,
     awardXp,
-    // ponytail: Limit pagination props
+    cloudinaryCloudName,
+    cloudinaryUploadPreset,
     journalsLimit,
     loadMoreJournals,
   } = useCouple();
@@ -2257,7 +2258,12 @@ function JournalSection() {
   const [jTags, setJTags] = useState("");
   const [jImageUrl, setJImageUrl] = useState("");
 
-  // State saat mengedit Diary
+  const [jImageFile, setJImageFile] = useState<File | null>(null);
+  const [jImagePreview, setJImagePreview] = useState("");
+  const [jImageUploading, setJImageUploading] = useState(false);
+  const journalFileRef = useRef<HTMLInputElement>(null);
+
+  // Form states untuk Edit
   const [editingJournal, setEditingJournal] = useState<Journal | null>(null);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
@@ -2267,6 +2273,10 @@ function JournalSection() {
   const [editMood, setEditMood] = useState("cozy");
   const [editTags, setEditTags] = useState("");
   const [editImageUrl, setEditImageUrl] = useState("");
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState("");
+  const [editImageUploading, setEditImageUploading] = useState(false);
+  const editJournalFileRef = useRef<HTMLInputElement>(null);
 
   // Preset Cover Gambar Aesthetic sesuai mood/cuaca
   const coverPresets = [
@@ -2276,6 +2286,81 @@ function JournalSection() {
     { label: "Winter Snowy ❄️", url: "https://images.unsplash.com/photo-1491002052546-bf38f186af56?q=80&w=800&auto=format&fit=crop" },
     { label: "Night Stroll 🌙", url: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?q=80&w=800&auto=format&fit=crop" }
   ];
+
+  // Helper compression
+  const compressImage = async (file: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const reader = new FileReader();
+      reader.onload = (e) => { img.src = e.target?.result as string; };
+      reader.onerror = reject;
+      img.onload = () => {
+        const maxDim = 1200;
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { reject(new Error("Canvas context failed")); return; }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob);
+          else reject(new Error("Compression blob failed"));
+        }, "image/jpeg", 0.7);
+      };
+    });
+  };
+
+  const handleJournalFileChange = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      alert("Image must be under 2 MB.");
+      e.target.value = "";
+      return;
+    }
+
+    if (isEdit) {
+      setEditImageFile(file);
+      setEditImageUploading(true);
+    } else {
+      setJImageFile(file);
+      setJImageUploading(true);
+    }
+
+    try {
+      const compressedBlob = await compressImage(file);
+      let finalUrl = "";
+      if (cloudinaryCloudName && cloudinaryUploadPreset) {
+        finalUrl = await uploadToCloudinary(compressedBlob, `journal-${Date.now()}.jpg`, cloudinaryCloudName, cloudinaryUploadPreset);
+      } else {
+        finalUrl = await new Promise<string>((res, rej) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => res(ev.target?.result as string);
+          reader.onerror = rej;
+          reader.readAsDataURL(compressedBlob);
+        });
+      }
+
+      if (isEdit) {
+        setEditImagePreview(finalUrl);
+        setEditImageUrl(finalUrl);
+      } else {
+        setJImagePreview(finalUrl);
+        setJImageUrl(finalUrl);
+      }
+    } catch (err) {
+      console.error("[journal image upload]", err);
+      alert("Failed to upload image. Please try again.");
+    } finally {
+      if (isEdit) {
+        setEditImageUploading(false);
+      } else {
+        setJImageUploading(false);
+      }
+      e.target.value = "";
+    }
+  };
 
   const handleCreateJournal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -2304,10 +2389,11 @@ function JournalSection() {
     setJLocation("");
     setJTags("");
     setJImageUrl("");
+    setJImageFile(null);
+    setJImagePreview("");
     setShowAddJournal(false);
     awardXp(50, "wrote a beautiful new journal entry 🌸");
   };
-
   const startEditing = (jr: Journal) => {
     setEditingJournal(jr);
     setEditTitle(jr.title);
@@ -2558,30 +2644,72 @@ function JournalSection() {
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Cover Image URL (Optional)</label>
-            <input
-              type="text"
-              value={jImageUrl}
-              onChange={(e) => setJImageUrl(e.target.value)}
-              placeholder="Paste custom link or tap an aesthetic preset below..."
-              className="w-full bg-black/5 text-xs px-3 py-2 outline-none rounded-lg border border-transparent focus:border-emerald-500 focus:bg-white transition-all text-gray-800"
-            />
-            <div className="flex flex-wrap gap-1.5 pt-1.5">
-              {coverPresets.map((pr) => (
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Cover Photo</label>
+            
+            {/* Upload from device */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => journalFileRef.current?.click()}
+                disabled={jImageUploading}
+                className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg bg-emerald-600/10 text-emerald-600 hover:bg-emerald-600/20 border border-emerald-600/30 transition-all cursor-pointer disabled:opacity-50"
+              >
+                <Upload className="w-3 h-3" />
+                {jImageUploading ? "Processing..." : "Upload Photo"}
+              </button>
+              <span className="text-[9px] text-[var(--text-muted)]">max 2 MB · auto-compressed</span>
+              <input
+                ref={journalFileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleJournalFileChange(e, false)}
+              />
+            </div>
+
+            {/* Preview of uploaded file */}
+            {jImagePreview && (
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-emerald-600/20 shadow-xs">
+                <img src={jImagePreview} alt="Preview" className="w-full h-full object-cover" />
                 <button
                   type="button"
-                  key={pr.label}
-                  onClick={() => setJImageUrl(pr.url)}
-                  className={`text-[9px] px-2.5 py-1 rounded-full border transition-all cursor-pointer ${jImageUrl === pr.url
-                    ? "bg-emerald-600 text-white border-transparent font-bold"
-                    : "bg-white/60 text-gray-600 hover:bg-white border-gray-200"
-                    }`}
+                  onClick={() => { setJImageFile(null); setJImagePreview(""); setJImageUrl(""); }}
+                  className="absolute top-2 right-2 w-6 h-6 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-all cursor-pointer"
+                  title="Remove uploaded photo"
                 >
-                  {pr.label}
+                  <X className="w-3 h-3" />
                 </button>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* URL fallback — only shown when no file uploaded */}
+            {!jImagePreview && (
+              <>
+                <input
+                  type="text"
+                  value={jImageUrl}
+                  onChange={(e) => setJImageUrl(e.target.value)}
+                  placeholder="…or paste an image link"
+                  className="w-full bg-black/5 text-xs px-3 py-2 outline-none rounded-lg border border-transparent focus:border-emerald-500 focus:bg-white transition-all text-gray-800"
+                />
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  {coverPresets.map((pr) => (
+                    <button
+                      type="button"
+                      key={pr.label}
+                      onClick={() => setJImageUrl(pr.url)}
+                      className={`text-[9px] px-2.5 py-1 rounded-full border transition-all cursor-pointer ${jImageUrl === pr.url
+                        ? "bg-emerald-600 text-white border-transparent font-bold"
+                        : "bg-white/60 text-gray-600 hover:bg-white border-gray-200"
+                        }`}
+                    >
+                      {pr.label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           <div className="space-y-1">
@@ -2711,14 +2839,44 @@ function JournalSection() {
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Image Link</label>
-                <input
-                  type="text"
-                  value={editImageUrl}
-                  onChange={(e) => setEditImageUrl(e.target.value)}
-                  className="w-full bg-gray-50 text-xs px-3 py-2 outline-none rounded-lg border border-gray-200 focus:border-rose-500 text-gray-800"
-                />
+              <div className="space-y-1.5">
+                <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Cover Photo</label>
+                
+                {/* Upload from device */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => editJournalFileRef.current?.click()}
+                    disabled={editImageUploading}
+                    className="flex items-center gap-1.5 text-[10px] font-bold px-3 py-1.5 rounded-lg bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border border-rose-500/30 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    <Upload className="w-3 h-3" />
+                    {editImageUploading ? "Processing..." : "Upload Photo"}
+                  </button>
+                  <span className="text-[9px] text-[var(--text-muted)]">max 2 MB · auto-compressed</span>
+                  <input
+                    ref={editJournalFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handleJournalFileChange(e, true)}
+                  />
+                </div>
+
+                {/* Preview of uploaded file */}
+                {editImageUrl && (
+                  <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-rose-500/20 shadow-xs">
+                    <img src={editImageUrl} alt="Preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => { setEditImageFile(null); setEditImagePreview(""); setEditImageUrl(""); }}
+                      className="absolute top-2 right-2 w-6 h-6 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-all cursor-pointer"
+                      title="Remove uploaded photo"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-1">
