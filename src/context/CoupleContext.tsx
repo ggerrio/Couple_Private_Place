@@ -87,6 +87,8 @@ interface CoupleContextProps {
   addMoodHistoryEntry: (mood: string, note?: string) => void;
   theme: ThemeType;
   setTheme: (theme: ThemeType) => void;
+  darkMode: boolean;
+  toggleDarkMode: () => void;
   awardXp: (amount: number, reason: string) => void;
   anniversaryDate: string;
   birthdayA: string;
@@ -109,6 +111,11 @@ interface CoupleContextProps {
   adminDeleteAllNotes: () => Promise<void>;
   adminResetTTTScore: () => Promise<void>;
   updateCoupleSettings: (annivDate: string, bdayA: string, bdayB: string, cloudName?: string, uploadPreset?: string) => Promise<void>;
+  // ponytail: Pagination support
+  memoriesLimit: number;
+  loadMoreMemories: () => void;
+  journalsLimit: number;
+  loadMoreJournals: () => void;
 }
 
 // ─── Defaults ──────────────────────────────────────────────────────────────────
@@ -118,8 +125,8 @@ export const DEFAULT_AVATAR_A =
 export const DEFAULT_AVATAR_B =
   "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=256&q=80";
 
-const initialUserA: Profile = { id: "user_a", name: "Gerrio", avatar: DEFAULT_AVATAR_A, mood: "happy", status: "Active", xp: 0, level: 1, gender: "pria" };
-const initialUserB: Profile = { id: "user_b", name: "Death G", avatar: DEFAULT_AVATAR_B, mood: "cozy", status: "Away", xp: 0, level: 1, weatherCity: "Menteng", gender: "wanita" };
+const initialUserA: Profile = { id: "user_a", name: "Gerrio", avatar: DEFAULT_AVATAR_A, mood: "happy", status: "Active", xp: 0, level: 1, gender: "pria", emoji: "💖" };
+const initialUserB: Profile = { id: "user_b", name: "Death G", avatar: DEFAULT_AVATAR_B, mood: "cozy", status: "Away", xp: 0, level: 1, weatherCity: "Menteng", gender: "wanita", emoji: "✨" };
 
 const initialMemories: Memory[] = [
   {
@@ -214,6 +221,8 @@ function dedup<T extends { id: string | number }>(arr: T[]): T[] {
 
 // ─── Context ───────────────────────────────────────────────────────────────────
 
+const VALID_THEMES: ThemeType[] = ["monochrome-minimal", "sakura", "studio-ghibli", "night", "pastel", "cyber-lavender"];
+
 const CoupleContext = createContext<CoupleContextProps | undefined>(undefined);
 
 export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -236,6 +245,9 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>(() => dedup(lsGet("couple_activity_logs", initialLogs)));
   const [moodHistory, setMoodHistory] = useState<MoodHistoryEntry[]>(() => dedup(lsGet("couple_mood_history", initialMoodHistory)));
   const [userReactions, setUserReactions] = useState<Record<string, Record<string, boolean>>>(() => lsGet("couple_user_reactions", {}));
+  // ponytail: Limit limits for cost efficiency
+  const [memoriesLimit, setMemoriesLimit] = useState(15);
+  const [journalsLimit, setJournalsLimit] = useState(15);
 
   // ── Garden ────────────────────────────────────────────────────────────────
   const [gardenXp, setGardenXp] = useState(() => lsGet<number>("couple_garden_xp", 360));
@@ -247,7 +259,17 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [currentSong, setCurrentSong] = useState<Song>(initialSong);
 
   // ── Theme & Settings ──────────────────────────────────────────────────────
-  const [theme, setThemeState] = useState<ThemeType>(() => lsGet("couple_theme", "minimal-white") as ThemeType);
+  const [theme, setThemeState] = useState<ThemeType>(() => {
+    const saved = lsGet("couple_theme", "sakura") as ThemeType;
+    return VALID_THEMES.includes(saved) ? saved : "sakura";
+  });
+  const [darkMode, setDarkMode] = useState<boolean>(() => lsGet("couple_dark_mode", false));
+  const toggleDarkMode = useCallback(() => {
+    setDarkMode(prev => {
+      localStorage.setItem("couple_dark_mode", JSON.stringify(!prev));
+      return !prev;
+    });
+  }, []);
   const [anniversaryDate, setAnniversaryDate] = useState(() => lsGet("couple_anniversary_date", "2025-12-14"));
   const [birthdayA, setBirthdayA] = useState("06-16");
   const [birthdayB, setBirthdayB] = useState("12-25");
@@ -378,15 +400,16 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           longitude: p.longitude,
           weatherCity: p.weather_city,
           gender: p.gender,
+          emoji: p.emoji || (d.id === "user_a" ? "💖" : "✨"),
         };
         if (d.id === "user_a") setUserA((prev) => ({ ...prev, ...mapped }));
         if (d.id === "user_b") setUserB((prev) => ({ ...prev, ...mapped }));
       });
     });
 
-    // 2. Memories
+    // 2. Memories (ponytail: client-side paginated queries to reduce Firestore cost)
     const unsubMemories = onSnapshot(
-      query(collection(db, "memories"), orderBy("created_at", "desc")),
+      query(collection(db, "memories"), orderBy("created_at", "desc"), limit(memoriesLimit)),
       (snap) => {
         const urMap: Record<string, Record<string, boolean>> = {};
         const list: Memory[] = snap.docs.map((d) => {
@@ -437,9 +460,9 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     );
 
-    // Journals sync
+    // Journals sync (ponytail: client-side paginated queries to reduce Firestore cost)
     const unsubJournals = onSnapshot(
-      query(collection(db, "journals"), orderBy("created_at", "desc")),
+      query(collection(db, "journals"), orderBy("created_at", "desc"), limit(journalsLimit)),
       (snap) => {
         setJournals(snap.docs.map((d) => {
           const j = d.data();
@@ -459,13 +482,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     );
 
-    // 3. Activity logs
-    const unsubLogs = onSnapshot(
-      query(collection(db, "activity_logs"), orderBy("timestamp", "desc"), limit(50)),
-      (snap) => {
-        setActivityLogs(snap.docs.map((d) => ({ id: d.id, userId: d.data().user_id, text: d.data().text, timestamp: d.data().timestamp })));
-      }
-    );
+
 
     // 4. Missions — seed guard prevents loop
     const unsubMissions = onSnapshot(
@@ -518,9 +535,9 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     });
 
-    return () => { unsubProfiles(); unsubMemories(); unsubJournals(); unsubLogs(); unsubMissions(); unsubSettings(); unsubSong(); };
-  }, [session]);
-  // ponytail: session dep only — currentUser changes must not restart all 5 listeners
+    return () => { unsubProfiles(); unsubMemories(); unsubJournals(); unsubMissions(); unsubSettings(); unsubSong(); };
+  }, [session, memoriesLimit, journalsLimit]);
+  // ponytail: session and limit deps for paginated subscriptions
 
   const seedMissions = async () => {
     const defaults = [
@@ -594,6 +611,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (updates.longitude !== undefined) dbUpdates.longitude = updates.longitude;
     if (updates.weatherCity !== undefined) dbUpdates.weather_city = updates.weatherCity;
     if (updates.moodNote !== undefined) dbUpdates.mood_note = updates.moodNote;
+    if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
 
     try {
       await updateDoc(doc(db, "profiles", userId), dbUpdates);
@@ -713,6 +731,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         weather: journal.weather,
         mood: journal.mood,
         tags: journal.tags,
+        imageUrl: journal.imageUrl || "",
         created_at: new Date().toISOString(),
         created_by: currentUser,
       });
@@ -739,6 +758,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         weather: updates.weather,
         mood: updates.mood,
         tags: updates.tags,
+        imageUrl: updates.imageUrl,
         edited_at: new Date().toISOString(),
       };
       Object.keys(data).forEach((key) => data[key] === undefined && delete data[key]);
@@ -929,7 +949,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setMissions(initialMissions); setGardenXp(240); setGardenLevel(4);
     setGardenPlant("sakura"); setWaterLevel(65);
     setActivityLogs(initialLogs); setMoodHistory(initialMoodHistory); setUserReactions({});
-    setThemeState("minimal-white");
+    setThemeState("sakura"); setDarkMode(false);
   }, []);
 
   return (
@@ -943,7 +963,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       gardenXp, gardenLevel, gardenPlant, waterLevel, waterPlant, changePlantType,
       currentSong, setSongPlayState, updateSongProgress, syncSongToPartner,
       activityLogs, addActivity, moodHistory, addMoodHistoryEntry,
-      theme, setTheme, awardXp, anniversaryDate, birthdayA, birthdayB,
+      theme, setTheme, darkMode, toggleDarkMode, awardXp, anniversaryDate, birthdayA, birthdayB,
       cloudinaryCloudName, cloudinaryUploadPreset,
       triggerSurprise, activeSurprise, setActiveSurprise,
       resetAllData, isOnboarding, claimProfileSlot,

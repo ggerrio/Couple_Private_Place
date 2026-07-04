@@ -222,8 +222,8 @@ export default function OnboardingView() {
                 : !selectedSlot
                 ? "bg-gray-100 dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 text-gray-400 dark:text-zinc-500"
                 : selectedSlot === "user_a"
-                ? "bg-blue-500 hover:bg-blue-600 text-white border border-blue-600"
-                : "bg-rose-500 hover:bg-rose-600 text-white border border-rose-600"
+                ? "bg-blue-500 hover:bg-blue-600 text-white border border-blue-600 cursor-pointer duration-200 hover:-translate-y-0.5"
+                : "bg-rose-500 hover:bg-rose-600 text-white border border-rose-600 cursor-pointer duration-200 hover:-translate-y-0.5"
             }`}
           >
             {loading ? (
@@ -231,14 +231,14 @@ export default function OnboardingView() {
             ) : !selectedSlot ? (
               "Select Your Partner Slot Above"
             ) : (
-              `Confirm & Enter as ${selectedSlot === "user_a" ? slotsStatus.user_a.name : slotsStatus.user_b.name} 💖`
+              `Confirm & Enter as ${selectedSlot === "user_a" ? slotsStatus.user_a.name : slotsStatus.user_b.name}`
             )}
           </button>
 
           <button
             type="button"
             onClick={logout}
-            className="w-full py-2.5 bg-transparent text-gray-500 hover:text-rose-500 dark:text-zinc-400 dark:hover:text-rose-400 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors border border-dashed border-gray-200 dark:border-zinc-700 rounded-xl hover:bg-white/50"
+            className="w-full py-2.5 bg-transparent text-gray-500 hover:text-rose-500 dark:text-zinc-400 dark:hover:text-rose-400 text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 transition-all border border-dashed border-gray-200 dark:border-zinc-700 rounded-xl hover:bg-white/50 cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" /> Switch Account
           </button>

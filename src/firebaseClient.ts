@@ -78,5 +78,10 @@ export const uploadToCloudinary = async (
   }
 
   const responseJson = await res.json();
-  return responseJson.secure_url;
+  // ponytail: Inject format & quality optimizations directly into the CDN URL path
+  let url = responseJson.secure_url || "";
+  if (url.includes("/upload/")) {
+    url = url.replace("/upload/", "/upload/f_auto,q_auto,w_1200,c_limit/");
+  }
+  return url;
 };

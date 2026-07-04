@@ -1,11 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Comfortaa:wght@300;400;500;700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;0,700;1,400&family=Fredoka:wght@300;400;500;600;700&family=Outfit:wght@100;300;400;600;700;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Press+Start+2P&family=Silkscreen&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant Garamond", Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
-  --font-display: "Space Grotesk", sans-serif;
+  --font-display: "Cormorant Garamond", serif;
 }
 
 /* Custom Scrollbar */
@@ -24,12 +24,52 @@
   background: rgba(255, 255, 255, 0.1);
 }
 
+/* Global Styles */
+body {
+  font-family: var(--font-sans) !important;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: var(--font-display) !important;
+}
+
+/* Design Tokens & Theme Variables */
+:root {
+  --color-primary: #B35E6B;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #E6C594;
+  --color-accent: #8C4351;
+  --color-background: #FAF6F0;
+  --color-foreground: #2C1A1D;
+  --color-muted: #F4EFE6;
+  --color-border: #E8DCC4;
+  --color-ring: #B35E6B;
+  --color-destructive: #A83244;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(44, 26, 29, 0.03);
+  --shadow-md: 0 4px 6px rgba(44, 26, 29, 0.05), 0 1px 3px rgba(44, 26, 29, 0.03);
+  --shadow-lg: 0 10px 15px rgba(44, 26, 29, 0.08), 0 4px 6px rgba(44, 26, 29, 0.03);
+  --shadow-xl: 0 20px 25px rgba(44, 26, 29, 0.1), 0 10px 10px rgba(44, 26, 29, 0.05);
+}
+
 /* Glassmorphism Classes */
 .glass-panel {
-  background: rgba(255, 255, 255, 0.65);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  background-color: color-mix(in srgb, var(--color-background) 70%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
 }
 
 .glass-panel-dark {
@@ -39,218 +79,341 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Theme Mappings */
-.theme-minimal-white {
-  --bg-app: #fafafa;
-  --bg-gradient: linear-gradient(135deg, #fafafa 0%, #f4f4f5 100%);
-  --card-bg: rgba(255, 255, 255, 0.85);
-  --border-color: rgba(228, 228, 231, 0.6);
-  --primary: #18181b;
-  --primary-rgb: 24, 24, 27;
-  --accent: #71717a;
-  --text-main: #18181b;
-  --text-muted: #71717a;
-  --glass-border: rgba(24, 24, 27, 0.05);
+/* Theme Mappings override */
+.theme-monochrome-minimal {
+  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Space Grotesk", sans-serif;
+  --color-primary: #1C1C1E;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #636366;
+  --color-accent: #3A3A3C;
+  --color-background: #F5F5F5;
+  --color-foreground: #111111;
+  --color-muted: #E8E8E8;
+  --color-border: #C7C7CC;
+  --color-ring: #1C1C1E;
+
+  --bg-app: var(--color-background);
+  --bg-gradient: linear-gradient(135deg, #F5F5F5 0%, #DCDCDC 100%);
+  --card-bg: rgba(255, 255, 255, 0.97);
+  --border-color: var(--color-border);
+  --primary: var(--color-primary);
+  --primary-rgb: 28, 28, 30;
+  --accent: var(--color-accent);
+  --text-main: var(--color-foreground);
+  --text-muted: var(--color-secondary);
+  --glass-border: rgba(28, 28, 30, 0.08);
 }
 
-.theme-korean-cafe {
-  --bg-app: #fbf9f4;
-  --bg-gradient: linear-gradient(135deg, #fbf9f4 0%, #f4eee1 100%);
-  --card-bg: rgba(253, 251, 247, 0.9);
-  --border-color: rgba(215, 201, 181, 0.4);
-  --primary: #5c4033;
-  --primary-rgb: 92, 64, 51;
-  --accent: #c2a688;
-  --text-main: #4a3429;
-  --text-muted: #8e7362;
-  --glass-border: rgba(92, 64, 51, 0.08);
+/* Strip pink/rose Tailwind bleeds inside monochrome theme */
+.theme-monochrome-minimal .text-rose-600,
+.theme-monochrome-minimal .text-rose-500,
+.theme-monochrome-minimal .text-rose-400 { color: #636366 !important; }
+.theme-monochrome-minimal .border-rose-100\/50,
+.theme-monochrome-minimal .border-rose-100 { border-color: #C7C7CC !important; }
+.theme-monochrome-minimal .bg-rose-50 { background-color: #F0F0F0 !important; }
+.theme-monochrome-minimal .fill-rose-50 { fill: #E8E8E8 !important; }
+.theme-monochrome-minimal .text-rose-100\/40 { color: #C7C7CC !important; }
+
+/* In dark mode, monochrome --primary is too dark for active states → use light accent */
+.theme-monochrome-minimal.dark {
+  --primary: #E0E0E0;
+  --primary-rgb: 224, 224, 224;
+  --color-primary: #E0E0E0;
+  --color-on-primary: #111111;
 }
 
 .theme-sakura {
-  --bg-app: #fff5f5;
-  --bg-gradient: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+  --font-display: "Playfair Display", serif;
+  --font-sans: "Outfit", sans-serif;
+  --color-primary: #D53F8C;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #FFB7B2;
+  --color-accent: #B83280;
+  --color-background: #FFF5F5;
+  --color-foreground: #4A122B;
+  --color-muted: #FFF0F2;
+  --color-border: #FED7D7;
+  --color-ring: #D53F8C;
+
+  --bg-app: var(--color-background);
+  --bg-gradient: linear-gradient(135deg, #FFF5F5 0%, #FFE5EC 100%);
   --card-bg: rgba(255, 255, 255, 0.9);
-  --border-color: rgba(251, 182, 182, 0.4);
-  --primary: #d53f8c;
+  --border-color: var(--color-border);
+  --primary: var(--color-primary);
   --primary-rgb: 213, 63, 140;
-  --accent: #f6ad55;
-  --text-main: #702459;
-  --text-muted: #b83280;
-  --glass-border: rgba(213, 63, 140, 0.08);
+  --accent: var(--color-accent);
+  --text-main: var(--color-foreground);
+  --text-muted: #C9739C;
+  --glass-border: rgba(213, 63, 140, 0.1);
 }
 
 .theme-studio-ghibli {
-  --bg-app: #f0f7f4;
-  --bg-gradient: linear-gradient(135deg, #f0f7f4 0%, #cce3de 100%);
-  --card-bg: rgba(255, 255, 255, 0.88);
-  --border-color: rgba(163, 201, 192, 0.4);
-  --primary: #2d6a4f;
+  --font-display: "Comfortaa", cursive;
+  --font-sans: "Outfit", sans-serif;
+  --color-primary: #2D6A4F;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #74C69D;
+  --color-accent: #1B4332;
+  --color-background: #F0F7F4;
+  --color-foreground: #081C15;
+  --color-muted: #E2EFE9;
+  --color-border: #D8ECE2;
+  --color-ring: #2D6A4F;
+
+  --bg-app: var(--color-background);
+  --bg-gradient: linear-gradient(135deg, #F0F7F4 0%, #D8ECE2 100%);
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --border-color: var(--color-border);
+  --primary: var(--color-primary);
   --primary-rgb: 45, 106, 79;
-  --accent: #f4a261;
-  --text-main: #1b4332;
-  --text-muted: #40916c;
+  --accent: var(--color-accent);
+  --text-main: var(--color-foreground);
+  --text-muted: #529E7A;
   --glass-border: rgba(45, 106, 79, 0.08);
 }
 
-.theme-pixel-retro {
-  --bg-app: #18142c;
-  --bg-gradient: linear-gradient(135deg, #18142c 0%, #2f2552 100%);
-  --card-bg: rgba(38, 30, 68, 0.85);
-  --border-color: rgba(167, 139, 250, 0.35);
-  --primary: #c084fc;
-  --primary-rgb: 192, 132, 252;
-  --accent: #34d399;
-  --text-main: #f8fafc;
-  --text-muted: #cbd5e1;
-  --glass-border: rgba(192, 132, 252, 0.2);
-}
-
 .theme-night {
-  --bg-app: #060919;
-  --bg-gradient: linear-gradient(135deg, #060919 0%, #111a36 100%);
-  --card-bg: rgba(22, 28, 54, 0.88);
-  --border-color: rgba(99, 102, 241, 0.35);
-  --primary: #818cf8;
-  --primary-rgb: 129, 140, 248;
-  --accent: #fbbf24;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --glass-border: rgba(129, 140, 248, 0.2);
-}
+  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Space Grotesk", sans-serif;
+  --color-primary: #818CF8;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #FBBF24;
+  --color-accent: #4F46E5;
+  --color-background: #060919;
+  --color-foreground: #FFFFFF;
+  --color-muted: #111827;
+  --color-border: #1F2937;
+  --color-ring: #818CF8;
 
-.theme-coffee {
-  --bg-app: #20130b;
-  --bg-gradient: linear-gradient(135deg, #20130b 0%, #362217 100%);
-  --card-bg: rgba(54, 34, 23, 0.9);
-  --border-color: rgba(212, 163, 115, 0.35);
-  --primary: #e6b89c;
-  --primary-rgb: 230, 184, 156;
-  --accent: #faedcd;
-  --text-main: #fdfaf7;
-  --text-muted: #d4c5b9;
-  --glass-border: rgba(230, 184, 156, 0.2);
+  --bg-app: var(--color-background);
+  --bg-gradient: linear-gradient(135deg, #060919 0%, #0B0F2B 100%);
+  --card-bg: rgba(15, 23, 42, 0.85);
+  --border-color: var(--color-border);
+  --primary: var(--color-primary);
+  --primary-rgb: 129, 140, 248;
+  --accent: var(--color-accent);
+  --text-main: var(--color-foreground);
+  --text-muted: #9CA3AF;
+  --glass-border: rgba(129, 140, 248, 0.12);
 }
 
 .theme-pastel {
-  --bg-app: #f7f9fc;
-  --bg-gradient: linear-gradient(135deg, #fcf6f5 0%, #eef1f6 100%);
-  --card-bg: rgba(255, 255, 255, 0.9);
-  --border-color: rgba(211, 224, 237, 0.5);
-  --primary: #9aa5ff;
+  --font-display: "Fredoka", sans-serif;
+  --font-sans: "Fredoka", sans-serif;
+  --color-primary: #9AA5FF;
+  --color-on-primary: #FFFFFF;
+  --color-secondary: #FFB7B2;
+  --color-accent: #FF9AA2;
+  --color-background: #F7F9FC;
+  --color-foreground: #4A4E69;
+  --color-muted: #F0F4F8;
+  --color-border: #E2E8F0;
+  --color-ring: #9AA5FF;
+
+  --bg-app: var(--color-background);
+  --bg-gradient: linear-gradient(135deg, #F7F9FC 0%, #EAF0F6 100%);
+  --card-bg: rgba(255, 255, 255, 0.95);
+  --border-color: var(--color-border);
+  --primary: var(--color-primary);
   --primary-rgb: 154, 165, 255;
-  --accent: #ffb7b2;
-  --text-main: #4a5568;
-  --text-muted: #718096;
+  --accent: var(--color-accent);
+  --text-main: var(--color-foreground);
+  --text-muted: #828DF2;
   --glass-border: rgba(154, 165, 255, 0.1);
 }
 
-.theme-valentine {
-  --bg-app: #fff0f3;
-  --bg-gradient: linear-gradient(135deg, #fff0f3 0%, #ffccd5 100%);
-  --card-bg: rgba(255, 255, 255, 0.92);
-  --border-color: rgba(255, 179, 193, 0.4);
-  --primary: #ff4d6d;
-  --primary-rgb: 255, 77, 109;
-  --accent: #ff85a1;
-  --text-main: #590d22;
-  --text-muted: #c9184a;
-  --glass-border: rgba(255, 77, 109, 0.1);
-}
-
-.theme-christmas {
-  --bg-app: #0b1a13;
-  --bg-gradient: linear-gradient(135deg, #0b1a13 0%, #1a3a2a 100%);
-  --card-bg: rgba(20, 48, 35, 0.85);
-  --border-color: rgba(186, 12, 47, 0.3);
-  --primary: #ba0c2f;
-  --primary-rgb: 186, 12, 47;
-  --accent: #d4af37;
-  --text-main: #f4eedb;
-  --text-muted: #a3c1ad;
-  --glass-border: rgba(186, 12, 47, 0.15);
-}
-
-.theme-artistic-flair {
-  --bg-app: #fbf7f0;
-  --bg-gradient: linear-gradient(135deg, #fbf7f0 0%, #f4eae1 50%, #e6d7c3 100%);
-  --card-bg: rgba(255, 254, 251, 0.9);
-  --border-color: rgba(188, 108, 37, 0.22);
-  --primary: #bc6c25;
-  --primary-rgb: 188, 108, 37;
-  --accent: #dda15e;
-  --text-main: #283618;
-  --text-muted: #606c38;
-  --glass-border: rgba(188, 108, 37, 0.15);
-}
-
-/* Custom Overrides for Artistic Flair Theme */
-.theme-artistic-flair h1,
-.theme-artistic-flair h2,
-.theme-artistic-flair h3,
-.theme-artistic-flair .font-display {
-  font-family: var(--font-serif) !important;
-  font-style: italic;
+/* Button specs */
+.btn-primary {
+  background: var(--color-accent);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
   font-weight: 600;
-  letter-spacing: -0.02em;
+  transition: all 200ms ease;
+  cursor: pointer;
+}
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 200ms ease;
+  cursor: pointer;
+}
+.btn-secondary:hover {
+  background: var(--color-muted);
 }
 
-.theme-artistic-flair .glass-panel {
-  background: rgba(255, 254, 250, 0.88);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border: 2px solid rgba(188, 108, 37, 0.25);
+/* ─── Dark Mode Overrides ────────────────────────────────────────────────────── */
+/* Each theme's .dark variant preserves its accent/primary color personality      */
+/* but switches to a comfortable dark background + high-contrast light text.      */
+
+.theme-monochrome-minimal.dark {
+  --color-background: #111111;
+  --color-foreground: #F5F5F5;
+  --color-muted: #1C1C1E;
+  --color-border: #3A3A3C;
+  --color-secondary: #AEAEB2;
+  --bg-app: #111111;
+  --bg-gradient: linear-gradient(135deg, #111111 0%, #1C1C1E 100%);
+  --card-bg: rgba(28, 28, 30, 0.95);
+  --border-color: #3A3A3C;
+  --text-main: #F5F5F5;
+  --text-muted: #AEAEB2;
+  --glass-border: rgba(255, 255, 255, 0.06);
+}
+
+.theme-sakura.dark {
+  --color-background: #1A0810;
+  --color-foreground: #FFE4EC;
+  --color-muted: #2A1020;
+  --color-border: #5C2040;
+  --color-secondary: #F9A8C9;
+  --bg-app: #1A0810;
+  --bg-gradient: linear-gradient(135deg, #1A0810 0%, #2A1020 100%);
+  --card-bg: rgba(38, 14, 30, 0.9);
+  --border-color: #5C2040;
+  --text-main: #FFE4EC;
+  --text-muted: #F9A8C9;
+  --glass-border: rgba(213, 63, 140, 0.12);
+}
+
+.theme-studio-ghibli.dark {
+  --color-background: #0B1A12;
+  --color-foreground: #D4F0E0;
+  --color-muted: #142A1E;
+  --color-border: #1E4D30;
+  --color-secondary: #74C69D;
+  --bg-app: #0B1A12;
+  --bg-gradient: linear-gradient(135deg, #0B1A12 0%, #142A1E 100%);
+  --card-bg: rgba(18, 40, 28, 0.92);
+  --border-color: #1E4D30;
+  --text-main: #D4F0E0;
+  --text-muted: #74C69D;
+  --glass-border: rgba(45, 106, 79, 0.12);
+}
+
+.theme-night.dark {
+  --color-background: #020510;
+  --color-foreground: #EEF0FF;
+  --color-muted: #0A0D1E;
+  --color-border: #12173A;
+  --bg-app: #020510;
+  --bg-gradient: linear-gradient(135deg, #020510 0%, #060919 100%);
+  --card-bg: rgba(8, 12, 30, 0.9);
+  --border-color: #12173A;
+  --text-main: #EEF0FF;
+  --glass-border: rgba(129, 140, 248, 0.15);
+}
+
+.theme-pastel.dark {
+  --color-background: #0E0E1A;
+  --color-foreground: #E8ECFF;
+  --color-muted: #181826;
+  --color-border: #2A2A40;
+  --color-secondary: #9AA5FF;
+  --bg-app: #0E0E1A;
+  --bg-gradient: linear-gradient(135deg, #0E0E1A 0%, #181826 100%);
+  --card-bg: rgba(22, 22, 38, 0.92);
+  --border-color: #2A2A40;
+  --text-main: #E8ECFF;
+  --text-muted: #9AA5FF;
+  --glass-border: rgba(154, 165, 255, 0.12);
+}
+
+.theme-cyber-lavender.dark {
+  --color-background: #060410;
+  --color-foreground: #EDE8FF;
+  --color-muted: #0E0A20;
+  --color-border: #1E1840;
+  --bg-app: #060410;
+  --bg-gradient: linear-gradient(135deg, #060410 0%, #0E0A20 100%);
+  --card-bg: rgba(14, 10, 28, 0.95);
+  --border-color: #1E1840;
+  --text-main: #EDE8FF;
+  --glass-border: rgba(192, 132, 252, 0.18);
+}
+
+/* Card backgrounds in dark mode use theme card-bg */
+.dark .bg-white\/40,
+.dark .bg-white\/45,
+.dark .bg-white\/90 {
+  background-color: var(--card-bg) !important;
+}
+.dark .border-neutral-200\/40,
+.dark .border-neutral-200\/50 {
+  border-color: var(--border-color) !important;
+}
+
+/* Button specs */
+
+.card-spec {
+  background: var(--card-bg);
   border-radius: 24px;
-  box-shadow: 6px 6px 0px 0px rgba(188, 108, 37, 0.08);
+  padding: 24px;
+  border: 1px solid color-mix(in srgb, var(--color-border) 40%, transparent);
+  box-shadow: 0 10px 30px -10px color-mix(in srgb, var(--color-primary) 15%, transparent);
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+.card-spec:hover {
+  box-shadow: 0 20px 40px -15px color-mix(in srgb, var(--color-primary) 30%, transparent);
+  transform: translateY(-4px) scale(1.01);
+  border-color: color-mix(in srgb, var(--color-primary) 60%, transparent);
 }
 
-.theme-artistic-flair .glass-panel-dark {
-  background: rgba(40, 54, 24, 0.95);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 2px solid rgba(221, 161, 94, 0.3);
-  border-radius: 24px;
+/* Input specs */
+.input-spec {
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 200ms ease;
+}
+.input-spec:focus {
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(179, 94, 107, 0.2);
 }
 
-/* Custom Overrides for Retro Pixel Theme */
-.theme-pixel-retro h1,
-.theme-pixel-retro h2,
-.theme-pixel-retro h3,
-.theme-pixel-retro .font-display,
-.theme-pixel-retro p,
-.theme-pixel-retro span,
-.theme-pixel-retro div,
-.theme-pixel-retro button,
-.theme-pixel-retro input {
-  font-family: var(--font-display) !important;
+/* Aurora UI background classes */
+@keyframes aurora-glow {
+  0% {
+    background-position: 0% 0%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 50% 100%;
+  }
 }
 
-/* Custom Overrides for Cosmic Midnight Theme */
+.aurora-bg {
+  background-color: var(--color-background);
+  background-image: 
+    radial-gradient(at 10% 20%, color-mix(in srgb, var(--color-primary) 12%, transparent) 0px, transparent 50%),
+    radial-gradient(at 90% 10%, color-mix(in srgb, var(--color-secondary) 15%, transparent) 0px, transparent 50%),
+    radial-gradient(at 50% 80%, color-mix(in srgb, var(--color-accent) 8%, transparent) 0px, transparent 50%);
+  background-size: 200% 200%;
+  animation: aurora-glow 12s ease-in-out infinite alternate;
+}
+
+/* Fallback / Keep clean fonts for all themes */
+.theme-monochrome-minimal h1,
+.theme-sakura h1,
+.theme-studio-ghibli h1,
 .theme-night h1,
-.theme-night h2,
-.theme-night h3,
-.theme-night .font-display,
-.theme-night p,
-.theme-night span,
-.theme-night div,
-.theme-night button,
-.theme-night input {
-  font-family: var(--font-sans) !important;
-}
-
-/* Custom Overrides for Roasted Espresso Theme */
-.theme-coffee h1,
-.theme-coffee h2,
-.theme-coffee h3,
-.theme-coffee .font-display {
-  font-family: var(--font-serif) !important;
-  font-weight: 700;
-}
-.theme-coffee p,
-.theme-coffee span,
-.theme-coffee div,
-.theme-coffee button,
-.theme-coffee input {
-  font-family: var(--font-sans) !important;
+.theme-pastel h1,
+.theme-cyber-lavender h1 {
+  font-family: var(--font-display) !important;
 }
 
 /* Animations */
@@ -356,3 +519,305 @@
 .bg-night-photo {
   background-image: radial-gradient(circle, #1e3a8a 0%, #030712 100%);
 }
+
+/* ─── Global Dark Mode Utility Overrides ─────────────────────────────────────── */
+/* Fixes ALL hardcoded Tailwind colors that ignore CSS vars in dark mode.          */
+
+/* ── Text colors ── */
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700,
+.dark .text-neutral-900,
+.dark .text-neutral-800,
+.dark .text-neutral-700,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-zinc-900,
+.dark .text-zinc-800,
+.dark .text-black { color: var(--text-main) !important; }
+
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400,
+.dark .text-neutral-600,
+.dark .text-neutral-500,
+.dark .text-neutral-400,
+.dark .text-slate-600,
+.dark .text-slate-500,
+.dark .text-slate-400,
+.dark .text-zinc-600,
+.dark .text-zinc-500,
+.dark .text-zinc-400 { color: var(--text-muted) !important; }
+
+/* ── Background colors ── */
+.dark .bg-white { background-color: var(--card-bg) !important; }
+.dark .bg-gray-50,
+.dark .bg-neutral-50,
+.dark .bg-slate-50,
+.dark .bg-zinc-50 { background-color: var(--color-muted) !important; }
+.dark .bg-gray-100,
+.dark .bg-neutral-100,
+.dark .bg-slate-100 { background-color: var(--color-muted) !important; }
+.dark .bg-gray-200,
+.dark .bg-neutral-200 { background-color: var(--color-border) !important; }
+
+/* ── Semi-transparent whites (glassmorphism cards, panels) ── */
+.dark .bg-white\/10,
+.dark .bg-white\/20 { background-color: rgba(255,255,255,0.04) !important; }
+.dark .bg-white\/30 { background-color: rgba(255,255,255,0.06) !important; }
+.dark .bg-white\/50,
+.dark .bg-white\/60 { background-color: rgba(255,255,255,0.08) !important; }
+.dark .bg-white\/70,
+.dark .bg-white\/80 { background-color: rgba(255,255,255,0.10) !important; }
+
+/* ── Borders ── */
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-neutral-100,
+.dark .border-neutral-200,
+.dark .border-slate-100,
+.dark .border-slate-200 { border-color: var(--border-color) !important; }
+.dark .border-white\/20,
+.dark .border-white\/40,
+.dark .border-white\/60,
+.dark .border-white\/80 { border-color: var(--glass-border) !important; }
+
+/* ── Semi-transparent black/neutral overlays ── */
+.dark .bg-black\/5 { background-color: rgba(255,255,255,0.06) !important; }
+.dark .bg-black\/10 { background-color: rgba(255,255,255,0.08) !important; }
+.dark .bg-neutral-900\/5 { background-color: rgba(255,255,255,0.06) !important; }
+.dark .border-neutral-900\/5 { border-color: rgba(255,255,255,0.08) !important; }
+
+/* ── Nav dock active indicator ── */
+.dark .bg-black\/5[class*="rounded"] { background-color: rgba(255,255,255,0.12) !important; }
+/* Force dock item active bubble to be white-tinted not black */
+.dark [id^="dock-nav-btn-"] .absolute.inset-0.bg-black\/5 {
+  background-color: rgba(255, 255, 255, 0.12) !important;
+}
+/* Nav icon + label colors in dark */
+.dark .text-\[var\(--primary\)\] { color: var(--primary) !important; }
+
+/* ── Inputs, textareas, selects ── */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: var(--color-muted) !important;
+  color: var(--text-main) !important;
+  border-color: var(--border-color) !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder { color: var(--text-muted) !important; opacity: 1; }
+
+/* ── Sticky Notes Board ── */
+.dark .bg-yellow-100,
+.dark .bg-yellow-50 { background-color: #2a2100 !important; }
+.dark .text-yellow-800,
+.dark .text-yellow-900 { color: #ffe082 !important; }
+.dark .border-yellow-200,
+.dark .border-yellow-300 { border-color: #4a3800 !important; }
+.dark .bg-pink-100,
+.dark .bg-pink-50 { background-color: #2a0015 !important; }
+.dark .text-pink-800,
+.dark .text-pink-900 { color: #ffb7c5 !important; }
+.dark .bg-green-100,
+.dark .bg-green-50 { background-color: #001a00 !important; }
+.dark .text-green-800,
+.dark .text-green-900 { color: #86efac !important; }
+.dark .bg-blue-100,
+.dark .bg-blue-50 { background-color: #00001a !important; }
+.dark .text-blue-800,
+.dark .text-blue-900 { color: #93c5fd !important; }
+.dark .bg-purple-100,
+.dark .bg-purple-50 { background-color: #16002a !important; }
+.dark .text-purple-800,
+.dark .text-purple-900 { color: #d8b4fe !important; }
+
+/* ── Letters / Sealed Envelopes ── */
+.dark .bg-amber-50,
+.dark .bg-amber-100 { background-color: #1a1000 !important; }
+.dark .text-amber-800,
+.dark .text-amber-900,
+.dark .text-amber-700 { color: #fcd34d !important; }
+.dark .border-amber-100,
+.dark .border-amber-200 { border-color: #2e1f00 !important; }
+.dark .bg-rose-50,
+.dark .bg-rose-100 { background-color: #1a0010 !important; }
+.dark .text-rose-800,
+.dark .text-rose-900,
+.dark .text-rose-700 { color: #fda4af !important; }
+.dark .border-rose-100,
+.dark .border-rose-200 { border-color: #2e0015 !important; }
+
+/* ── Badges / pills with bg-*-900/5 pattern ── */
+.dark .text-\[var\(--text-main\)\] { color: var(--text-main) !important; }
+.dark .text-\[var\(--text-muted\)\] { color: var(--text-muted) !important; }
+
+/* ── Anniversary "Since ..." date counter ── */
+.dark .text-\[10px\],
+.dark .font-mono { color: var(--text-muted); }
+
+/* ── Shared Daily / Weather / Mood ── */
+.dark .bg-sky-50,
+.dark .bg-sky-100 { background-color: #00101a !important; }
+.dark .text-sky-700,
+.dark .text-sky-800 { color: #7dd3fc !important; }
+.dark .bg-indigo-50,
+.dark .bg-indigo-100 { background-color: #06001a !important; }
+.dark .text-indigo-700,
+.dark .text-indigo-800 { color: #a5b4fc !important; }
+.dark .bg-emerald-50,
+.dark .bg-emerald-100 { background-color: #001a08 !important; }
+.dark .text-emerald-700,
+.dark .text-emerald-800 { color: #6ee7b7 !important; }
+
+/* ── Collaborative Studio / Room codes ── */
+.dark .bg-slate-50,
+.dark .bg-slate-100 { background-color: var(--color-muted) !important; }
+.dark .text-slate-700,
+.dark .text-slate-800 { color: var(--text-main) !important; }
+.dark .text-slate-500,
+.dark .text-slate-600 { color: var(--text-muted) !important; }
+
+/* ── Red danger / logout areas ── */
+.dark .bg-red-50 { background-color: #1a0000 !important; }
+.dark .text-red-500,
+.dark .text-red-600 { color: #f87171 !important; }
+.dark .border-red-100 { border-color: #2e0000 !important; }
+
+/* ── Glass panel (nav dock) ── */
+.dark .glass-panel {
+  background: rgba(var(--primary-rgb), 0.08) !important;
+  backdrop-filter: blur(20px) saturate(1.5) !important;
+  border: 1px solid var(--glass-border) !important;
+}
+
+/* ── Dock active bubble: white tint not black ── */
+.dark .glass-panel .absolute.bg-black\/5 {
+  background-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+/* ── hover:text-gray in dark → muted ── */
+.dark .hover\:text-gray-700:hover,
+.dark .hover\:text-gray-600:hover { color: var(--text-main) !important; }
+
+/* ── Mood/weather colored badges (stressed, excited, Haze, location) ── */
+.dark .bg-orange-50, .dark .bg-orange-100 { background-color: #1a0800 !important; }
+.dark .text-orange-700, .dark .text-orange-800 { color: #fdba74 !important; }
+.dark .bg-teal-50, .dark .bg-teal-100 { background-color: #001a18 !important; }
+.dark .text-teal-700, .dark .text-teal-800 { color: #5eead4 !important; }
+.dark .text-violet-700, .dark .text-violet-800 { color: #c4b5fd !important; }
+.dark .bg-violet-50, .dark .bg-violet-100 { background-color: #0d001a !important; }
+.dark .text-fuchsia-700, .dark .text-fuchsia-800 { color: #e879f9 !important; }
+.dark .bg-cyan-50, .dark .bg-cyan-100 { background-color: #001a1a !important; }
+.dark .text-cyan-700, .dark .text-cyan-800 { color: #67e8f9 !important; }
+.dark .text-lime-700, .dark .text-lime-800 { color: #bef264 !important; }
+
+/* ── Game scores/labels (TicTacToe score, Your Turn, New Round, Next Question) ── */
+.dark .text-3xl.font-bold, .dark .text-4xl.font-bold { color: var(--text-main); }
+.dark .text-xl.font-bold { color: var(--text-main); }
+.dark .text-lg.font-bold { color: var(--text-main); }
+
+/* ── Game toggle tabs (TicTacToe / Question / Dare switcher) ── */
+.dark .bg-neutral-100\/60,
+.dark .bg-gray-100\/60 { background-color: rgba(255,255,255,0.05) !important; }
+.dark .text-neutral-400 { color: var(--text-muted) !important; }
+.dark .text-neutral-500 { color: var(--text-muted) !important; }
+.dark .text-neutral-300 { color: var(--text-muted) !important; }
+
+/* ── Garden Level text (Level 6, NORI THE KITTY) ── */
+.dark .text-\[var\(--text-main\)\] { color: var(--text-main) !important; }
+
+/* ── Mission XP / +XP badges ── */
+.dark .text-xs.font-bold.text-\[var\(--primary\)\] { color: var(--primary) !important; }
+
+/* ── Admin heading & description ── */
+.dark .text-neutral-200, .dark .text-neutral-300 { color: var(--text-muted) !important; }
+
+/* ── "Since Dec 15, 2025" date badge inside counter ── */
+.dark .border.border-neutral-200 { border-color: var(--border-color) !important; }
+
+/* ── Tab border separator lines in dark ── */
+.dark .border-b { border-color: var(--border-color) !important; }
+.dark .border-neutral-200\/40 { border-color: var(--border-color) !important; }
+
+/* ── bg-[var(--primary)] containers: ensure on-primary text is readable ── */
+.dark .bg-\[var\(--primary\)\].text-white { color: white !important; }
+
+/* ── Non-selected settings/game tabs: muted text ── */
+.dark .text-gray-400 { color: var(--text-muted) !important; }
+
+/* ── Specific Dark Mode Bug Fixes ── */
+
+/* 1. Rotates In & View Full Timeline text visibility */
+.dark .text-rose-700 { color: #fecdd3 !important; } /* Light pink/rose text */
+.dark .bg-rose-50\/80 { background-color: rgba(244, 63, 94, 0.15) !important; }
+.dark .border-rose-100 { border-color: rgba(244, 63, 94, 0.3) !important; }
+.dark .bg-white\/75 { background-color: rgba(255, 255, 255, 0.08) !important; }
+.dark .border-gray-200\/80 { border-color: var(--border-color) !important; }
+
+/* 2. Spotlight timeline dates (e.g. Dec 15, 2026) */
+.dark .text-gray-500, .dark .text-gray-600 { color: var(--text-muted) !important; }
+.dark .bg-gray-100 { background-color: var(--color-muted) !important; }
+
+/* 3. Pop-up View Timeline entries (e.g. "sok imut banget wok") */
+.dark .bg-neutral-50\/60,
+.dark .bg-white\/80 { background-color: var(--card-bg) !important; }
+.dark .text-neutral-800 { color: var(--text-main) !important; }
+.dark .text-neutral-500 { color: var(--text-muted) !important; }
+
+/* 4. Truth/Dare Toggle Button active state (white-on-white fix) */
+.dark #wheel-mode-truth.bg-\[var\(--primary\)\],
+.dark #wheel-mode-dare.bg-\[var\(--primary\)\] {
+  background-color: var(--primary) !important;
+  color: var(--color-on-primary) !important;
+}
+
+/* 5. Settings section tabs & Navbar active selected text/icons */
+.dark button[id^="settings-tab-"].text-\[var\(--primary\)\] {
+  color: var(--primary) !important;
+}
+.dark [id^="dock-nav-btn-"] .text-\[var\(--primary\)\] {
+  color: var(--primary) !important;
+}
+.dark [id^="dock-nav-btn-"] svg.text-\[var\(--primary\)\] {
+  color: var(--primary) !important;
+}
+
+/* 6. Administrative Control Center banner description & details */
+.dark .bg-red-50\/40 { background-color: rgba(239, 68, 68, 0.07) !important; }
+.dark .border-red-200\/30 { border-color: rgba(239, 68, 68, 0.2) !important; }
+.dark .text-red-900 { color: #fca5a5 !important; }
+.dark .text-red-800 { color: #fca5a5 !important; }
+.dark .text-red-700\/80 { color: #fca5a5 !important; }
+
+/* 7. "You" badge in settings profile view */
+.dark .bg-\[var\(--primary\)\] {
+  background-color: var(--primary) !important;
+  color: var(--color-on-primary) !important;
+}
+
+/* 8. "Our Private Digital Sanctuary" badge in home welcome screen */
+.dark .bg-rose-50 { background-color: rgba(244, 63, 94, 0.1) !important; }
+.dark .border-rose-100\/50 { border-color: rgba(244, 63, 94, 0.25) !important; }
+.dark .text-rose-600 { color: var(--primary) !important; }
+
+/* 9. "Memory Spotlight of the Day" badge container & text */
+.dark .bg-gradient-to-r.from-amber-50.to-rose-50 {
+  background: rgba(245, 158, 11, 0.1) !important;
+  border-color: rgba(245, 158, 11, 0.2) !important;
+}
+.dark .bg-gradient-to-r.from-amber-50.to-rose-50 span {
+  color: var(--primary) !important;
+}
+
+/* 10. Selected song in Listening Together playlist (dark mode compatibility) */
+.dark .bg-red-50\/70 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+}
+.dark .text-red-900 {
+  color: #fca5a5 !important; /* Soft red text */
+}
+
+
+

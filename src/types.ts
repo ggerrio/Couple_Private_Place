@@ -16,6 +16,7 @@ export interface Profile {
   longitude?: number;
   weatherCity?: string;
   gender?: "pria" | "wanita";
+  emoji?: string;
 }
 
 export interface Comment {
@@ -149,14 +150,9 @@ export interface PhotoboothRoom {
 }
 
 export type ThemeType =
-  | "korean-cafe"
+  | "monochrome-minimal"
   | "sakura"
   | "studio-ghibli"
-  | "pixel-retro"
   | "night"
-  | "coffee"
   | "pastel"
-  | "valentine"
-  | "christmas"
-  | "minimal-white"
-  | "artistic-flair";
+  | "cyber-lavender";
