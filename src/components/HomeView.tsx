@@ -989,11 +989,58 @@ export default function HomeView() {
       throw new Error("Failed api response");
     } catch (err) {
       const curatedPool = [
-        { content: "In all the world, there is no heart for me like yours. In all the world, there is no love for you like mine.", author: "Maya Angelou" },
-        { content: "I would rather share one lifetime with you than face all the ages of this world alone.", author: "J.R.R. Tolkien" },
-        { content: "If I know what love is, it is because of you.", author: "Hermann Hesse" },
-        { content: "My heart is and always will be yours.", author: "Jane Austen" },
-        { content: "Grow old with me! The best is yet to be.", author: "Robert Browning" }
+        {
+          content: "In all the world, there is no heart for me like yours, a sanctuary where my soul finally finds its rest. In all the world, there is no love for you like mine—boundless, timeless, and deeper than the furthest oceans.",
+          author: "Maya Angelou"
+        },
+        {
+          content: "I would rather share one fleeting lifetime of mortal days with you, wrapped in your warmth, than face all the cold and empty ages of this world alone in immortal silence.",
+          author: "J.R.R. Tolkien"
+        },
+        {
+          content: "If I know what love is, if I understand the quiet grace of a beating heart and the light that guides me through the dark, it is entirely because of you and the magic you brought into my life.",
+          author: "Hermann Hesse"
+        },
+        {
+          content: "My heart is, and always will be, yours. No matter where the tides of time take us, and no matter how the world changes around us, my love remains an unshakeable monument dedicated only to you.",
+          author: "Jane Austen"
+        },
+        {
+          content: "Grow old along with me, hand in hand through the fading seasons! Step into the twilight of our years without fear, for the best of our love is yet to be, and our greatest chapters are still unwritten.",
+          author: "Robert Browning"
+        },
+        {
+          content: "You are my heart, my life, my one and only thought. When I look into the future, I see no path, no light, and no joy that does not begin and end with your hand intertwined in mine.",
+          author: "Arthur Conan Doyle"
+        },
+        {
+          content: "I love you not only for what you are, but for what I am when I am with you. I love you for passing over all the foolish, weak things that I cannot help dimly seeing, and for drawing out into the light all the beautiful belongings that no one else had looked quite far enough to find.",
+          author: "Roy Croft"
+        },
+        {
+          content: "Whatever our souls are made of, his and mine are the exact same substance, woven from the same starlight, beating to the same ancient rhythm, destined to find each other across a thousand lifetimes.",
+          author: "Emily Brontë"
+        },
+        {
+          content: "I want you to know that you have been the last dream of my soul. In my darkest hours, when the world seemed bitter and gray, the mere thought of your smile was the only light that kept my spirit alive.",
+          author: "Charles Dickens"
+        },
+        {
+          content: "To love or have loved, that is enough. Ask nothing further. There is no other pearl to be found in the dark folds of life. To love is to touch the edge of heaven, and you are my paradise.",
+          author: "Victor Hugo"
+        },
+        {
+          content: "Doubt thou the stars are fire; Doubt that the sun doth move; Doubt truth to be a liar; But never, my dearest love, doubt that the flame of my devotion burns exclusively and eternally for you.",
+          author: "William Shakespeare"
+        },
+        {
+          content: "You should be kissed, and often, and by someone who knows how. But more than that, you should be cherished every second of every day, as if you were the very air that holds the world together.",
+          author: "Margaret Mitchell"
+        },
+        {
+          content: "If I had a flower for every time I thought of you, I could walk through my own beautiful garden forever, lost in a labyrinth of roses that bloom only because you exist in this universe.",
+          author: "Alfred Tennyson"
+        }
       ];
       const randomIndex = Math.floor(Math.random() * curatedPool.length);
       const chosen = curatedPool[randomIndex];
@@ -1327,12 +1374,12 @@ export default function HomeView() {
 
     // Use the extracted artwork color as the card background, blending it with dark/light theme background colors
     const background = currentSong.isPlaying && extractedColor
-      ? (isDark 
-          ? `linear-gradient(to bottom right, rgba(20, 20, 25, 0.95), ${extractedColor.replace("0.12", "0.25")})` 
-          : `linear-gradient(to bottom right, rgba(255, 255, 255, 0.95), ${extractedColor.replace("0.12", "0.18")})`)
+      ? (isDark
+        ? `linear-gradient(to bottom right, rgba(20, 20, 25, 0.95), ${extractedColor.replace("0.12", "0.25")})`
+        : `linear-gradient(to bottom right, rgba(255, 255, 255, 0.95), ${extractedColor.replace("0.12", "0.18")})`)
       : (isDark
-          ? "rgba(20, 20, 25, 0.75)"
-          : "rgba(255, 255, 255, 0.35)");
+        ? "rgba(20, 20, 25, 0.75)"
+        : "rgba(255, 255, 255, 0.35)");
 
     const shadowColor = currentSong.isPlaying ? extractedColor : "rgba(0, 0, 0, 0.05)";
     const borderColor = isDark ? "rgba(255, 255, 255, 0.1)" : "rgba(0, 0, 0, 0.05)";

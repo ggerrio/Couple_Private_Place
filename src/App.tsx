@@ -127,7 +127,7 @@ function AppContent() {
       {/* Header */}
       <header className="w-full max-w-7xl mx-auto px-4 py-4 md:py-6 flex flex-col sm:flex-row items-center justify-between gap-4 z-40 relative">
         <div className="flex items-center gap-2.5">
-          <div className="w-20 h-20 flex-shrink-0">
+          <div className="w-22 h-22 flex-shrink-0">
             <img src={gnLogo} alt="G & N" className="w-full h-full object-contain drop-shadow-sm" />
           </div>
           <div>

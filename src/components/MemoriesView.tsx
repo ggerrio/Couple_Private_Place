@@ -230,7 +230,7 @@ const handlePrintImage = (url: string, title: string, awardXp: any) => {
         <div class="container">
           <img src="${url}" id="print-image" />
           <h1>✨ ${title} ✨</h1>
-          <p>Private Couple Sanctuary Memories</p>
+          <p>Our Little Universe</p>
         </div>
         <script>
           const img = document.getElementById("print-image");
@@ -937,7 +937,7 @@ function TimelineSection() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setSelectedMemoryForModal(null)}
-                className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+                className="absolute inset-0 bg-black/60 backdrop-blur-xs z-0"
               />
 
               <motion.div
@@ -947,22 +947,20 @@ function TimelineSection() {
                 transition={{ type: "spring", damping: 25, stiffness: 350 }}
                 className="bg-white rounded-3xl overflow-hidden shadow-2xl border border-gray-100 w-full max-w-md z-10 flex flex-col max-h-[85vh] relative text-left"
               >
-                {/* Trash/Delete Action on Left side of top bar for creator */}
-                {currentMem.creatorId === currentUser && (
-                  <button
-                    onClick={async () => {
-                      if (confirm("Are you sure you want to delete this memory forever?")) {
-                        await deleteMemory(currentMem.id);
-                        setSelectedMemoryForModal(null);
-                        triggerHaptic("heavy");
-                      }
-                    }}
-                    className="absolute top-4 left-4 p-1.5 bg-red-50 hover:bg-red-100 rounded-full text-red-500 transition-colors z-20 cursor-pointer"
-                    title="Delete Memory"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
+                {/* Trash/Delete — both users can delete in this private app */}
+                <button
+                  onClick={async () => {
+                    if (confirm("Are you sure you want to delete this memory forever?")) {
+                      await deleteMemory(currentMem.id);
+                      setSelectedMemoryForModal(null);
+                      triggerHaptic("heavy");
+                    }
+                  }}
+                  className="absolute top-4 left-4 p-1.5 bg-red-50 hover:bg-red-100 rounded-full text-red-500 transition-colors z-20 cursor-pointer"
+                  title="Delete Memory"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
 
                 <button
                   onClick={() => setSelectedMemoryForModal(null)}
@@ -2247,6 +2245,19 @@ function JournalSection() {
   const [selectedWeatherFilter, setSelectedWeatherFilter] = useState<string | null>(null);
   const [selectedMoodFilter, setSelectedMoodFilter] = useState<string | null>(null);
 
+  // Self-contained journal popup
+  const [selectedJournal, setSelectedJournal] = useState<Journal | null>(null);
+
+  const openJournalPopup = (jr: Journal) => {
+    setSelectedJournal(jr);
+    window.dispatchEvent(new CustomEvent("toggleNavbar", { detail: false }));
+  };
+
+  const closeJournalPopup = () => {
+    setSelectedJournal(null);
+    window.dispatchEvent(new CustomEvent("toggleNavbar", { detail: true }));
+  };
+
   // Form states untuk membuat Diary BARU
   const [showAddJournal, setShowAddJournal] = useState(false);
   const [jTitle, setJTitle] = useState("");
@@ -2646,7 +2657,7 @@ function JournalSection() {
 
           <div className="space-y-1.5">
             <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Cover Photo</label>
-            
+
             {/* Upload from device */}
             <div className="flex items-center gap-2">
               <button
@@ -2683,8 +2694,23 @@ function JournalSection() {
               </div>
             )}
 
-            {/* URL fallback — only shown when no file uploaded */}
-            {!jImagePreview && (
+            {/* Preview for URL link */}
+            {!jImagePreview && jImageUrl && (
+              <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-emerald-600/20 shadow-xs">
+                <img src={jImageUrl} alt="URL Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                <button
+                  type="button"
+                  onClick={() => setJImageUrl("")}
+                  className="absolute top-2 right-2 w-6 h-6 bg-black/60 hover:bg-black/80 text-white rounded-full flex items-center justify-center transition-all cursor-pointer"
+                  title="Remove URL photo"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
+            {/* URL fallback — only shown when no file or URL preview */}
+            {!jImagePreview && !jImageUrl && (
               <>
                 <input
                   type="text"
@@ -2841,7 +2867,7 @@ function JournalSection() {
 
               <div className="space-y-1.5">
                 <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Cover Photo</label>
-                
+
                 {/* Upload from device */}
                 <div className="flex items-center gap-2">
                   <button
@@ -2919,7 +2945,8 @@ function JournalSection() {
               <motion.div
                 key={jr.id}
                 layoutId={`jr-card-${jr.id}`}
-                className="bg-white/45 hover:bg-white rounded-[24px] overflow-hidden border border-neutral-200/10 hover:border-rose-100 hover:shadow-lg backdrop-blur-md flex flex-col justify-between transition-all duration-300 group"
+                onClick={() => openJournalPopup(jr)}
+                className="bg-white/45 hover:bg-white rounded-[24px] overflow-hidden border border-neutral-200/10 hover:border-rose-100 hover:shadow-lg backdrop-blur-md flex flex-col justify-between transition-all duration-300 group cursor-pointer"
               >
                 {jr.imageUrl && (
                   <div className="h-44 overflow-hidden relative bg-black/5">
@@ -2988,14 +3015,18 @@ function JournalSection() {
                       {isOwner && (
                         <>
                           <button
-                            onClick={() => startEditing(jr)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startEditing(jr);
+                            }}
                             className="p-1.5 bg-neutral-100 hover:bg-rose-100/60 text-gray-500 hover:text-rose-500 rounded-lg transition-colors cursor-pointer"
                             title="Edit Entry"
                           >
                             <Edit2 className="w-3 h-3" />
                           </button>
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (confirm("Are you sure you want to archive this memory chapter?")) {
                                 deleteJournal(jr.id);
                               }
@@ -3025,6 +3056,96 @@ function JournalSection() {
           </button>
         </div>
       )}
+
+      {/* ── Self-contained Journal Detail Popup ── */}
+      <AnimatePresence>
+        {selectedJournal && (
+          <motion.div
+            key="journal-popup"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
+            onClick={closeJournalPopup}
+          >
+            <motion.div
+              layoutId={`jr-card-${selectedJournal.id}`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative bg-[var(--card-bg)] rounded-3xl overflow-hidden shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
+            >
+              {/* Close button */}
+              <button
+                onClick={closeJournalPopup}
+                className="absolute top-4 right-4 z-10 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-sm transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* Cover image */}
+              {selectedJournal.imageUrl && (
+                <div className="h-56 sm:h-72 overflow-hidden shrink-0 relative">
+                  <img
+                    src={selectedJournal.imageUrl}
+                    alt={selectedJournal.title}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                  {selectedJournal.location && (
+                    <div className="absolute bottom-3 left-4 flex items-center gap-1.5 text-white text-xs font-semibold drop-shadow">
+                      <MapPin className="w-3.5 h-3.5 text-rose-300" />
+                      {selectedJournal.location}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Content */}
+              <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                {/* Badges row */}
+                <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold">
+                  <span className="bg-rose-100 text-rose-600 px-2.5 py-1 rounded-full">
+                    {selectedJournal.weather === "sunny" ? "☀️ Sunny" : selectedJournal.weather === "rainy" ? "🌧️ Rainy" : selectedJournal.weather === "snowy" ? "❄️ Snowy" : "☁️ Cloudy"}
+                  </span>
+                  <span className="bg-indigo-100 text-indigo-600 px-2.5 py-1 rounded-full">
+                    {selectedJournal.mood === "cozy" ? "☕ Cozy" : selectedJournal.mood === "excited" ? "🎉 Excited" : selectedJournal.mood === "sleepy" ? "🌙 Sleepy" : "🌿 Peaceful"}
+                  </span>
+                  <span className="ml-auto flex items-center gap-1 text-[var(--text-muted)] font-mono font-normal">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(selectedJournal.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+                  </span>
+                </div>
+
+                {/* Title */}
+                <h2 className="text-lg sm:text-xl font-serif font-bold text-[var(--text-main)] leading-snug">
+                  {selectedJournal.title}
+                </h2>
+
+                {/* Description */}
+                <p className="text-sm text-[var(--text-muted)] leading-relaxed whitespace-pre-wrap">
+                  {selectedJournal.description}
+                </p>
+
+                {/* Tags */}
+                {(selectedJournal.tags || []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--border-color)]">
+                    {(selectedJournal.tags || []).map((tag) => (
+                      <span key={tag} className="text-[9px] px-2.5 py-1 bg-neutral-100 text-gray-500 rounded-full font-mono font-bold flex items-center gap-1">
+                        <Tag className="w-2 h-2" /> {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

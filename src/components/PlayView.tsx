@@ -8,21 +8,21 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useCouple } from "../context/CoupleContext";
 import { motion, AnimatePresence } from "motion/react";
-import { 
-  Gamepad2, 
-  Pen, 
-  RotateCcw, 
-  Trophy, 
-  RefreshCw, 
-  ChevronRight, 
-  Trash, 
-  Plus, 
-  Settings2, 
-  Undo, 
-  Redo, 
-  Download, 
-  Heart, 
-  Eraser 
+import {
+  Gamepad2,
+  Pen,
+  RotateCcw,
+  Trophy,
+  RefreshCw,
+  ChevronRight,
+  Trash,
+  Plus,
+  Settings2,
+  Undo,
+  Redo,
+  Download,
+  Heart,
+  Eraser
 } from "lucide-react";
 import { db } from "../firebaseClient";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
@@ -37,7 +37,7 @@ const safeUpdateDoc = async (docRef: any, data: any) => {
     const path = docRef.path;
     const existingStr = localStorage.getItem(`fs_fallback_${path}`);
     const existing = existingStr ? JSON.parse(existingStr) : {};
-    
+
     const finalData = { ...existing };
     for (const key in data) {
       if (data[key] && typeof data[key] === "object" && data[key]._arrayUnion) {
@@ -47,9 +47,9 @@ const safeUpdateDoc = async (docRef: any, data: any) => {
         finalData[key] = data[key];
       }
     }
-    
+
     localStorage.setItem(`fs_fallback_${path}`, JSON.stringify(finalData));
-    
+
     // Trigger listeners
     window.dispatchEvent(new StorageEvent("storage", {
       key: `fs_fallback_${path}`,
@@ -57,7 +57,7 @@ const safeUpdateDoc = async (docRef: any, data: any) => {
     }));
     return;
   }
-  
+
   const { updateDoc, arrayUnion } = await import("firebase/firestore");
   const realData = { ...data };
   for (const key in realData) {
@@ -105,17 +105,16 @@ export default function PlayView() {
           {([["games", "Arcade Games", Gamepad2], ["sketch", "Sketch Canvas", Pen]] as const).map(([id, label, Icon]) => {
             const isSelected = section === id;
             return (
-              <button 
-                key={id} 
-                id={`play-tab-${id}`} 
+              <button
+                key={id}
+                id={`play-tab-${id}`}
                 onClick={() => setSection(id)}
-                className={`flex items-center gap-1.5 pb-3 text-xs font-bold transition-all relative cursor-pointer select-none ${
-                  isSelected 
-                    ? "text-[var(--primary)]" 
+                className={`flex items-center gap-1.5 pb-3 text-xs font-bold transition-all relative cursor-pointer select-none ${isSelected
+                    ? "text-[var(--primary)]"
                     : "text-gray-400 hover:text-gray-700"
-                }`}
+                  }`}
               >
-                <Icon className="w-4 h-4" /> 
+                <Icon className="w-4 h-4" />
                 <span>{label}</span>
                 {isSelected && (
                   <motion.div
@@ -137,15 +136,14 @@ export default function PlayView() {
             {([["tictactoe", "Tic Tac Toe ⭕❌"], ["wyr", "Would You Rather? 🤔"], ["spindare", "Spin the Dare 🎡"]] as const).map(([id, label]) => {
               const isSelected = gameId === id;
               return (
-                <button 
-                  key={id} 
-                  id={`game-btn-${id}`} 
+                <button
+                  key={id}
+                  id={`game-btn-${id}`}
                   onClick={() => setGameId(id)}
-                  className={`relative flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer z-10 select-none ${
-                    isSelected 
-                      ? "text-[var(--primary)] font-extrabold" 
+                  className={`relative flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer z-10 select-none ${isSelected
+                      ? "text-[var(--primary)] font-extrabold"
                       : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/10"
-                  }`}
+                    }`}
                 >
                   <span className="relative z-10">{label}</span>
                   {isSelected && (
@@ -182,7 +180,7 @@ interface TTTGame {
   scoreB: number;
 }
 
-const WIN_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+const WIN_LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
 
 function checkWinner(board: (string | null)[]): string | null {
   for (const [a, b, c] of WIN_LINES) {
@@ -214,10 +212,10 @@ function TicTacToe() {
     const newBoard = [...game.board];
     newBoard[idx] = symbol;
     const winner = checkWinner(newBoard);
-    
+
     let isWinnerA = winner && winner !== "draw" && currentUser === "user_a";
     let isWinnerB = winner && winner !== "draw" && currentUser === "user_b";
-    
+
     const newGame: TTTGame = {
       board: newBoard,
       nextTurn: currentUser === "user_a" ? "user_b" : "user_a",
@@ -240,7 +238,7 @@ function TicTacToe() {
 
   const isFirstMove = game.board.every((cell) => cell === null);
   const isMyTurn = (isFirstMove || game.nextTurn === currentUser) && !game.winner;
-  const profileA = userA; 
+  const profileA = userA;
   const profileB = userB;
 
   return (
@@ -300,9 +298,9 @@ function TicTacToe() {
           </div>
         </div>
 
-        <button 
-          id="ttt-reset-btn" 
-          onClick={reset} 
+        <button
+          id="ttt-reset-btn"
+          onClick={reset}
           className="w-full py-2.5 mt-4 flex items-center justify-center gap-2 text-xs font-bold text-[var(--primary)] hover:bg-white/50 rounded-xl border border-[var(--border-color)] transition-all cursor-pointer"
         >
           <RotateCcw className="w-3.5 h-3.5" /> New Round
@@ -375,11 +373,10 @@ function WouldYouRather() {
               key={i}
               id={`wyr-option-${i}`}
               onClick={() => vote(i as 0 | 1)}
-              className={`flex-1 p-4 rounded-2xl text-xs sm:text-sm font-bold text-center border-2 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 leading-snug cursor-pointer ${
-                myVote === i
+              className={`flex-1 p-4 rounded-2xl text-xs sm:text-sm font-bold text-center border-2 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 leading-snug cursor-pointer ${myVote === i
                   ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
                   : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
-              }`}
+                }`}
             >
               {option}
             </button>
@@ -391,9 +388,9 @@ function WouldYouRather() {
             <span className="font-bold text-[var(--text-main)]">{(currentUser === "user_a" ? userB : userA).name.split(" ")[0]}</span> chose &ldquo;{q[partnerVote]}&rdquo;
           </div>
         )}
-        <button 
-          id="wyr-next-btn" 
-          onClick={nextQ} 
+        <button
+          id="wyr-next-btn"
+          onClick={nextQ}
           className="w-full py-2 flex items-center justify-center gap-2 text-xs font-bold text-[var(--primary)] hover:opacity-85 cursor-pointer duration-200 hover:-translate-y-0.5"
         >
           Next Question <ChevronRight className="w-3.5 h-3.5" />
@@ -507,7 +504,7 @@ function SpinDare() {
     const currentList = editorTab === "truth" ? dbState.truths : dbState.dares;
     if (currentList.length >= 20) return;
     const newList = [...currentList, text];
-    
+
     await setDoc(doc(db, "rooms", "spindare_room"), {
       [editorTab === "truth" ? "truths" : "dares"]: newList
     }, { merge: true });
@@ -537,11 +534,10 @@ function SpinDare() {
           <button
             id="spindare-settings-btn"
             onClick={() => setShowEditor((prev) => !prev)}
-            className={`p-2 rounded-xl border cursor-pointer transition-all ${
-              showEditor 
-                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs" 
+            className={`p-2 rounded-xl border cursor-pointer transition-all ${showEditor
+                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
                 : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
-            }`}
+              }`}
           >
             <Settings2 className="w-4 h-4" />
           </button>
@@ -561,22 +557,20 @@ function SpinDare() {
                   <button
                     id="editor-tab-truth"
                     onClick={() => setEditorTab("truth")}
-                    className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      editorTab === "truth" 
-                        ? "bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30" 
+                    className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${editorTab === "truth"
+                        ? "bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30"
                         : "bg-white/55 border border-[var(--border-color)] text-[var(--text-muted)] hover:bg-white"
-                    }`}
+                      }`}
                   >
                     Truths ({dbState.truths.length}/20)
                   </button>
                   <button
                     id="editor-tab-dare"
                     onClick={() => setEditorTab("dare")}
-                    className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      editorTab === "dare" 
-                        ? "bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30" 
+                    className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${editorTab === "dare"
+                        ? "bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30"
                         : "bg-white/55 border border-[var(--border-color)] text-[var(--text-muted)] hover:bg-white"
-                    }`}
+                      }`}
                   >
                     Dares ({dbState.dares.length}/20)
                   </button>
@@ -682,7 +676,8 @@ function SpinDare() {
           {/* Golden Brass Needle Pointer */}
           <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 z-20 w-8 h-8 flex items-center justify-center">
             <svg className="w-full h-full text-amber-500 drop-shadow" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2L4 16h6v6h4v-6h6z" />
+              {/* Ujung tajam sekarang berada di bawah (Y=22) */}
+              <path d="M10 2h4v6h6L12 22 4 8h6z" />
             </svg>
           </div>
         </div>
@@ -720,15 +715,15 @@ function SpinDare() {
 
 // ─── Sketch Canvas ────────────────────────────────────────────────────────────
 
-interface StrokePoint { 
-  x: number; 
-  y: number; 
-  color: string; 
-  size: number; 
-  type: "start" | "draw" | "end" 
+interface StrokePoint {
+  x: number;
+  y: number;
+  color: string;
+  size: number;
+  type: "start" | "draw" | "end"
 }
 
-const COLORS = ["#000000","#ef4444","#f97316","#eab308","#22c55e","#3b82f6","#8b5cf6","#ec4899","#ffffff","#6b7280"];
+const COLORS = ["#000000", "#ef4444", "#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6", "#ec4899", "#ffffff", "#6b7280"];
 const BRUSH_SIZES = [2, 4, 8, 14];
 
 function SketchCanvas() {
@@ -794,15 +789,15 @@ function SketchCanvas() {
       if (lastSessionIdRef.current !== currentSessionId) {
         lastSessionIdRef.current = currentSessionId;
         setActiveSessionId(currentSessionId);
-        
+
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+
         sortedStrokes.forEach((stroke: any) => {
           drawPoints(ctx, stroke.points as StrokePoint[]);
         });
-        
+
         lastStrokesRef.current = sortedStrokes;
         setStrokesDocs(sortedStrokes);
         isInitialLoadRef.current = false;
@@ -852,9 +847,9 @@ function SketchCanvas() {
           setSavedSketches([]);
         }
       };
-      
+
       syncSavedSketches();
-      
+
       const handleStorage = (e: StorageEvent) => {
         if (e.key === "fs_fallback_saved_sketches") {
           syncSavedSketches();
@@ -862,7 +857,7 @@ function SketchCanvas() {
       };
       window.addEventListener("storage", handleStorage);
       window.addEventListener("fs_fallback_saved_sketches_updated", syncSavedSketches);
-      
+
       return () => {
         window.removeEventListener("storage", handleStorage);
         window.removeEventListener("fs_fallback_saved_sketches_updated", syncSavedSketches);
@@ -870,7 +865,7 @@ function SketchCanvas() {
     } else {
       let isUnmounted = false;
       let unsubscribe: (() => void) | null = null;
-      
+
       import("firebase/firestore").then(({ query, collection, orderBy, onSnapshot: rawOnSnapshot }) => {
         if (isUnmounted) return;
         const q = query(collection(db, "saved_sketches"), orderBy("createdAt", "desc"));
@@ -951,7 +946,7 @@ function SketchCanvas() {
     const { x, y } = getPos(e, canvas);
     lastXRef.current = x;
     lastYRef.current = y;
-    
+
     setUndoneStrokes([]);
 
     const activeColor = isEraser ? "#ffffff" : color;
@@ -972,7 +967,7 @@ function SketchCanvas() {
     if (!canvas) return;
     const { x, y } = getPos(e, canvas);
     const ctx = canvas.getContext("2d")!;
-    
+
     const activeColor = isEraser ? "#ffffff" : color;
 
     ctx.beginPath();
@@ -995,7 +990,7 @@ function SketchCanvas() {
     isDrawingRef.current = false;
     const activeColor = isEraser ? "#ffffff" : color;
     strokeBufferRef.current.push({ x: 0, y: 0, color: activeColor, size: brushSize, type: "end" });
-    
+
     const points = strokeBufferRef.current.splice(0);
     if (points.length === 0) return;
     try {
@@ -1047,7 +1042,7 @@ function SketchCanvas() {
   const saveDrawing = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    
+
     const cloudName = cloudinaryCloudName || (import.meta as any).env.VITE_CLOUDINARY_CLOUD_NAME || "";
     const uploadPreset = cloudinaryUploadPreset || (import.meta as any).env.VITE_CLOUDINARY_UPLOAD_PRESET || "";
 
@@ -1062,7 +1057,7 @@ function SketchCanvas() {
       }
       try {
         const url = await uploadToCloudinary(blob, `sketch-${Date.now()}.png`, cloudName, uploadPreset);
-        
+
         const newDoc = {
           url,
           createdAt: new Date().toISOString(),
@@ -1072,7 +1067,7 @@ function SketchCanvas() {
         if ((db as any).isFallback) {
           const listStr = localStorage.getItem("fs_fallback_saved_sketches") || "[]";
           let list = [];
-          try { list = JSON.parse(listStr); } catch (e) {}
+          try { list = JSON.parse(listStr); } catch (e) { }
           const item = { id: `${Date.now()}-${Math.random().toString(36).slice(2)}`, ...newDoc };
           list.push(item);
           localStorage.setItem("fs_fallback_saved_sketches", JSON.stringify(list));
@@ -1081,7 +1076,7 @@ function SketchCanvas() {
           const { collection, addDoc } = await import("firebase/firestore");
           await addDoc(collection(db, "saved_sketches"), newDoc);
         }
-        
+
         awardXp(30, "creating a shared masterpiece drawing! 🎨");
         setSaving(false);
       } catch (err: any) {
@@ -1097,7 +1092,7 @@ function SketchCanvas() {
       if ((db as any).isFallback) {
         const listStr = localStorage.getItem("fs_fallback_saved_sketches") || "[]";
         let list = [];
-        try { list = JSON.parse(listStr); } catch (e) {}
+        try { list = JSON.parse(listStr); } catch (e) { }
         list = list.filter((item: any) => item.id !== id);
         localStorage.setItem("fs_fallback_saved_sketches", JSON.stringify(list));
         window.dispatchEvent(new CustomEvent("fs_fallback_saved_sketches_updated"));
@@ -1136,22 +1131,20 @@ function SketchCanvas() {
         <div className="flex gap-1.5 border-r border-[var(--border-color)] pr-3">
           <button
             onClick={() => setIsEraser(false)}
-            className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
-              !isEraser 
-                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs" 
+            className={`p-1.5 rounded-xl border transition-all cursor-pointer ${!isEraser
+                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
                 : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
-            }`}
+              }`}
             title="Pen Tool"
           >
             <Pen className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => setIsEraser(true)}
-            className={`p-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${
-              isEraser 
-                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs" 
+            className={`p-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${isEraser
+                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
                 : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
-            }`}
+              }`}
             title="Eraser Tool"
           >
             <Eraser className="w-3.5 h-3.5" />
@@ -1162,40 +1155,38 @@ function SketchCanvas() {
         {/* Dynamic color palette options */}
         <div className="flex gap-1.5 flex-wrap">
           {COLORS.map((c) => (
-            <button 
-              key={c} 
-              id={`sketch-color-${c.replace("#","")}`} 
+            <button
+              key={c}
+              id={`sketch-color-${c.replace("#", "")}`}
               onClick={() => handleSelectColor(c)}
-              className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer ${
-                (!isEraser && color === c) 
-                  ? "border-[var(--primary)] scale-110 shadow-sm" 
+              className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer ${(!isEraser && color === c)
+                  ? "border-[var(--primary)] scale-110 shadow-sm"
                   : "border-white/40"
-              }`}
-              style={{ backgroundColor: c }} 
+                }`}
+              style={{ backgroundColor: c }}
             />
           ))}
         </div>
-        
+
         {/* Brush sizes weight selection */}
         <div className="flex gap-2 items-center">
           <span className="text-[9px] uppercase font-bold text-[var(--text-muted)]">Weight:</span>
           {BRUSH_SIZES.map((s) => (
-            <button 
-              key={s} 
-              id={`sketch-size-${s}`} 
+            <button
+              key={s}
+              id={`sketch-size-${s}`}
               onClick={() => setBrushSize(s)}
-              className={`rounded-full transition-all flex items-center justify-center cursor-pointer ${
-                brushSize === s ? "bg-[var(--primary)]" : "bg-neutral-200 hover:bg-neutral-300"
-              }`}
+              className={`rounded-full transition-all flex items-center justify-center cursor-pointer ${brushSize === s ? "bg-[var(--primary)]" : "bg-neutral-200 hover:bg-neutral-300"
+                }`}
               style={{ width: `${s + 12}px`, height: `${s + 12}px` }}
             >
-              <div 
-                className="rounded-full bg-current" 
-                style={{ 
-                  width: `${s}px`, 
-                  height: `${s}px`, 
-                  backgroundColor: brushSize === s ? "white" : "var(--text-main)" 
-                }} 
+              <div
+                className="rounded-full bg-current"
+                style={{
+                  width: `${s}px`,
+                  height: `${s}px`,
+                  backgroundColor: brushSize === s ? "white" : "var(--text-main)"
+                }}
               />
             </button>
           ))}
@@ -1245,7 +1236,7 @@ function SketchCanvas() {
       <div className="relative pt-4 pb-6 px-4 bg-amber-950/5 rounded-3xl border border-amber-900/10">
         {/* Top wood bar */}
         <div className="w-16 h-2.5 bg-amber-900 mx-auto rounded-t shadow-xs" />
-        
+
         {/* Canvas (CLEAN NO-BORDER DESIGN) */}
         <div className="rounded-2xl overflow-hidden border-0 bg-white shadow-xl" style={{ touchAction: "none" }}>
           <canvas
@@ -1296,7 +1287,7 @@ function SketchCanvas() {
                   >
                     <img src={sketch.url} alt="Saved sketch" className="w-full h-full object-contain" />
                   </div>
-                  
+
                   {/* Actions */}
                   <div className="mt-2 flex gap-1 justify-between">
                     <a
@@ -1309,17 +1300,16 @@ function SketchCanvas() {
                     >
                       <Download className="w-3.5 h-3.5" />
                     </a>
-                    
+
                     {/* Save to memories timeline toggle */}
                     <button
                       onClick={() => {
                         saveToTimeline(sketch.url);
                       }}
-                      className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer hover:-translate-y-0.5 ${
-                        existingMemory
+                      className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer hover:-translate-y-0.5 ${existingMemory
                           ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200/60"
                           : "bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white border border-transparent"
-                      }`}
+                        }`}
                     >
                       <Heart className={`w-3 h-3 ${existingMemory ? "fill-current animate-heartbeat" : ""}`} />
                       <span>{existingMemory ? "Saved" : "Timeline"}</span>
@@ -1364,11 +1354,11 @@ function SketchCanvas() {
               >
                 ✕
               </button>
-              
+
               <div className="w-full aspect-[4/3] bg-white rounded-2xl overflow-hidden flex items-center justify-center border border-gray-100 mt-8">
                 <img src={previewUrl} alt="Sketch Preview" className="max-w-full max-h-full object-contain" />
               </div>
-              
+
               <div className="mt-4 flex gap-3 w-full px-2 justify-end">
                 <a
                   href={previewUrl}
@@ -1379,7 +1369,7 @@ function SketchCanvas() {
                 >
                   <Download className="w-3.5 h-3.5" /> Download
                 </a>
-                
+
                 <button
                   onClick={() => {
                     saveToTimeline(previewUrl);
