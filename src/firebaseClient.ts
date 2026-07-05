@@ -2,6 +2,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "firebase/firestore";
+import { getDatabase } from "firebase/database";
 
 // Load configuration from Vite environment variables (.env)
 const firebaseConfig = {
@@ -10,6 +11,7 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "placeholder-project-id",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "placeholder-messaging-id",
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "placeholder-app-id",
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || `https://${import.meta.env.VITE_FIREBASE_PROJECT_ID || "placeholder-project-id"}-default-rtdb.firebaseio.com/`
 };
 
 const app = initializeApp(firebaseConfig);
@@ -19,7 +21,12 @@ export const db = initializeFirestore(app, {
     tabManager: persistentMultipleTabManager(),
   })
 });
+export const rtdb = getDatabase(app);
 export const googleProvider = new GoogleAuthProvider();
+
+export const isFirebaseConfigured = 
+  import.meta.env.VITE_FIREBASE_API_KEY && 
+  import.meta.env.VITE_FIREBASE_API_KEY !== "placeholder-api-key";
 
 // Standardize Google login prompt
 googleProvider.setCustomParameters({
@@ -37,7 +44,6 @@ export const uploadBase64Image = async (base64Data: string, filename: string): P
       return base64Data;
     }
     
-    // Optional: If base64 data is extremely large, we can log it
     console.log(`[Base64 Upload Bypass] Storing image ${filename} directly in Firestore document.`);
     return base64Data;
   } catch (err) {
@@ -78,7 +84,6 @@ export const uploadToCloudinary = async (
   }
 
   const responseJson = await res.json();
-  // ponytail: Inject format & quality optimizations directly into the CDN URL path
   let url = responseJson.secure_url || "";
   if (url.includes("/upload/")) {
     url = url.replace("/upload/", "/upload/f_auto,q_auto,w_1200,c_limit/");

@@ -22,12 +22,14 @@ import {
   Redo,
   Download,
   Heart,
-  Eraser
+  Eraser,
+  Music
 } from "lucide-react";
 import { db } from "../firebaseClient";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import VirtualPiano from "./VirtualPiano";
 
-type Section = "games" | "sketch";
+type Section = "games" | "sketch" | "piano";
 type GameId = "tictactoe" | "wyr" | "spindare";
 
 // ─── Safe Fallback Database Wrappers ──────────────────────────────────────────
@@ -102,7 +104,11 @@ export default function PlayView() {
       {/* Upper Navigation Tab Switcher */}
       <div className="flex justify-center border-b border-neutral-200/40 pb-1">
         <div className="flex gap-6">
-          {([["games", "Arcade Games", Gamepad2], ["sketch", "Sketch Canvas", Pen]] as const).map(([id, label, Icon]) => {
+          {([
+            ["games", "Arcade Games", Gamepad2], 
+            ["sketch", "Sketch Canvas", Pen],
+            ["piano", "Grand Piano", Music]
+          ] as const).map(([id, label, Icon]) => {
             const isSelected = section === id;
             return (
               <button
@@ -110,7 +116,7 @@ export default function PlayView() {
                 id={`play-tab-${id}`}
                 onClick={() => setSection(id)}
                 className={`flex items-center gap-1.5 pb-3 text-xs font-bold transition-all relative cursor-pointer select-none ${isSelected
-                    ? "text-[var(--primary)]"
+                    ? "text-[#E6C594]"
                     : "text-gray-400 hover:text-gray-700"
                   }`}
               >
@@ -119,7 +125,7 @@ export default function PlayView() {
                 {isSelected && (
                   <motion.div
                     layoutId="activePlaySectionTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--primary)]"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E6C594]"
                     transition={{ type: "spring", stiffness: 350, damping: 28 }}
                   />
                 )}
@@ -129,43 +135,51 @@ export default function PlayView() {
         </div>
       </div>
 
-      {section === "games" && (
-        <div className="space-y-4">
-          {/* Games Hub SubTab Selector */}
-          <div className="glass-panel rounded-2xl p-1.5 flex gap-1 relative overflow-hidden">
-            {([["tictactoe", "Tic Tac Toe ⭕❌"], ["wyr", "Would You Rather? 🤔"], ["spindare", "Spin the Dare 🎡"]] as const).map(([id, label]) => {
-              const isSelected = gameId === id;
-              return (
-                <button
-                  key={id}
-                  id={`game-btn-${id}`}
-                  onClick={() => setGameId(id)}
-                  className={`relative flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer z-10 select-none ${isSelected
-                      ? "text-[var(--primary)] font-extrabold"
-                      : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/10"
-                    }`}
-                >
-                  <span className="relative z-10">{label}</span>
-                  {isSelected && (
-                    <motion.div
-                      layoutId="activePlaySubTab"
-                      className="absolute inset-0 bg-[var(--primary)]/10 border border-[var(--primary)]/20 rounded-xl -z-10 shadow-3xs"
-                      transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <AnimatePresence mode="wait">
-            {gameId === "tictactoe" && <TicTacToe key="ttt" />}
-            {gameId === "wyr" && <WouldYouRather key="wyr" />}
-            {gameId === "spindare" && <SpinDare key="spin" />}
-          </AnimatePresence>
+      <div style={{ display: section === "games" ? "block" : "none" }} className="space-y-4">
+        {/* Games Hub SubTab Selector */}
+        <div className="glass-panel rounded-2xl p-1.5 flex gap-1 relative overflow-hidden">
+          {([["tictactoe", "Tic Tac Toe ⭕❌"], ["wyr", "Would You Rather? 🤔"], ["spindare", "Spin the Dare 🎡"]] as const).map(([id, label]) => {
+            const isSelected = gameId === id;
+            return (
+              <button
+                key={id}
+                id={`game-btn-${id}`}
+                onClick={() => setGameId(id)}
+                className={`relative flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer z-10 select-none ${isSelected
+                    ? "text-[var(--primary)] font-extrabold"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/10"
+                  }`}
+              >
+                <span className="relative z-10">{label}</span>
+                {isSelected && (
+                  <motion.div
+                    layoutId="activePlaySubTab"
+                    className="absolute inset-0 bg-[var(--primary)]/10 border border-[var(--primary)]/20 rounded-xl -z-10 shadow-3xs"
+                    transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
-      )}
+        <div style={{ display: gameId === "tictactoe" ? "block" : "none" }}>
+          <TicTacToe />
+        </div>
+        <div style={{ display: gameId === "wyr" ? "block" : "none" }}>
+          <WouldYouRather />
+        </div>
+        <div style={{ display: gameId === "spindare" ? "block" : "none" }}>
+          <SpinDare />
+        </div>
+      </div>
 
-      {section === "sketch" && <SketchCanvas />}
+      <div style={{ display: section === "sketch" ? "block" : "none" }}>
+        <SketchCanvas />
+      </div>
+
+      <div style={{ display: section === "piano" ? "block" : "none" }}>
+        <VirtualPiano />
+      </div>
     </div>
   );
 }
