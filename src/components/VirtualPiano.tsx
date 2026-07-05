@@ -130,6 +130,7 @@ function noteToMidi(note: string): number {
   return (octave + 1) * 12 + index;
 }
 
+// midiToNote unused but kept for parity if needed
 function midiToNote(midi: number): string {
   const octave = Math.floor(midi / 12) - 1;
   const index = midi % 12;
@@ -725,6 +726,7 @@ export default function VirtualPiano() {
       len & 0xFF
     );
 
+    // --- FIX BARIS CRASH: Menghilangkan variabel liar Typo di ujung array ---[cite: 4]
     const fullMidi = new Uint8Array([...header, ...trackHeader, ...trackData]);
     const blob = new Blob([fullMidi], { type: "audio/midi" });
     const url = URL.createObjectURL(blob);
@@ -1027,6 +1029,13 @@ export default function VirtualPiano() {
     engineStartedRef.current = true;
   };
 
+  const stopPianoEngine = async () => {
+    whiteKeys.forEach((k) => stopNote(k.note));
+    blackKeys.forEach((k) => stopNote(k.note));
+    setEngineStarted(false);
+    engineStartedRef.current = false;
+  };
+
   const getNoteFromChar = (char: string): string | null => {
     const mapping = keyToPianoKeyMap[char];
     return mapping ? mapping.note : null;
@@ -1132,7 +1141,6 @@ export default function VirtualPiano() {
     return whiteIndex >= 0 ? whiteIndex : 0;
   };
 
-  // --- KEMBALIKAN STYLE CARD UNTUK MENCEGAH CRASH ---
   const bentoCardStyle: React.CSSProperties = {
     backgroundColor: "rgba(253, 242, 248, 0.65)",
     backdropFilter: "blur(12px) saturate(140%)",
@@ -1177,9 +1185,23 @@ export default function VirtualPiano() {
                     : "bg-red-500 shadow-[0_0_8px_#ef4444]"
                     }`}
                 ></span>
-                <span className="font-sans text-xs text-[#4a3a3a] font-semibold uppercase">
-                  {engineStarted ? "Connected" : "Disconnected"}
-                </span>
+                {engineStarted ? (
+                  <button
+                    onClick={stopPianoEngine}
+                    className="font-sans text-xs text-red-500 hover:text-red-600 font-bold uppercase underline tracking-wider cursor-pointer outline-none border-none bg-transparent select-none p-0"
+                    title="Shut down audio synthesis threads"
+                  >
+                    Disconnect Engine
+                  </button>
+                ) : (
+                  <button
+                    onClick={startPianoEngine}
+                    className="font-sans text-xs text-[#4a3a3a] hover:text-stone-800 font-bold uppercase underline tracking-wider cursor-pointer outline-none border-none bg-transparent select-none p-0"
+                    title="Initialize Web Audio API Context"
+                  >
+                    Connect Engine
+                  </button>
+                )}
               </div>
             </div>
 
