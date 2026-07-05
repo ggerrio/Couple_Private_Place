@@ -11,10 +11,15 @@ const firebaseConfig = {
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "placeholder-project-id",
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "placeholder-messaging-id",
   appId: import.meta.env.VITE_FIREBASE_APP_ID || "placeholder-app-id",
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || `https://${import.meta.env.VITE_FIREBASE_PROJECT_ID || "placeholder-project-id"}-default-rtdb.firebaseio.com/`
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || `https://${import.meta.env.VITE_FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com/`
 };
 
 const app = initializeApp(firebaseConfig);
+
+// DEBUG: cetak databaseURL yang benar-benar dipakai supaya bisa dicocokkan
+// dengan URL yang tertera di Firebase Console > Realtime Database
+console.log("[firebaseClient] RTDB databaseURL in use:", firebaseConfig.databaseURL);
+
 export const auth = getAuth(app);
 export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({
@@ -24,8 +29,8 @@ export const db = initializeFirestore(app, {
 export const rtdb = getDatabase(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export const isFirebaseConfigured = 
-  import.meta.env.VITE_FIREBASE_API_KEY && 
+export const isFirebaseConfigured =
+  import.meta.env.VITE_FIREBASE_API_KEY &&
   import.meta.env.VITE_FIREBASE_API_KEY !== "placeholder-api-key";
 
 // Standardize Google login prompt
@@ -43,7 +48,7 @@ export const uploadBase64Image = async (base64Data: string, filename: string): P
     if (!base64Data || !base64Data.startsWith("data:image")) {
       return base64Data;
     }
-    
+
     console.log(`[Base64 Upload Bypass] Storing image ${filename} directly in Firestore document.`);
     return base64Data;
   } catch (err) {

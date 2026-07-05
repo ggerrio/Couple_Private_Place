@@ -313,6 +313,7 @@ export default function VirtualPiano() {
   const [isClearingSync, setIsClearingSync] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
+  const [rtdbError, setRtdbError] = useState<string | null>(null);
   const pendingRemoteEventsRef = useRef<Array<() => void>>([]);
   const localUserIdRef = useRef<string>("");
   const pendingEventsRef = useRef<{ n: string; a: number; u: string; t: any }[]>([]);
@@ -362,6 +363,7 @@ export default function VirtualPiano() {
 
           update(ref(rtdb), updates).catch((err) => {
             console.error("Firebase sync error:", err);
+            setRtdbError(`Gagal mengirim nada ke partner: ${err.message}`);
           });
         }
       }, 16);
@@ -1004,31 +1006,39 @@ export default function VirtualPiano() {
     loadTimeRef.current = Date.now();
     const eventsRef = ref(rtdb, "rooms/couple_piano_session/events");
 
-    const listener = onChildAdded(eventsRef, (snapshot) => {
-      const event = snapshot.val();
-      if (!event || event.u === localUserIdRef.current) return;
+    const listener = onChildAdded(
+      eventsRef,
+      (snapshot) => {
+        const event = snapshot.val();
+        if (!event || event.u === localUserIdRef.current) return;
 
-      const eventTime = event.t || Date.now();
-      if (eventTime < loadTimeRef.current - 2000) return;
+        const eventTime = event.t || Date.now();
+        if (eventTime < loadTimeRef.current - 2000) return;
 
-      const applyEvent = () => {
-        if (event.a === 1) {
-          playNote(event.n, undefined, true);
+        const applyEvent = () => {
+          if (event.a === 1) {
+            playNote(event.n, undefined, true);
+          } else {
+            stopNote(event.n, undefined, true);
+          }
+        };
+
+        if (engineStartedRef.current) {
+          // Engine sudah aktif → langsung mainkan
+          applyEvent();
         } else {
-          stopNote(event.n, undefined, true);
+          // Engine belum aktif (AudioContext belum di-unlock user) → antrekan
+          // dan tampilkan banner supaya user klik untuk mengaktifkan audio.
+          pendingRemoteEventsRef.current.push(applyEvent);
+          setNeedsAudioUnlock(true);
         }
-      };
-
-      if (engineStartedRef.current) {
-        // Engine sudah aktif → langsung mainkan
-        applyEvent();
-      } else {
-        // Engine belum aktif (AudioContext belum di-unlock user) → antrekan
-        // dan tampilkan banner supaya user klik untuk mengaktifkan audio.
-        pendingRemoteEventsRef.current.push(applyEvent);
-        setNeedsAudioUnlock(true);
+      },
+      (error) => {
+        // Ini akan terpanggil kalau Security Rules menolak akses baca (permission_denied)
+        console.error("[RTDB] onChildAdded DITOLAK / gagal:", error.message);
+        setRtdbError(`Gagal membaca data piano: ${error.message}`);
       }
-    });
+    );
 
     return () => {
       off(eventsRef, "child_added", listener);
@@ -1664,6 +1674,13 @@ export default function VirtualPiano() {
         </div>
       </div>
 
+      {/* --- RTDB Error Banner: menampilkan kegagalan read/write yang biasanya disebabkan Security Rules atau databaseURL salah --- */}
+      {rtdbError && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] bg-red-600 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 max-w-md">
+          <span>⚠️ {rtdbError}</span>
+          <button onClick={() => setRtdbError(null)} className="text-white/80 hover:text-white">✕</button>
+        </div>
+      )}
       {/* --- Audio Unlock Banner: muncul saat partner mengirim nada tapi AudioContext lokal belum aktif --- */}
       {needsAudioUnlock && !engineStarted && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-stone-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 select-none">
