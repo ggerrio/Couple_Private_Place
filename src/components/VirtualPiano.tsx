@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as Tone from "tone";
 import { rtdb, isFirebaseConfigured } from "../firebaseClient";
-import { ref, push, child, update, onChildAdded, off, serverTimestamp } from "firebase/database";
+import { ref, push, child, update, onChildAdded, off, onValue, serverTimestamp } from "firebase/database";
 import {
   Music,
   Volume2,
@@ -117,6 +117,22 @@ keyMappings.forEach((item) => {
   noteToPianoKeyMap[item.note] = item;
 });
 
+// Peta konversi e.code fisik ke karakter utama piano (Bawaan White & Minor dasar)
+const codeToNormalCharMap: Record<string, string> = {
+  Digit1: "1", Digit2: "2", Digit3: "3", Digit4: "4", Digit5: "5", Digit6: "6", Digit7: "7", Digit8: "8", Digit9: "9", Digit0: "0",
+  KeyQ: "q", KeyW: "w", KeyE: "e", KeyR: "r", KeyT: "t", KeyY: "y", KeyU: "u", KeyI: "i", KeyO: "o", KeyP: "p",
+  KeyA: "a", KeyS: "s", KeyD: "d", KeyF: "f", KeyG: "g", KeyH: "h", KeyJ: "j", KeyK: "k", KeyL: "l",
+  KeyZ: "z", KeyX: "x", KeyC: "c", KeyV: "v", KeyB: "b", KeyN: "n", KeyM: "m"
+};
+
+// Peta konversi e.code fisik khusus saat SHIFT aktif ke karakter simbol minor murni
+const codeToShiftCharMap: Record<string, string> = {
+  Digit1: "!", Digit2: "@", Digit4: "$", Digit5: "%", Digit6: "^", Digit8: "*", Digit9: "(",
+  KeyQ: "Q", KeyW: "W", KeyE: "E", KeyR: "R", KeyT: "T", KeyY: "Y", KeyI: "I", KeyO: "O", KeyP: "P",
+  KeyA: "A", KeyS: "S", KeyD: "D", KeyF: "G", KeyG: "G", KeyH: "H", KeyJ: "J", KeyL: "L",
+  KeyZ: "Z", KeyC: "C", KeyV: "V", KeyB: "B"
+};
+
 const whiteKeys = keyMappings.filter((k) => !k.isBlack);
 const blackKeys = keyMappings.filter((k) => k.isBlack);
 const notesArray = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -130,7 +146,6 @@ function noteToMidi(note: string): number {
   return (octave + 1) * 12 + index;
 }
 
-// midiToNote unused but kept for parity if needed
 function midiToNote(midi: number): string {
   const octave = Math.floor(midi / 12) - 1;
   const index = midi % 12;
@@ -263,18 +278,9 @@ export const BlackPianoKey = React.memo(({
   return (
     <button
       id={`key-${note}`}
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        playNote(note);
-      }}
-      onMouseUp={(e) => {
-        e.stopPropagation();
-        stopNote(note);
-      }}
-      onMouseLeave={(e) => {
-        e.stopPropagation();
-        stopNote(note);
-      }}
+      onMouseDown={() => playNote(note)}
+      onMouseUp={() => stopNote(note)}
+      onMouseLeave={() => stopNote(note)}
       className={`absolute top-0 select-none outline-none rounded-b-md flex flex-col justify-end items-center pb-3 text-center pointer-events-auto transition-[transform,background-color,box-shadow] duration-77 ease-out cursor-pointer group bg-gradient-to-b from-stone-900 via-stone-950 to-black hover:from-stone-800 text-stone-200 hover:text-white shadow-[0_6px_10px_rgba(0,0,0,0.55),_inset_0_1px_1px_rgba(255,255,255,0.15)] border-t border-t-stone-800 border-x border-x-stone-900 ${isMaximized ? "h-[33vh] sm:h-[36vh]" : "h-[120px] md:h-[170px]"
         }`}
       style={{
@@ -306,19 +312,21 @@ export default function VirtualPiano() {
   const [isLoaded, setIsLoaded] = useState(false);
   const [isClearingSync, setIsClearingSync] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
-
+  const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
+  const pendingRemoteEventsRef = useRef<Array<() => void>>([]);
   const localUserIdRef = useRef<string>("");
   const pendingEventsRef = useRef<{ n: string; a: number; u: string; t: any }[]>([]);
   const throttleTimeoutRef = useRef<any | null>(null);
   const loadTimeRef = useRef<number>(Date.now());
 
+  // Monitor status koneksi RTDB (membantu debugging sync issue)
   useEffect(() => {
-    let id = localStorage.getItem("couple_piano_user_id");
-    if (!id) {
-      id = `user_${Math.random().toString(36).substring(2, 11)}`;
-      localStorage.setItem("couple_piano_user_id", id);
-    }
-    localUserIdRef.current = id;
+    if (!isFirebaseConfigured || !rtdb) return;
+    const connectedRef = ref(rtdb, ".info/connected");
+    const unsub = onValue(connectedRef, (snap) => {
+      console.log("[RTDB] connection state:", snap.val() ? "connected" : "disconnected");
+    });
+    return () => unsub();
   }, []);
 
   const activeNotesRef = useRef<Record<string, boolean>>({});
@@ -402,7 +410,6 @@ export default function VirtualPiano() {
   const [isMaximized, setIsMaximized] = useState(false);
   const viewportRef = useRef<HTMLDivElement | null>(null);
 
-  // --- FULLSCREEN DAN RESIZE EVENT WATCHER ---
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsMaximized(!!document.fullscreenElement);
@@ -726,7 +733,6 @@ export default function VirtualPiano() {
       len & 0xFF
     );
 
-    // --- FIX BARIS CRASH: Menghilangkan variabel liar Typo di ujung array ---[cite: 4]
     const fullMidi = new Uint8Array([...header, ...trackHeader, ...trackData]);
     const blob = new Blob([fullMidi], { type: "audio/midi" });
     const url = URL.createObjectURL(blob);
@@ -835,6 +841,7 @@ export default function VirtualPiano() {
     }
   }, [sustainLocked, sustainPressedFromSpacebar, instrument]);
 
+  // --- REFORMASI ENGINE HANDLER EVENT: ANTI-SHIFT OVERWRITE INTEGRAL ENGINE ---
   useEffect(() => {
     const BLOCKABLE_CTRL_KEYS = new Set([
       "f", "g", "s", "p", "d", "h", "j", "u", "k", "l", "r", "e", "b", "m"
@@ -945,34 +952,7 @@ export default function VirtualPiano() {
         e.preventDefault(); e.stopPropagation(); return;
       }
 
-      let targetChar = e.key;
-      const isShiftPressed = e.shiftKey;
-
-      if ((e.ctrlKey || e.metaKey) && targetChar.length === 1) {
-        const testChar = targetChar.toLowerCase();
-        if (keyToPianoKeyMap[testChar]) {
-          targetChar = testChar;
-        } else {
-          return;
-        }
-      } else if (e.ctrlKey || e.metaKey) {
-        return;
-      }
-
-      if (!isShiftPressed && !e.ctrlKey && !e.metaKey) {
-        targetChar = targetChar.toLowerCase();
-      }
-
-      const mapping = keyToPianoKeyMap[targetChar];
-      const isMappedKey = !!mapping;
       const isSpaceKey = e.key === " " || e.code === "Space";
-
-      if (!isMappedKey && !isSpaceKey) {
-        e.preventDefault(); e.stopPropagation();
-      } else if (isSpaceKey) {
-        e.preventDefault(); e.stopPropagation();
-      }
-
       setShiftPressed(e.shiftKey);
       if (e.getModifierState) setCapsLockActive(e.getModifierState("CapsLock"));
 
@@ -981,7 +961,31 @@ export default function VirtualPiano() {
         return;
       }
 
-      if (mapping) stopNote(mapping.note);
+      // --- STRATEGI DUPLEX SEARCH (MAJOR & MINOR MUTUAL DESTRUCTION) ---
+      // Ambil kemungkinan karakter White Key dan Minor Key secara paralel berdasarkan kode fisik keyboard
+      const normalChar = codeToNormalCharMap[e.code];
+      const shiftChar = codeToShiftCharMap[e.code];
+
+      const notesToStop: string[] = [];
+
+      // Periksa apakah karakter normal (White/Minor Dasar) miliknya sedang menyala di layar
+      if (normalChar && keyToPianoKeyMap[normalChar]) {
+        notesToStop.push(keyToPianoKeyMap[normalChar].note);
+      }
+      // Periksa apakah karakter Shift (Minor Simbol) miliknya juga sedang menyala di layar
+      if (shiftChar && keyToPianoKeyMap[shiftChar]) {
+        notesToStop.push(keyToPianoKeyMap[shiftChar].note);
+      }
+      // Peta pengaman cadangan: jika dilepas acak di luar kamus e.code
+      if (keyToPianoKeyMap[e.key]) {
+        notesToStop.push(keyToPianoKeyMap[e.key].note);
+      }
+
+      // Eksekusi pelepasan suara untuk semua kandidat yang cocok secara bersih!
+      const uniqueNotes = Array.from(new Set(notesToStop));
+      uniqueNotes.forEach((noteName) => {
+        stopNote(noteName);
+      });
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
@@ -1002,18 +1006,27 @@ export default function VirtualPiano() {
 
     const listener = onChildAdded(eventsRef, (snapshot) => {
       const event = snapshot.val();
-      if (event && event.u !== localUserIdRef.current) {
-        const eventTime = event.t || Date.now();
-        if (eventTime >= loadTimeRef.current - 2000) {
-          if (!engineStartedRef.current) {
-            startPianoEngine();
-          }
-          if (event.a === 1) {
-            playNote(event.n, undefined, true);
-          } else {
-            stopNote(event.n, undefined, true);
-          }
+      if (!event || event.u === localUserIdRef.current) return;
+
+      const eventTime = event.t || Date.now();
+      if (eventTime < loadTimeRef.current - 2000) return;
+
+      const applyEvent = () => {
+        if (event.a === 1) {
+          playNote(event.n, undefined, true);
+        } else {
+          stopNote(event.n, undefined, true);
         }
+      };
+
+      if (engineStartedRef.current) {
+        // Engine sudah aktif → langsung mainkan
+        applyEvent();
+      } else {
+        // Engine belum aktif (AudioContext belum di-unlock user) → antrekan
+        // dan tampilkan banner supaya user klik untuk mengaktifkan audio.
+        pendingRemoteEventsRef.current.push(applyEvent);
+        setNeedsAudioUnlock(true);
       }
     });
 
@@ -1023,10 +1036,19 @@ export default function VirtualPiano() {
   }, [playNote, stopNote]);
 
   const startPianoEngine = async () => {
-    await Tone.start();
-    if (Tone.context.state !== "running") await Tone.context.resume();
-    setEngineStarted(true);
-    engineStartedRef.current = true;
+    try {
+      await Tone.start();
+      if (Tone.context.state !== "running") await Tone.context.resume();
+      setEngineStarted(true);
+      engineStartedRef.current = true;
+      setNeedsAudioUnlock(false);
+
+      // Mainkan semua nada partner yang sempat tertunda saat engine belum aktif
+      const queued = pendingRemoteEventsRef.current.splice(0);
+      queued.forEach((fn) => fn());
+    } catch (err) {
+      console.error("[Audio] Gagal mengaktifkan AudioContext (kemungkinan diblokir autoplay policy browser):", err);
+    }
   };
 
   const stopPianoEngine = async () => {
@@ -1642,6 +1664,19 @@ export default function VirtualPiano() {
         </div>
       </div>
 
+      {/* --- Audio Unlock Banner: muncul saat partner mengirim nada tapi AudioContext lokal belum aktif --- */}
+      {needsAudioUnlock && !engineStarted && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-stone-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 select-none">
+          <span>🎹 Partner sedang bermain! Klik untuk mengaktifkan suara di perangkatmu.</span>
+          <button
+            onClick={startPianoEngine}
+            className="bg-[#E6C594] hover:bg-[#ebd2aa] text-stone-900 px-3 py-1.5 rounded-lg cursor-pointer transition-all active:scale-95"
+          >
+            Aktifkan Audio
+          </button>
+        </div>
+      )}
+
       {/* --- Couple Duo Configuration Modal --- */}
       {showConfigModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 select-none">
@@ -1676,7 +1711,7 @@ export default function VirtualPiano() {
               )}
               <button
                 onClick={() => setShowConfigModal(false)}
-                className="px-6 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer outline-none border-none select-none"
+                className="px-6 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition-all"
               >
                 Close Settings
               </button>
