@@ -644,9 +644,9 @@ function TimelineSection() {
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4 border-[var(--border-color)]">
         <div className="text-left">
-          <h2 className="text-xl font-serif font-bold text-[var(--text-main)]">Our Shared Milestones</h2>
+          <h2 className="text-xl font-serif font-bold text-[var(--text-main)]">Memory Vault</h2>
           <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            A chronological walk through our beautiful days and adventures together.
+            Our private collection of photos, photobooth moments, artworks, and every little memory we want to keep forever.
           </p>
         </div>
         <button
@@ -1838,7 +1838,7 @@ function PhotoboothSection() {
         <div className="text-left">
           <h2 className="text-xl font-serif font-bold text-[var(--text-main)]">Selfie Photobooth 📸</h2>
           <p className="text-xs text-[var(--text-muted)] font-sans mt-0.5">
-            Snap synced couple photo booth prints live in real-time, customize templates, and save to timeline!
+            Capture moments together, customize every frame, and keep your favorite photobooth memories forever.
           </p>
         </div>
         <div className="flex gap-2">
@@ -1865,10 +1865,10 @@ function PhotoboothSection() {
         <div className="bg-white/45 p-5 rounded-3xl border border-neutral-100 flex flex-col md:flex-row items-center justify-between gap-4 backdrop-blur-md">
           <div className="text-left space-y-1">
             <h4 className="text-xs font-bold text-gray-800 flex items-center gap-1.5 uppercase tracking-wider">
-              <Heart className="w-4 h-4 text-rose-500 animate-pulse" /> Live Couple Collaborative Studio
+              <Heart className="w-4 h-4 text-rose-500 animate-pulse" /> Live Studio
             </h4>
             <p className="text-[10px] text-gray-500">
-              Create a custom private studio room so you can take synced photo booth poses with your partner live!
+              Create your own private room, invite your partner, and capture synchronized photobooth moments together in real time!
             </p>
           </div>
 
@@ -2467,9 +2467,9 @@ function JournalSection() {
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b pb-4 border-[var(--border-color)]">
         <div>
-          <h2 className="text-xl font-serif font-bold text-[var(--text-main)]">Our Private Notion Diary</h2>
+          <h2 className="text-xl font-serif font-bold text-[var(--text-main)]">Our Private Diary</h2>
           <p className="text-xs text-[var(--text-muted)] font-sans">
-            Co-write beautiful chapters of our daily lives, emotions, and private conversations.
+            Write beautiful chapters of our journey together, from everyday moments to heartfelt conversations.
           </p>
         </div>
         <button

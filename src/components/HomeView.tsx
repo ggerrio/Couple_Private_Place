@@ -1391,7 +1391,44 @@ export default function HomeView() {
       boxShadow: `0 20px 40px -10px ${shadowColor}, 0 1px 3px rgba(0, 0, 0, 0.05)`,
     };
   };
+  const dailyMessages = [
+    "Welcome back to our little bubble.",
+    "I'm so happy you're here today.",
+    "Our little corner of the world is waiting for us.",
+    "Every day feels a little brighter with you here.",
+    "Another beautiful day begins with us together.",
+    "Our story quietly grows with every new day.",
+    "This little space always feels like home.",
+    "Every moment we save becomes another treasured memory.",
+    "The best part of today is sharing it with you.",
+    "No matter where we are, this place always brings us together.",
+    "Another page of our story is ready to be written.",
+    "Some memories are small, but they mean everything.",
+    "This little bubble holds all the moments we never want to lose.",
+    "Love lives in the little things we do together.",
+    "Every visit adds another warm memory to our collection.",
+    "A quiet place, a warm heart, and the two of us.",
+    "Nothing feels more comforting than being here with you.",
+    "The sweetest memories always begin with ordinary days.",
+    "Our happiest moments are the ones we create together.",
+    "Home has never been a place. It has always been you.",
+    "Another day to smile, laugh, and make new memories together.",
+    "Thank you for making every day feel a little more special.",
+    "Every photo, every letter, every memory tells our story.",
+    "This is where our favorite memories come to stay.",
+    "Even the simplest moments become unforgettable with you.",
+    "Here's to another beautiful day in our little world.",
+    "Every heartbeat of this place is filled with our memories.",
+    "No distance can make this place feel any less like home.",
+    "The little things we share become the memories we treasure.",
+    "Today is another chance to make something worth remembering.",
+  ];
 
+  const dayOfYear = Math.floor(
+    (Date.now() - new Date(new Date().getFullYear(), 0, 0).getTime()) / 86400000
+  );
+
+  const message = dailyMessages[dayOfYear % dailyMessages.length];
   return (
     <div className="space-y-6" id="home-view-container">
       {/* 1. Welcoming Hero Banner */}
@@ -1411,7 +1448,7 @@ export default function HomeView() {
             Welcome home, <span className="font-sans font-extrabold text-[var(--primary)]">{activeProfile.name.split(" ")[0]}</span>
           </h1>
           <p className="text-sm md:text-base lg:text-lg text-[var(--text-muted)] font-medium leading-relaxed">
-            Everything is warm and peaceful in our little bubble. {partnerProfile.name.split(" ")[0]} is currently{" "}
+            {message} {partnerProfile.name.split(" ")[0]} is currently{" "}
             <span className="inline-block px-2.5 py-0.5 rounded-full bg-neutral-900/5 text-[var(--text-main)] border border-neutral-900/5 font-mono mx-1">
               {partnerProfile.status}
             </span>.
@@ -1673,8 +1710,8 @@ export default function HomeView() {
 
               <p className="text-sm md:text-base lg:text-lg text-[var(--text-muted)] leading-relaxed font-medium">
                 {isCheckedInToday
-                  ? "Mimi the Calico is purring happily on the cushion! You have fed and loved our virtual pet today. Every check-in keeps Mimi strong, healthy, and unlocks cute accessories!"
-                  : "Mimi the Calico is curled up, waiting for her daily treat! Feed Mimi and check in today to keep our relationship streak active and earn XP."}
+                  ? "Marsha is happily purring beside us. Every visit, every cuddle, and every little bit of love helps her grow happier while making our little bubble feel even more like home."
+                  : "Marsha is curled up, waiting for today's cuddle and treat. Feed her and check in today to keep your relationship streak alive and earn XP."}
               </p>
 
               {/* Growth milestone indicator */}

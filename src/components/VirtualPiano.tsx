@@ -361,10 +361,16 @@ export default function VirtualPiano() {
             }
           });
 
-          update(ref(rtdb), updates).catch((err) => {
-            console.error("Firebase sync error:", err);
-            setRtdbError(`Gagal mengirim nada ke partner: ${err.message}`);
-          });
+          console.log("===== UPDATE =====");
+          console.log(updates);
+
+          update(ref(rtdb), updates)
+            .then(() => {
+              console.log("WRITE SUCCESS");
+            })
+            .catch((err) => {
+              console.error("WRITE FAILED", err);
+            });
         }
       }, 16);
     }
@@ -1602,7 +1608,7 @@ export default function VirtualPiano() {
               </div>
               <h3 className="text-xl font-serif text-[#4a3a3a] font-semibold">Unlock Audio Engine</h3>
               <p className="text-xs text-[#7a6a6a] mt-1 text-center max-w-sm">
-                Interact with the synthesizer canvas to load premium Salamander acoustic samples and couple duplex channels.
+                Interact with the Grand Virtuoso for acoustic samples and our melody sync.
               </p>
               <button
                 onClick={startPianoEngine}

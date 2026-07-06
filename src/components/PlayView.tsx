@@ -105,7 +105,7 @@ export default function PlayView() {
       <div className="flex justify-center border-b border-neutral-200/40 pb-1">
         <div className="flex gap-6">
           {([
-            ["games", "Arcade Games", Gamepad2], 
+            ["games", "Arcade Games", Gamepad2],
             ["sketch", "Sketch Canvas", Pen],
             ["piano", "Grand Piano", Music]
           ] as const).map(([id, label, Icon]) => {
@@ -116,8 +116,8 @@ export default function PlayView() {
                 id={`play-tab-${id}`}
                 onClick={() => setSection(id)}
                 className={`flex items-center gap-1.5 pb-3 text-xs font-bold transition-all relative cursor-pointer select-none ${isSelected
-                    ? "text-[#E6C594]"
-                    : "text-gray-400 hover:text-gray-700"
+                  ? "text-[#E6C594]"
+                  : "text-gray-400 hover:text-gray-700"
                   }`}
               >
                 <Icon className="w-4 h-4" />
@@ -146,8 +146,8 @@ export default function PlayView() {
                 id={`game-btn-${id}`}
                 onClick={() => setGameId(id)}
                 className={`relative flex-1 py-2 rounded-xl text-[10px] sm:text-xs font-bold transition-all cursor-pointer z-10 select-none ${isSelected
-                    ? "text-[var(--primary)] font-extrabold"
-                    : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/10"
+                  ? "text-[var(--primary)] font-extrabold"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/10"
                   }`}
               >
                 <span className="relative z-10">{label}</span>
@@ -388,8 +388,8 @@ function WouldYouRather() {
               id={`wyr-option-${i}`}
               onClick={() => vote(i as 0 | 1)}
               className={`flex-1 p-4 rounded-2xl text-xs sm:text-sm font-bold text-center border-2 transition-all duration-200 hover:-translate-y-0.5 active:scale-95 leading-snug cursor-pointer ${myVote === i
-                  ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
-                  : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
+                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
+                : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
                 }`}
             >
               {option}
@@ -549,8 +549,8 @@ function SpinDare() {
             id="spindare-settings-btn"
             onClick={() => setShowEditor((prev) => !prev)}
             className={`p-2 rounded-xl border cursor-pointer transition-all ${showEditor
-                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
-                : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
+              ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
+              : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
               }`}
           >
             <Settings2 className="w-4 h-4" />
@@ -572,8 +572,8 @@ function SpinDare() {
                     id="editor-tab-truth"
                     onClick={() => setEditorTab("truth")}
                     className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${editorTab === "truth"
-                        ? "bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30"
-                        : "bg-white/55 border border-[var(--border-color)] text-[var(--text-muted)] hover:bg-white"
+                      ? "bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30"
+                      : "bg-white/55 border border-[var(--border-color)] text-[var(--text-muted)] hover:bg-white"
                       }`}
                   >
                     Truths ({dbState.truths.length}/20)
@@ -582,8 +582,8 @@ function SpinDare() {
                     id="editor-tab-dare"
                     onClick={() => setEditorTab("dare")}
                     className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${editorTab === "dare"
-                        ? "bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30"
-                        : "bg-white/55 border border-[var(--border-color)] text-[var(--text-muted)] hover:bg-white"
+                      ? "bg-[var(--primary)]/15 text-[var(--primary)] border border-[var(--primary)]/30"
+                      : "bg-white/55 border border-[var(--border-color)] text-[var(--text-muted)] hover:bg-white"
                       }`}
                   >
                     Dares ({dbState.dares.length}/20)
@@ -1119,14 +1119,17 @@ function SketchCanvas() {
 
   const saveToTimeline = useCallback((url: string) => {
     const creatorName = currentUser === "user_a" ? userA.name : userB.name;
+    const partnerName = currentUser === "user_a" ? userB.name : userA.name;
+
     addMemory({
       type: "milestone",
       title: "Our Sketch Masterpiece 🎨",
-      description: `A beautiful drawing sketched together in the play room by ${creatorName} and partner!`,
+      description: `A beautiful drawing sketched together in the play room by ${creatorName} and ${partnerName}!`,
       imageUrl: url,
       date: new Date().toISOString(),
       creatorId: currentUser,
     });
+
     alert("Saved to Memories timeline! ✨");
   }, [currentUser, userA, userB, addMemory]);
 
@@ -1146,8 +1149,8 @@ function SketchCanvas() {
           <button
             onClick={() => setIsEraser(false)}
             className={`p-1.5 rounded-xl border transition-all cursor-pointer ${!isEraser
-                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
-                : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
+              ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
+              : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
               }`}
             title="Pen Tool"
           >
@@ -1156,8 +1159,8 @@ function SketchCanvas() {
           <button
             onClick={() => setIsEraser(true)}
             className={`p-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold ${isEraser
-                ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
-                : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
+              ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-xs"
+              : "bg-white/50 border-[var(--border-color)] text-[var(--text-main)] hover:bg-white"
               }`}
             title="Eraser Tool"
           >
@@ -1174,8 +1177,8 @@ function SketchCanvas() {
               id={`sketch-color-${c.replace("#", "")}`}
               onClick={() => handleSelectColor(c)}
               className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 cursor-pointer ${(!isEraser && color === c)
-                  ? "border-[var(--primary)] scale-110 shadow-sm"
-                  : "border-white/40"
+                ? "border-[var(--primary)] scale-110 shadow-sm"
+                : "border-white/40"
                 }`}
               style={{ backgroundColor: c }}
             />
@@ -1321,8 +1324,8 @@ function SketchCanvas() {
                         saveToTimeline(sketch.url);
                       }}
                       className={`flex-1 flex items-center justify-center gap-1 py-1 px-2 text-[10px] font-bold rounded-lg transition-all cursor-pointer hover:-translate-y-0.5 ${existingMemory
-                          ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200/60"
-                          : "bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white border border-transparent"
+                        ? "bg-red-50 text-red-500 hover:bg-red-100 border border-red-200/60"
+                        : "bg-[var(--primary)]/10 text-[var(--primary)] hover:bg-[var(--primary)] hover:text-white border border-transparent"
                         }`}
                     >
                       <Heart className={`w-3 h-3 ${existingMemory ? "fill-current animate-heartbeat" : ""}`} />
