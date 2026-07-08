@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as Tone from "tone";
 import { rtdb, isFirebaseConfigured } from "../firebaseClient";
-import { ref, push, child, update, onChildAdded, off, onValue, serverTimestamp } from "firebase/database";
+import { ref, push, child, update, onChildAdded, off, onValue, serverTimestamp, get } from "firebase/database";
 import {
   Music,
   Volume2,
+  VolumeX,
   Loader2,
   Keyboard,
   Plus,
@@ -26,6 +27,7 @@ import {
   Wifi,
   WifiOff
 } from "lucide-react";
+import { useCouple } from "../context/CoupleContext";
 
 interface PianoKey {
   note: string;
@@ -308,6 +310,7 @@ export const BlackPianoKey = React.memo(({
 BlackPianoKey.displayName = "BlackPianoKey";
 
 export default function VirtualPiano() {
+  const { session } = useCouple();
   const [engineStarted, setEngineStarted] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isClearingSync, setIsClearingSync] = useState(false);
@@ -325,10 +328,22 @@ export default function VirtualPiano() {
     if (!isFirebaseConfigured || !rtdb) return;
     const connectedRef = ref(rtdb, ".info/connected");
     const unsub = onValue(connectedRef, (snap) => {
-      console.log("[RTDB] connection state:", snap.val() ? "connected" : "disconnected");
+      const isConnected = snap.val() === true;
+      console.log("[RTDB] Connection state:", isConnected ? "connected" : "disconnected");
+      if (!isConnected) {
+        setRtdbError("Real-time sync disconnected. Reconnecting...");
+      } else if (rtdbError) {
+        setRtdbError(null); // Clear error on reconnect
+      }
     });
     return () => unsub();
-  }, []);
+  }, [rtdbError]);
+
+  useEffect(() => {
+    if (session?.uid) {
+      localUserIdRef.current = session.uid;
+    }
+  }, [session]);
 
   const activeNotesRef = useRef<Record<string, boolean>>({});
   const lastNoteRef = useRef<string | null>(null);
@@ -338,6 +353,10 @@ export default function VirtualPiano() {
   const pushLocalEvent = React.useCallback((note: string, action: number) => {
     if (!isFirebaseConfigured || !rtdb) return;
     const userId = localUserIdRef.current;
+    if (!userId) {
+      console.warn("Cannot send piano event: user ID not available yet.");
+      return;
+    }
 
     pendingEventsRef.current.push({
       n: note,
@@ -361,14 +380,9 @@ export default function VirtualPiano() {
             }
           });
 
-          console.log("===== UPDATE =====");
-          console.log(updates);
-
           update(ref(rtdb), updates)
-            .then(() => {
-              console.log("WRITE SUCCESS");
-            })
             .catch((err) => {
+              setRtdbError("Sync write failed. Check security rules.");
               console.error("WRITE FAILED", err);
             });
         }
@@ -380,7 +394,12 @@ export default function VirtualPiano() {
     if (!rtdb) return;
     setIsClearingSync(true);
     try {
-      await update(ref(rtdb), { "rooms/couple_piano_session/events": null });
+      const sessionRef = ref(rtdb, "rooms/couple_piano_session");
+      const snapshot = await get(child(sessionRef, 'events'));
+      if (snapshot.exists()) {
+        await update(ref(rtdb), { "rooms/couple_piano_session/events": null });
+        console.log("RTDB events cleared successfully.");
+      }
       loadTimeRef.current = Date.now();
     } catch (err) {
       console.error("Failed to clear Firebase DB events:", err);
@@ -522,6 +541,9 @@ export default function VirtualPiano() {
     reverbRef.current = reverb;
     gainNodeRef.current = gainNode;
 
+    // Coba aktifkan audio engine saat komponen pertama kali dimuat.
+    startPianoEngine();
+
     return () => {
       sampler.dispose();
       synth.dispose();
@@ -561,7 +583,7 @@ export default function VirtualPiano() {
 
     if (!isRemote) {
       physicallyPressedRef.current.add(note);
-      if (isFirebaseConfigured && rtdb) {
+      if (isFirebaseConfigured && rtdb && localUserIdRef.current) {
         pushLocalEvent(note, 1);
       }
     }
@@ -619,7 +641,7 @@ export default function VirtualPiano() {
 
     if (!isRemote) {
       physicallyPressedRef.current.delete(note);
-      if (isFirebaseConfigured && rtdb) {
+      if (isFirebaseConfigured && rtdb && localUserIdRef.current) {
         pushLocalEvent(note, 0);
       }
     }
@@ -1022,22 +1044,15 @@ export default function VirtualPiano() {
         if (eventTime < loadTimeRef.current - 2000) return;
 
         const applyEvent = () => {
-          if (event.a === 1) {
-            playNote(event.n, undefined, true);
-          } else {
-            stopNote(event.n, undefined, true);
-          }
+          if (event.a === 1) playNote(event.n, undefined, true);
+          else stopNote(event.n, undefined, true);
         };
 
-        if (engineStartedRef.current) {
-          // Engine sudah aktif → langsung mainkan
-          applyEvent();
-        } else {
-          // Engine belum aktif (AudioContext belum di-unlock user) → antrekan
-          // dan tampilkan banner supaya user klik untuk mengaktifkan audio.
-          pendingRemoteEventsRef.current.push(applyEvent);
-          setNeedsAudioUnlock(true);
-        }
+        // Selalu coba aktifkan engine. Jika sudah aktif, tidak akan terjadi apa-apa.
+        // Kemudian langsung mainkan event. Tidak perlu antrian atau banner.
+        startPianoEngine().then(() => {
+          if (engineStartedRef.current) applyEvent();
+        });
       },
       (error) => {
         // Ini akan terpanggil kalau Security Rules menolak akses baca (permission_denied)
@@ -1057,11 +1072,6 @@ export default function VirtualPiano() {
       if (Tone.context.state !== "running") await Tone.context.resume();
       setEngineStarted(true);
       engineStartedRef.current = true;
-      setNeedsAudioUnlock(false);
-
-      // Mainkan semua nada partner yang sempat tertunda saat engine belum aktif
-      const queued = pendingRemoteEventsRef.current.splice(0);
-      queued.forEach((fn) => fn());
     } catch (err) {
       console.error("[Audio] Gagal mengaktifkan AudioContext (kemungkinan diblokir autoplay policy browser):", err);
     }
@@ -1217,12 +1227,7 @@ export default function VirtualPiano() {
             <div className="flex flex-col items-end">
               <span className="font-sans text-[10px] text-[#8a7a7a] uppercase font-bold mb-1">Engine Status</span>
               <div className="flex items-center space-x-2">
-                <span
-                  className={`w-2 h-2 rounded-full transition-all duration-300 ${engineStarted
-                    ? "bg-emerald-500 shadow-[0_0_8px_#10b981]"
-                    : "bg-red-500 shadow-[0_0_8px_#ef4444]"
-                    }`}
-                ></span>
+                <span className={`w-2 h-2 rounded-full transition-all duration-300 ${engineStarted ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-red-500 shadow-[0_0_8px_#ef4444]"}`}></span>
                 {engineStarted ? (
                   <button
                     onClick={stopPianoEngine}
@@ -1687,18 +1692,6 @@ export default function VirtualPiano() {
           <button onClick={() => setRtdbError(null)} className="text-white/80 hover:text-white">✕</button>
         </div>
       )}
-      {/* --- Audio Unlock Banner: muncul saat partner mengirim nada tapi AudioContext lokal belum aktif --- */}
-      {needsAudioUnlock && !engineStarted && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-stone-900 text-white text-xs font-bold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-3 select-none">
-          <span>🎹 Partner sedang bermain! Klik untuk mengaktifkan suara di perangkatmu.</span>
-          <button
-            onClick={startPianoEngine}
-            className="bg-[#E6C594] hover:bg-[#ebd2aa] text-stone-900 px-3 py-1.5 rounded-lg cursor-pointer transition-all active:scale-95"
-          >
-            Aktifkan Audio
-          </button>
-        </div>
-      )}
 
       {/* --- Couple Duo Configuration Modal --- */}
       {showConfigModal && (
@@ -1714,7 +1707,7 @@ export default function VirtualPiano() {
             <div className="mt-5 space-y-4">
               <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200/50">
                 <span className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider block mb-1">Session Socket Room Path</span>
-                <span className="text-xs font-mono font-bold text-stone-800">/rooms/couple_piano_session/events</span>
+                <span className="text-xs font-mono font-bold text-stone-800 select-all">/rooms/couple_piano_session/events</span>
               </div>
               <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200/50">
                 <span className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider block mb-1">Local User identifier</span>

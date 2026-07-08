@@ -2252,7 +2252,7 @@ export default function HomeView() {
                         <span className="text-2xl font-black font-display text-[var(--text-main)]">{partnerWeather.temp}°C</span>
                       </div>
                       <span className="text-xs text-[var(--primary)] font-bold block">
-                        {partnerWeather.description}
+                        {partnerWeather.desc}
                       </span>
                       <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] font-mono pt-1">
                         <Thermometer className="w-3.5 h-3.5" />
@@ -2547,7 +2547,7 @@ export default function HomeView() {
                       return (
                         <div
                           key={idx}
-                          ref={(el) => (lyricsLineRefs.current[idx] = el)}
+                          ref={(el) => { lyricsLineRefs.current[idx] = el; }}
                           className={`py-1 transition-all duration-300 ${isActive
                             ? "text-red-600 font-bold scale-105 animate-pulse"
                             : "opacity-45 scale-100 hover:opacity-85"

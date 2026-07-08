@@ -555,8 +555,8 @@ function TimelineSection() {
 
     // Helper: compress a data-url via canvas
     const compressDataUrl = (src: string): Promise<string> =>
-      new Promise((resolve, reject) => {
-        const img = new Image();
+      new window.Promise((resolve, reject) => {
+        const img = new window.Image();
         img.onerror = () => reject(new Error("Image decode failed"));
         img.onload = () => {
           try {
@@ -971,71 +971,18 @@ function TimelineSection() {
 
                 {currentMem.imageUrl && (
                   currentMem.type === "photobooth" ? (
-                    <div className="w-full bg-slate-900 p-6 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 border-b border-gray-100 min-h-[340px]">
+                    <div className="w-full bg-slate-900 p-4 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 border-b border-gray-100 min-h-[340px]">
                       <div
                         className="absolute inset-0 bg-cover bg-center blur-md opacity-25 scale-110 pointer-events-none"
-                        style={{ backgroundImage: `url(\${currentMem.imageUrl})` }}
+                        style={{ backgroundImage: `url(${currentMem.imageUrl})` }}
                       />
-                      <div
-                        id={`photobooth-strip-modal-\${currentMem.id}`}
-                        style={bgStylesMap[currentMem.bgStyle || "sakura"] || { backgroundColor: "#ffffff" }}
-                        className="relative p-4 shadow-2xl rounded-sm w-48 flex flex-col items-center gap-3 transition-all duration-300 z-10 border border-white/5"
-                      >
-                        <div className="text-[7px] font-mono opacity-80 tracking-widest uppercase select-none font-bold">
-                          ★ PHOTOBOOTH ★
+                      <div className="w-full max-w-xs bg-[var(--color-muted)] p-4 pb-12 shadow-2xl border border-[var(--color-border)] rounded-sm relative z-10">
+                        <div className="absolute bottom-3 left-0 right-0 text-center font-serif italic text-xs text-rose-500/80 font-bold tracking-wider select-none">
+                          Our Sweet Memories 📸
                         </div>
-                        <div className="w-full space-y-2 flex-1 flex flex-col">
-                          {(() => {
-                            const pList = currentMem.photosList || [currentMem.imageUrl];
-                            const itemLayout = currentMem.layout || (pList.length === 1 ? "polaroid" : "4-cut");
-                            return pList.map((ph, idx) => (
-                              <div
-                                key={idx}
-                                className={`w-full overflow-hidden rounded relative border border-black/5 bg-gray-100 \${
-                                  itemLayout === "polaroid" ? "h-40" : itemLayout === "2-cut" ? "h-28" : itemLayout === "6-cut" ? "h-12" : "h-20"
-                                }`}
-                              >
-                                <img
-                                  src={ph}
-                                  alt={`Snap \${idx + 1}`}
-                                  className={`w-full h-full object-cover select-none pointer-events-none \${
-                                    currentMem.filterClass && currentMem.filterClass !== "none"
-                                      ? FILTERS.find((f) => f.id === currentMem.filterClass)?.css || ""
-                                      : ""
-                                  }`}
-                                  referrerPolicy="no-referrer"
-                                />
-                              </div>
-                            ));
-                          })()}
+                        <div className="w-full overflow-hidden flex items-center justify-center border border-[var(--color-border)] bg-white">
+                          <img src={currentMem.imageUrl} alt={currentMem.title} className="max-w-full max-h-[55vh] object-contain" />
                         </div>
-                        <div className="text-center w-full mt-1 flex flex-col gap-0.5 relative select-none">
-                          <p className="font-serif italic text-[10px] font-bold tracking-tight">
-                            {currentMem.title}
-                          </p>
-                          <p className="text-[6px] font-mono opacity-60">
-                            {new Date(currentMem.date).toLocaleDateString(undefined, {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </p>
-                        </div>
-                        {currentMem.stickersList && currentMem.stickersList.map((st: any) => (
-                          <div
-                            key={st.id}
-                            style={{
-                              position: "absolute",
-                              left: `\${st.x}%`,
-                              top: `\${st.y}%`,
-                              transform: "translate(-50%, -50%)",
-                              zIndex: 40,
-                            }}
-                            className="text-xl select-none pointer-events-none"
-                          >
-                            {st.sticker}
-                          </div>
-                        ))}
                       </div>
                     </div>
                   ) : (
@@ -1135,11 +1082,7 @@ function TimelineSection() {
                       <button
                         onClick={() => {
                           triggerHaptic("success");
-                          if (currentMem.type === "photobooth") {
-                            handleDownloadMemoryStrip(currentMem);
-                          } else {
-                            handleDownloadImage(currentMem.imageUrl, currentMem.title, awardXp);
-                          }
+                          handleDownloadImage(currentMem.imageUrl, currentMem.title, awardXp);
                         }}
                         className="flex-1 py-2 bg-gradient-to-r from-rose-500 to-rose-600 hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all active:scale-95 cursor-pointer"
                       >
@@ -1318,6 +1261,18 @@ function PhotoboothSection() {
 
   const capturedRoundRef = useRef(0);
   const transitionLockRef = useRef(0);
+
+  // Hide bottom navbar when the preview modal is open
+  useEffect(() => {
+    if (previewUrl) {
+      window.dispatchEvent(new CustomEvent("toggleNavbar", { detail: false }));
+    } else {
+      window.dispatchEvent(new CustomEvent("toggleNavbar", { detail: true }));
+    }
+    return () => {
+      window.dispatchEvent(new CustomEvent("toggleNavbar", { detail: true }));
+    };
+  }, [previewUrl]);
 
   const isHost = room?.hostId === currentUser;
   const partnerName = currentUser === "user_a" ? userB.name : userA.name;
@@ -1681,8 +1636,8 @@ function PhotoboothSection() {
       setSavedUrl(imageUrl);
       addMemory({
         type: "photobooth",
-        title: `\${LAYOUTS[room.layout].label} Live Photobooth`,
-        description: `Captured live together in room \${room.code} 💌`,
+        title: `${LAYOUTS[room.layout].label} Live Photobooth`,
+        description: `Captured live together in room ${room.code} 💌`,
         imageUrl,
         date: new Date().toISOString(),
         creatorId: currentUser,
@@ -2300,8 +2255,8 @@ function JournalSection() {
 
   // Helper compression
   const compressImage = async (file: File): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
+    return new window.Promise((resolve, reject) => {
+      const img = new window.Image();
       const reader = new FileReader();
       reader.onload = (e) => { img.src = e.target?.result as string; };
       reader.onerror = reject;

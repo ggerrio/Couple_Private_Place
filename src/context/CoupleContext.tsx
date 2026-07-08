@@ -952,6 +952,15 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setThemeState("sakura"); setDarkMode(false);
   }, []);
 
+  // ponytail: Pagination support
+  const loadMoreMemories = useCallback(() => {
+    setMemoriesLimit(prev => prev + 15);
+  }, []);
+
+  const loadMoreJournals = useCallback(() => {
+    setJournalsLimit(prev => prev + 15);
+  }, []);
+
   return (
     <CoupleContext.Provider value={{
       session, logout, currentUser, setCurrentUser, partnerId, userA, userB, updateProfile,
@@ -971,6 +980,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       adminResetMissions, adminClearActivityLogs, adminDeleteAllMemories, adminKickSlot,
       adminDeleteAllSketches, adminDeleteAllNotes, adminResetTTTScore,
       updateCoupleSettings,
+      memoriesLimit, loadMoreMemories, journalsLimit, loadMoreJournals,
     }}>
       {children}
     </CoupleContext.Provider>
