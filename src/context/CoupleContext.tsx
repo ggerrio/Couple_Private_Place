@@ -401,6 +401,8 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           weatherCity: p.weather_city,
           gender: p.gender,
           emoji: p.emoji || (d.id === "user_a" ? "💖" : "✨"),
+          timezoneOffset: p.timezone_offset,
+          timezoneName: p.timezone_name,
         };
         if (d.id === "user_a") setUserA((prev) => ({ ...prev, ...mapped }));
         if (d.id === "user_b") setUserB((prev) => ({ ...prev, ...mapped }));
@@ -612,6 +614,8 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (updates.weatherCity !== undefined) dbUpdates.weather_city = updates.weatherCity;
     if (updates.moodNote !== undefined) dbUpdates.mood_note = updates.moodNote;
     if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
+    if (updates.timezoneOffset !== undefined) dbUpdates.timezone_offset = updates.timezoneOffset;
+    if (updates.timezoneName !== undefined) dbUpdates.timezone_name = updates.timezoneName;
 
     try {
       await updateDoc(doc(db, "profiles", userId), dbUpdates);

@@ -326,6 +326,8 @@ function TimelineSection() {
     // ponytail: Limit pagination props
     memoriesLimit,
     loadMoreMemories,
+    cloudinaryCloudName,
+    cloudinaryUploadPreset,
   } = useCouple();
 
   const visibleMemories = memories.filter((m) => m.type !== "photobooth" || m.showOnTimeline !== false);

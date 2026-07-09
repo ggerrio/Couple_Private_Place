@@ -17,6 +17,8 @@ export interface Profile {
   weatherCity?: string;
   gender?: "pria" | "wanita";
   emoji?: string;
+  timezoneOffset?: number;
+  timezoneName?: string;
 }
 
 export interface Comment {

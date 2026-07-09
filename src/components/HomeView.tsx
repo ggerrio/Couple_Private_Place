@@ -420,8 +420,8 @@ export default function HomeView() {
   };
 
   const getPartnerTime = () => {
-    const offsetMinutes = (partnerProfile as any).timezoneOffset !== undefined 
-      ? (partnerProfile as any).timezoneOffset 
+    const offsetMinutes = (partnerProfile as any).timezoneOffset !== undefined
+      ? (partnerProfile as any).timezoneOffset
       : (partnerWeather?.utcOffset ?? null);
 
     if (offsetMinutes === null) {
@@ -435,14 +435,14 @@ export default function HomeView() {
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const partnerDate = new Date(utc + (offsetMinutes * 60000));
     const timeStr = partnerDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-    
+
     const offsetHours = offsetMinutes / 60;
     const sign = offsetHours >= 0 ? "+" : "";
     let tzName = `GMT${sign}${offsetHours}`;
     if (offsetHours === 7) tzName = "WIB";
     else if (offsetHours === 8) tzName = "WITA";
     else if (offsetHours === 9) tzName = "WIT";
-    
+
     return `${timeStr} (${tzName})`;
   };
 
@@ -1561,61 +1561,628 @@ export default function HomeView() {
       {/* Main Responsive Bento Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 items-stretch mt-4" id="home-bento-grid">
 
-        {/* Relationship Streak & Growing-Plant Card */}
+        {/* Skies & Couple Mood Sync Card */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.02 }}
-          className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 lg:p-8 rounded-2xl md:rounded-3xl relative overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md lg:col-span-12 xl:col-span-12"
-          id="relationship-streak-plant-card"
-        >
-          {/* Particle Overlay (Hearts, Sparkles, Fish, Paws) */}
-          <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
-            {plantParticles.map((p) => {
-              let emoji = "💖";
-              if (p.type === "water") {
-                emoji = Math.random() > 0.5 ? "🐟" : "🐾";
-              } else if (p.type === "sparkle") {
-                emoji = "✨";
-              }
-              return (
-                <motion.div
-                  key={p.id}
-                  className="absolute select-none pointer-events-none text-xl"
-                  style={{ left: `${p.x}%`, top: `70px` }}
-                  animate={{
-                    y: [0, -100],
-                    x: [0, (Math.random() - 0.5) * 25],
-                    opacity: [0, 1, 0.8, 0],
-                    scale: [0.6, 1.2, 0.4]
-                  }}
-                  transition={{ duration: 1.1, ease: "easeOut" }}
-                >
-                  {emoji}
-                </motion.div>
-              );
-            })}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.02 }}
+        className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl lg:col-span-12 xl:col-span-12 space-y-4 shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md"
+        id="mood-skies-sync-card"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border-color)] pb-4 gap-3">
+          <div className="flex items-center gap-3">
+            <Smile className="w-6 h-6 text-rose-500 animate-bounce-slow" />
+            <div>
+              <h3 className="text-lg md:text-xl font-bold text-[var(--text-main)] font-serif italic">
+                Skies & Couple Mood Sync
+              </h3>
+              <p className="text-xs text-[var(--text-muted)]">
+                Share your current feelings and stay in sync with each other's moods and local weather.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-3.5 py-1 rounded-full font-bold flex items-center gap-1.5 self-start sm:self-auto shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            Online
+          </span>
+        </div>
+
+        {/* Core Grid: My Skies & Mood vs Partner's Skies & Mood */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-[var(--border-color)]">
+
+          {/* Left Column: Current User (My Side) */}
+          <div className="flex flex-col space-y-4 pb-6 md:pb-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img
+                  src={activeProfile.avatar}
+                  alt={activeProfile.name}
+                  className="w-11 h-11 rounded-full border-2 border-[var(--primary)]/20 object-cover shadow-sm"
+                  referrerPolicy="no-referrer"
+                />
+                <div>
+                  <p className="text-xs text-[var(--text-muted)] font-mono uppercase tracking-wider font-bold">My State</p>
+                  <p className="text-base font-extrabold text-[var(--text-main)] truncate max-w-[150px]">
+                    {activeProfile.name.split(" ")[0]}
+                  </p>
+                </div>
+              </div>
+
+              {/* Mood Showcase Badge */}
+              <div className="flex items-center gap-2 bg-white/50 border border-white/60 p-2 px-3 rounded-2xl shadow-xs">
+                <span className="text-3xl">
+                  {moodsList.find((m) => m.value === activeProfile.mood)?.emoji || "🌸"}
+                </span>
+                <div className="text-left">
+                  <p className="text-[10px] text-[var(--text-muted)] font-bold">Current Mood</p>
+                  <p className="text-xs font-black text-[var(--primary)] capitalize">
+                    {activeProfile.mood || "Happy"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Local Weather section */}
+            <div className="bg-white/30 border border-white/20 p-4 rounded-2xl flex items-center justify-between shadow-xs relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-amber-100/10 to-transparent rounded-full pointer-events-none blur-md" />
+
+              {weatherLoading ? (
+                <div className="w-full py-4 flex flex-col items-center justify-center space-y-1.5">
+                  <Compass className="w-6 h-6 text-[var(--primary)] animate-spin" />
+                  <span className="text-xs text-[var(--text-muted)] animate-pulse font-medium">Sensing my skies...</span>
+                </div>
+              ) : weatherError && !localWeather ? (
+                <div className="w-full py-2 flex flex-col items-center justify-center text-center">
+                  <AlertCircle className="w-5 h-5 text-red-400 mb-1" />
+                  <span className="text-xs text-red-500 font-bold">Skies hazy</span>
+                  <button
+                    type="button"
+                    onClick={() => fetchWeatherByCoords(CITY_PRESETS[0].lat, CITY_PRESETS[0].lon, CITY_PRESETS[0].name)}
+                    className="text-[10px] underline text-[var(--primary)] mt-1 font-semibold"
+                  >
+                    Load fallback
+                  </button>
+                </div>
+              ) : localWeather ? (
+                <div className="flex items-center justify-between w-full">
+                  <div className="space-y-1 text-left">
+                    <span className="text-xs font-mono font-bold tracking-wider uppercase text-[var(--text-muted)] flex items-center gap-1">
+                      <MapPin className="w-3.5 h-3.5 text-[var(--primary)]" />
+                      {localWeather.name}
+                    </span>
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-black font-display text-[var(--text-main)]">{localWeather.temp}°C</span>
+                    </div>
+                    <span className="text-xs text-[var(--primary)] font-bold block">
+                      {localWeather.description}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] font-mono pt-1">
+                      <Wind className="w-3 h-3" />
+                      <span>{localWeather.windspeed} km/h wind</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1.5">
+                    <div className="bg-white/40 border border-white/50 px-2.5 py-1 rounded-xl shadow-xs text-right backdrop-blur-xs flex items-center gap-1.5 font-mono text-[10px] font-bold text-[var(--text-main)]">
+                      <Clock className="w-3 h-3 text-[var(--primary)]" />
+                      <span>{getLocalTime()}</span>
+                    </div>
+                    <div className="flex items-center justify-center pr-1">
+                      <ArtisticWeatherIcon code={localWeather.code} isDay={localWeather.isDay} className="w-14 h-14" />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 relative z-10 items-center">
+          {/* Right Column: Partner (Partner's Side) */}
+          <div className="flex flex-col space-y-4 pt-6 md:pt-0 md:pl-8">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <img
+                  src={partnerProfile.avatar}
+                  alt={partnerProfile.name}
+                  className="w-11 h-11 rounded-full border-2 border-[var(--primary)]/20 object-cover shadow-sm"
+                  referrerPolicy="no-referrer"
+                />
+                <div>
+                  <p className="text-xs text-[var(--text-muted)] font-mono uppercase tracking-wider font-bold">Partner's State</p>
+                  <p className="text-base font-extrabold text-[var(--text-main)] truncate max-w-[150px]">
+                    {partnerProfile.name.split(" ")[0]}
+                  </p>
+                </div>
+              </div>
 
-            {/* Left Column: Interactive Calico Cat Virtual Pet */}
-            <div className="md:col-span-4 lg:col-span-3 flex justify-center">
-              <div className="relative flex-shrink-0 w-36 h-36 bg-gradient-to-b from-amber-50/50 to-rose-50/30 rounded-2xl border border-white/50 shadow-inner flex items-center justify-center select-none overflow-hidden group">
+              {/* Partner's Showcase */}
+              <div className="flex items-center gap-2 bg-white/50 border border-white/60 p-2 px-3 rounded-2xl shadow-xs">
+                <span className="text-3xl">
+                  {moodsList.find((m) => m.value === partnerProfile.mood)?.emoji || "🌸"}
+                </span>
+                <div className="text-left">
+                  <p className="text-[10px] text-[var(--text-muted)] font-bold">Current Mood</p>
+                  <p className="text-xs font-black text-[var(--primary)] capitalize">
+                    {partnerProfile.mood || "Happy"}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-                {/* Soft Ambient glow in background */}
-                <div className="absolute inset-0 bg-radial-gradient from-rose-100/10 to-transparent pointer-events-none" />
+            {/* Partner's Weather section */}
+            <div className="bg-white/30 border border-white/20 p-4 rounded-2xl flex items-center justify-between shadow-xs relative overflow-hidden group">
+              <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-blue-100/10 to-transparent rounded-full pointer-events-none blur-md" />
 
-                <svg viewBox="0 0 100 100" className="w-28 h-28 overflow-visible">
-                  <defs>
-                    {/* Cushion gradient */}
-                    <linearGradient id="cushionGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#ffb5a7" />
-                      <stop offset="100%" stopColor="#fec5bb" />
-                    </linearGradient>
-                  </defs>
+              {partnerLoading ? (
+                <div className="w-full py-4 flex flex-col items-center justify-center space-y-1.5">
+                  <Compass className="w-6 h-6 text-[var(--accent)] animate-spin" />
+                  <span className="text-xs text-[var(--text-muted)] animate-pulse font-medium">Sensing partner skies...</span>
+                </div>
+              ) : partnerWeather ? (
+                <div className="flex items-center justify-between w-full">
+                  <div className="space-y-1 text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-mono font-bold tracking-wider uppercase text-[var(--text-muted)] flex items-center gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-[var(--accent)]" />
+                        {partnerWeather ? partnerWeather.city : partnerCity} Skies
+                      </span>
+                    </div>
 
-                  <style>{`
+                    <div className="flex items-baseline gap-1">
+                      <span className="text-2xl font-black font-display text-[var(--text-main)]">{partnerWeather.temp}°C</span>
+                    </div>
+                    <span className="text-xs text-[var(--primary)] font-bold block">
+                      {partnerWeather.desc}
+                    </span>
+                    <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] font-mono pt-1">
+                      <Thermometer className="w-3.5 h-3.5" />
+                      <span>Feels wonderful</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1.5">
+                    <div className="bg-white/40 border border-white/50 px-2.5 py-1 rounded-xl shadow-xs text-right backdrop-blur-xs flex items-center gap-1.5 font-mono text-[10px] font-bold text-[var(--text-main)]">
+                      <Clock className="w-3 h-3 text-[var(--accent)]" />
+                      <span>{getPartnerTime()}</span>
+                    </div>
+                    <div className="flex items-center justify-center pr-1">
+                      <ArtisticWeatherIcon code={partnerWeather.code} isDay={true} className="w-14 h-14" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full py-4 flex flex-col items-center justify-center">
+                  <span className="text-xs text-[var(--text-muted)] font-mono">Unreachable skies</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Interactive Mood Selector for Current User */}
+        <div className="space-y-4 bg-black/5 p-5 rounded-2xl border border-black/5 mt-6">
+          <p className="text-xs text-[var(--text-muted)] font-mono uppercase tracking-wider font-bold text-center md:text-left">
+            How are you feeling right now?
+          </p>
+
+          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5">
+            {moodsList.map((moodItem) => (
+              <button
+                key={moodItem.value}
+                type="button"
+                onClick={() => {
+                  triggerHaptic("light");
+                  setSelectedMood(moodItem.value);
+                }}
+                className={`py-3 px-1 text-center rounded-2xl transition-all duration-300 flex flex-col items-center justify-center cursor-pointer ${selectedMood === moodItem.value
+                  ? "bg-white text-[var(--text-main)] shadow-md scale-110 font-extrabold border-2 border-[var(--primary)]/20"
+                  : "bg-white/30 border border-white/20 text-gray-400 hover:text-gray-600 hover:scale-105 hover:bg-white/60"
+                  }`}
+                title={moodItem.label}
+              >
+                <span className="text-2xl md:text-3xl">{moodItem.emoji}</span>
+                <span className="text-[10px] block capitalize mt-1 font-semibold truncate max-w-[150px]">{moodItem.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <input
+              type="text"
+              placeholder="Attach a cozy whisper or mood note (optional)..."
+              value={moodNote}
+              onChange={(e) => setMoodNote(e.target.value)}
+              className="flex-1 px-4 py-2.5 text-xs font-serif italic text-[var(--text-main)] bg-white/80 border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-[var(--primary)] placeholder-gray-400"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic("success");
+                addMoodHistoryEntry(selectedMood, moodNote);
+                setMoodNote("");
+              }}
+              className="px-6 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white rounded-xl text-xs font-bold tracking-wider uppercase shadow-sm transition-colors flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 whitespace-nowrap cursor-pointer"
+            >
+              <Heart className="w-3.5 h-3.5 fill-current animate-heartbeat" />
+              <span>Update & Gain +15 XP</span>
+            </button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* SPOTLIGHT: MEMORY OF THE DAY WIDGET */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.04 }}
+        className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 lg:p-8 rounded-2xl md:rounded-3xl relative overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md lg:col-span-12 xl:col-span-12"
+        id="spotlight-memory-widget"
+      >
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-rose-200/20 to-transparent rounded-full pointer-events-none blur-2xl" />
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 relative z-10 items-center">
+
+          {/* Left: Text Info block */}
+          <div className="md:col-span-7 lg:col-span-8 space-y-4.5 text-center md:text-left min-w-0">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-50 to-rose-50 border border-rose-100/60 rounded-full text-xs font-extrabold uppercase tracking-widest text-rose-600 shadow-sm">
+              <Sparkles className="w-4 h-4 text-amber-500 fill-current animate-spin-slow" />
+              <span>Memory Spotlight of the Day</span>
+            </div>
+
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif text-[var(--text-main)] font-bold italic tracking-tight leading-tight">
+              {spotlightMemory ? spotlightMemory.title : "Capture a Moment Today!"}
+            </h2>
+
+            <p className="text-sm md:text-base text-[var(--text-muted)] leading-relaxed max-w-2xl font-medium">
+              {spotlightMemory
+                ? (spotlightMemory.description || "A beautiful moment frozen in time. No description was left, but the feelings are forever shared in our digital home.")
+                : "Your digital timeline is waiting for its next gorgeous chapter. Capture a photobooth strip or log a cozy milestone, and it might be spotlighted here for 24 hours!"}
+            </p>
+
+            {/* Date and Countdown details */}
+            <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm pt-1">
+              <div className="flex items-center gap-1.5 text-[var(--text-muted)] font-mono text-xs font-semibold">
+                <Calendar className="w-4 h-4 text-rose-400" />
+                <span>
+                  {spotlightMemory
+                    ? `Captured: ${new Date(spotlightMemory.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`
+                    : "No memories added yet"}
+                </span>
+              </div>
+
+              {spotlightMemory && (
+                <div className="text-[10px] bg-rose-50/80 text-rose-700 border border-rose-100 px-3 py-1 rounded-full font-mono uppercase font-black tracking-wider flex items-center gap-1.5 shadow-xs">
+                  <span className="animate-pulse">●</span> Rotates In: {rotationCountdown}
+                </div>
+              )}
+            </div>
+
+            {/* Actions: Love & Explore */}
+            <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-2">
+              {spotlightMemory ? (
+                <>
+                  <button
+                    onClick={() => {
+                      triggerHaptic("success");
+                      awardXp(15, "showering love on our Spotlight Memory of the Day!");
+
+                      // Confetti / Floating Emojis explosion
+                      const count = 14;
+                      const rect = document.getElementById("spotlight-frame")?.getBoundingClientRect();
+                      const xBase = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+                      const yBase = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
+                      for (let i = 0; i < count; i++) {
+                        const star = document.createElement("div");
+                        star.innerText = ["💖", "🌸", "✨", "🥰", "🎀", "🧸"][Math.floor(Math.random() * 6)];
+                        star.style.position = "fixed";
+                        star.style.left = `${xBase + (Math.random() - 0.5) * 120}px`;
+                        star.style.top = `${yBase + (Math.random() - 0.5) * 120}px`;
+                        star.style.fontSize = `${24 + Math.random() * 24}px`;
+                        star.style.pointerEvents = "none";
+                        star.style.zIndex = "9999";
+                        star.style.transition = "all 1s cubic-bezier(0.1, 0.8, 0.3, 1)";
+                        document.body.appendChild(star);
+                        setTimeout(() => {
+                          star.style.transform = `translateY(-140px) scale(0.2) rotate(${(Math.random() - 0.5) * 200}deg)`;
+                          star.style.opacity = "0";
+                        }, 50);
+                        setTimeout(() => star.remove(), 1050);
+                      }
+                    }}
+                    className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-95"
+                  >
+                    <span>🥰 Aww, Love This! (+15 XP)</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      triggerHaptic("light");
+                      window.dispatchEvent(new CustomEvent("changeTab", { detail: "memories" }));
+                    }}
+                    className="px-5 py-3 bg-white/75 hover:bg-white text-gray-700 hover:text-rose-600 border border-gray-200/80 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 hover:scale-103 shadow-xs"
+                  >
+                    <span>View Full Timeline</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    triggerHaptic("medium");
+                    window.dispatchEvent(new CustomEvent("changeTab", { detail: "memories" }));
+                  }}
+                  className="px-6 py-3.5 bg-gradient-to-r from-rose-400 to-rose-500 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2.5 shadow hover:scale-105 active:scale-95 group"
+                >
+                  <Camera className="w-5 h-5 transition-transform group-hover:scale-110 group-hover:rotate-6" />
+                  <span>Open Photobooth & Save Memories</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Right: The stylized framed photo */}
+          <div className="md:col-span-5 lg:col-span-4 flex justify-center md:justify-end w-full">
+            {spotlightMemory ? (
+              <motion.div
+                id="spotlight-frame"
+                whileHover={{ scale: 1.05, rotate: 1 }}
+                transition={{ type: "spring", stiffness: 120, damping: 14 }}
+                className="relative bg-white p-5 pb-14 rounded-sm shadow-[0_15px_40px_rgba(0,0,0,0.18)] border border-gray-200/70 flex flex-col items-center gap-3.5 w-64 -rotate-2 group"
+              >
+                {/* Visual paper tape design sticking polaroid onto card */}
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 w-16 h-6 bg-yellow-100/60 border-x border-dashed border-yellow-200/80 backdrop-blur-[1px] rotate-2 shadow-sm" />
+
+                {/* Image layout container */}
+                <div className="w-full aspect-square overflow-hidden bg-gray-50 border border-gray-100 rounded relative shadow-inner">
+                  <img
+                    src={spotlightMemory.imageUrl}
+                    alt={spotlightMemory.title}
+                    className="w-full h-full object-cover pointer-events-none select-none group-hover:scale-105 transition-transform duration-700"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-tr from-rose-300/5 via-transparent to-white/10 pointer-events-none" />
+                </div>
+
+                {/* Handwriting handwriting style typography */}
+                <div className="text-center w-full pt-1.5 font-serif select-none">
+                  <p className="text-sm font-black text-gray-800 italic tracking-wide truncate max-w-full">
+                    ✨ {spotlightMemory.title} ✨
+                  </p>
+                  <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase tracking-widest font-bold">
+                    ♥ {new Date(spotlightMemory.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} ♥
+                  </p>
+                </div>
+              </motion.div>
+            ) : (
+              <div className="relative bg-white/40 border-2 border-dashed border-gray-300/80 p-6 rounded-3xl flex flex-col items-center justify-center text-center w-52 aspect-square shadow-inner">
+                <Camera className="w-10 h-10 text-gray-300 mb-2 animate-pulse" />
+                <p className="text-[11px] font-semibold text-gray-500 font-serif italic">No memories spotlighted yet</p>
+                <p className="text-[9px] text-gray-400 mt-1">Photos from your photobooth or milestones will shine here!</p>
+              </div>
+            )}
+          </div>
+
+        </div>
+      </motion.div>
+
+      {/* Milestone & Special Days Consolidated Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.05 }}
+        className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl lg:col-span-8 xl:col-span-8 shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md"
+        id="milestone-special-days-card"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-[var(--border-color)]">
+
+          {/* Left Side: Next Milestone Countdown */}
+          <div className="space-y-4 pb-6 md:pb-0">
+            <div className="flex items-center justify-between">
+              <span className="text-xs md:text-sm font-mono font-bold tracking-widest uppercase text-[var(--text-muted)]">
+                Next Milestone
+              </span>
+              <span className="text-xs md:text-sm bg-rose-50 text-rose-600 px-3.5 py-1 rounded-full font-serif font-bold italic shadow-xs border border-rose-100">
+                {nextMilestoneDate ? new Date(nextMilestoneDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : "October 15, 2026"}
+              </span>
+            </div>
+
+            <div className="py-4 text-center">
+              <p className="text-xl md:text-2xl lg:text-3xl font-bold text-[var(--text-main)] mb-1 font-serif italic">
+                "{nextMilestoneTitle || "Our Next Milestone"}"
+              </p>
+              <div className="font-serif text-7xl md:text-8xl lg:text-9xl font-extralight italic tracking-tight text-[var(--primary)] leading-none animate-pulse-slow my-3">
+                {nextMilestoneDays}
+              </div>
+              <div className="text-xs md:text-sm font-mono font-bold tracking-widest uppercase text-[var(--text-muted)]">
+                Days Remaining
+              </div>
+            </div>
+
+            <p className="text-xs md:text-sm text-[var(--text-muted)] text-center font-serif italic border-t border-[var(--border-color)] pt-4 mt-2">
+              "Every step closer is a beautiful step together."
+            </p>
+          </div>
+
+          {/* Right Side: Special Days (Anniversary & Birthdays) */}
+          <div className="space-y-5 pt-6 md:pt-0 md:pl-8">
+            <div className="flex items-center justify-between pb-1">
+              <h3 className="text-base md:text-lg lg:text-xl font-bold text-[var(--text-main)] flex items-center gap-2.5">
+                <Calendar className="w-5 h-5 text-rose-500" />
+                Special Days
+              </h3>
+              <span className="text-xs md:text-sm bg-[var(--primary)]/10 text-[var(--primary)] px-3 py-1 rounded-full font-bold">
+                Countdown
+              </span>
+            </div>
+
+            <div className="space-y-4 divide-y divide-[var(--border-color)]">
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-pink-100 rounded-lg text-pink-500">
+                    <Heart className="w-5 h-5 fill-current" />
+                  </div>
+                  <div>
+                    <p className="text-sm md:text-base font-bold text-[var(--text-main)]">Next Anniversary</p>
+                    <p className="text-xs md:text-sm text-[var(--text-muted)] mt-0.5">{formatAnniversaryDisplay(anniversaryDate)}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg md:text-xl lg:text-2xl font-extrabold text-pink-600 font-display">{nextAnniversaryDays}</span>
+                  <span className="text-xs md:text-sm text-[var(--text-muted)] block mt-0.5">days left</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-yellow-100 rounded-lg text-yellow-600">
+                    <Gift className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm md:text-base font-bold text-[var(--text-main)]">{userA.name.split(" ")[0]}'s Birthday</p>
+                    <p className="text-xs md:text-sm text-[var(--text-muted)] mt-0.5">{formatBirthdayDisplay(birthdayA)}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg md:text-xl lg:text-2xl font-extrabold text-yellow-600 font-display">{birthdayDays.userA}</span>
+                  <span className="text-xs md:text-sm text-[var(--text-muted)] block mt-0.5">days left</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-blue-100 rounded-lg text-blue-500">
+                    <Compass className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="text-sm md:text-base font-bold text-[var(--text-main)]">{userB.name.split(" ")[0]}'s Birthday</p>
+                    <p className="text-xs md:text-sm text-[var(--text-muted)] mt-0.5">{formatBirthdayDisplay(birthdayB)}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-lg md:text-xl lg:text-2xl font-extrabold text-blue-600 font-display">{birthdayDays.userB}</span>
+                  <span className="text-xs md:text-sm text-[var(--text-muted)] block mt-0.5">days left</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </motion.div>
+
+      {/* Daily Quote Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.1 }}
+        className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl relative overflow-hidden group flex flex-col justify-between h-full shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md lg:col-span-4 xl:col-span-4"
+        id="quote-card"
+      >
+        <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-rose-200/10 to-transparent rounded-full pointer-events-none blur-xl" />
+
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-xs md:text-sm font-extrabold text-[var(--primary)] tracking-wider uppercase flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 fill-current text-[var(--primary)]" />
+              Curated Daily Love Quote
+            </h4>
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic("light");
+                changeQuote();
+              }}
+              title="Draw a custom whisper of inspiration"
+              className="p-1.5 hover:bg-black/5 rounded-full transition-colors text-[var(--text-muted)] hover:text-[var(--primary)] cursor-pointer"
+            >
+              <RefreshCw className="w-4 h-4 hover:rotate-180 transition-transform duration-500" />
+            </button>
+          </div>
+
+          <div className="text-sm md:text-base font-serif italic text-[var(--text-main)] leading-relaxed relative z-10 py-1.5 font-medium">
+            {quoteLoading ? (
+              <span className="flex items-center gap-1.5 text-[var(--text-muted)] animate-pulse font-sans text-xs">
+                <RefreshCw className="w-4 h-4 animate-spin text-[var(--primary)]" /> Fetching romantic whisper...
+              </span>
+            ) : fetchedQuote ? (
+              <>
+                "{fetchedQuote.content}"
+                {fetchedQuote.author && (
+                  <span className="block text-right text-xs text-[var(--text-muted)] font-mono not-italic mt-2">
+                    — {fetchedQuote.author}
+                  </span>
+                )}
+              </>
+            ) : (
+              `"In your smile, I see something more beautiful than the stars."`
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-between items-center mt-6 pt-3 border-t border-[var(--border-color)] text-[10px] text-[var(--text-muted)] relative z-10 font-mono">
+          <span>Stable for 24 hours</span>
+          <span>Next update in {(() => {
+            const now = new Date();
+            const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+            return Math.max(1, Math.round((tomorrow.getTime() - now.getTime()) / (1000 * 60 * 60)));
+          })()}h</span>
+        </div>
+        <Heart className="w-20 h-20 text-[var(--primary)]/5 absolute -right-6 -bottom-6 -rotate-12 pointer-events-none" />
+      </motion.div>
+
+      {/* Relationship Streak & Growing-Plant Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.15 }}
+        className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 lg:p-8 rounded-2xl md:rounded-3xl relative overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md lg:col-span-12 xl:col-span-12"
+        id="relationship-streak-plant-card"
+      >
+        {/* Particle Overlay (Hearts, Sparkles, Fish, Paws) */}
+        <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden">
+          {plantParticles.map((p) => {
+            let emoji = "💖";
+            if (p.type === "water") {
+              emoji = Math.random() > 0.5 ? "🐟" : "🐾";
+            } else if (p.type === "sparkle") {
+              emoji = "✨";
+            }
+            return (
+              <motion.div
+                key={p.id}
+                className="absolute select-none pointer-events-none text-xl"
+                style={{ left: `${p.x}%`, top: `70px` }}
+                animate={{
+                  y: [0, -100],
+                  x: [0, (Math.random() - 0.5) * 25],
+                  opacity: [0, 1, 0.8, 0],
+                  scale: [0.6, 1.2, 0.4]
+                }}
+                transition={{ duration: 1.1, ease: "easeOut" }}
+              >
+                {emoji}
+              </motion.div>
+            );
+          })}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 relative z-10 items-center">
+
+          {/* Left Column: Interactive Calico Cat Virtual Pet */}
+          <div className="md:col-span-4 lg:col-span-3 flex justify-center">
+            <div className="relative flex-shrink-0 w-36 h-36 bg-gradient-to-b from-amber-50/50 to-rose-50/30 rounded-2xl border border-white/50 shadow-inner flex items-center justify-center select-none overflow-hidden group">
+
+              {/* Soft Ambient glow in background */}
+              <div className="absolute inset-0 bg-radial-gradient from-rose-100/10 to-transparent pointer-events-none" />
+
+              <svg viewBox="0 0 100 100" className="w-28 h-28 overflow-visible">
+                <defs>
+                  {/* Cushion gradient */}
+                  <linearGradient id="cushionGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#ffb5a7" />
+                    <stop offset="100%" stopColor="#fec5bb" />
+                  </linearGradient>
+                </defs>
+
+                <style>{`
                   @keyframes tailWag {
                     0%, 100% { transform: rotate(0deg); }
                     50% { transform: rotate(10deg); }
@@ -1642,852 +2209,286 @@ export default function HomeView() {
                   }
                 `}</style>
 
-                  {/* Cozy Cushion */}
-                  <ellipse cx="50" cy="78" rx="42" ry="14" fill="url(#cushionGrad)" />
-                  <ellipse cx="50" cy="78" rx="38" ry="11" fill="none" stroke="#fcd5ce" strokeWidth="1.5" strokeDasharray="3 3" />
+                {/* Cozy Cushion */}
+                <ellipse cx="50" cy="78" rx="42" ry="14" fill="url(#cushionGrad)" />
+                <ellipse cx="50" cy="78" rx="38" ry="11" fill="none" stroke="#fcd5ce" strokeWidth="1.5" strokeDasharray="3 3" />
 
-                  {/* Cat Tail */}
-                  <path
-                    className="cat-tail"
-                    d="M 68 65 Q 85 55 82 38 Q 79 32 75 35 Q 75 42 74 52"
-                    fill="none"
-                    stroke="#d4a373"
-                    strokeWidth="7"
-                    strokeLinecap="round"
-                  />
-                  {/* Tail Tip (Charcoal Black patch) */}
-                  <path
-                    className="cat-tail"
-                    d="M 82 38 Q 79 32 75 35"
-                    fill="none"
-                    stroke="#2f3e46"
-                    strokeWidth="7"
-                    strokeLinecap="round"
-                  />
+                {/* Cat Tail */}
+                <path
+                  className="cat-tail"
+                  d="M 68 65 Q 85 55 82 38 Q 79 32 75 35 Q 75 42 74 52"
+                  fill="none"
+                  stroke="#d4a373"
+                  strokeWidth="7"
+                  strokeLinecap="round"
+                />
+                {/* Tail Tip (Charcoal Black patch) */}
+                <path
+                  className="cat-tail"
+                  d="M 82 38 Q 79 32 75 35"
+                  fill="none"
+                  stroke="#2f3e46"
+                  strokeWidth="7"
+                  strokeLinecap="round"
+                />
 
-                  {/* Cat Body */}
-                  <ellipse cx="50" cy="63" rx="28" ry="20" fill="#faf9f6" />
+                {/* Cat Body */}
+                <ellipse cx="50" cy="63" rx="28" ry="20" fill="#faf9f6" />
 
-                  {/* Calico Patches on Body */}
-                  <path d="M 58 48 Q 74 50 72 65 Q 60 74 52 68 Z" fill="#e76f51" opacity="0.95" />
-                  <path d="M 32 58 Q 22 66 36 78 Q 44 76 38 64 Z" fill="#2f3e46" opacity="0.95" />
+                {/* Calico Patches on Body */}
+                <path d="M 58 48 Q 74 50 72 65 Q 60 74 52 68 Z" fill="#e76f51" opacity="0.95" />
+                <path d="M 32 58 Q 22 66 36 78 Q 44 76 38 64 Z" fill="#2f3e46" opacity="0.95" />
 
-                  {/* Cat Head */}
-                  <circle cx="50" cy="43" r="15" fill="#faf9f6" />
+                {/* Cat Head */}
+                <circle cx="50" cy="43" r="15" fill="#faf9f6" />
 
-                  {/* Head Patches */}
-                  <path d="M 50 28 Q 66 28 64 45 Q 56 55 50 43 Z" fill="#e76f51" opacity="0.95" />
-                  <path d="M 35 43 Q 32 50 38 52 Q 40 45 35 43 Z" fill="#2f3e46" opacity="0.95" />
+                {/* Head Patches */}
+                <path d="M 50 28 Q 66 28 64 45 Q 56 55 50 43 Z" fill="#e76f51" opacity="0.95" />
+                <path d="M 35 43 Q 32 50 38 52 Q 40 45 35 43 Z" fill="#2f3e46" opacity="0.95" />
 
-                  {/* Cat Ears */}
-                  {/* Left Ear */}
-                  <path
-                    className="cat-ear-l"
-                    d="M 34 35 L 38 22 L 46 32 Z"
-                    fill="#2f3e46"
-                  />
-                  <path
-                    className="cat-ear-l"
-                    d="M 36 33 L 39 25 L 43 31 Z"
-                    fill="#ffb5a7"
-                  />
+                {/* Cat Ears */}
+                {/* Left Ear */}
+                <path
+                  className="cat-ear-l"
+                  d="M 34 35 L 38 22 L 46 32 Z"
+                  fill="#2f3e46"
+                />
+                <path
+                  className="cat-ear-l"
+                  d="M 36 33 L 39 25 L 43 31 Z"
+                  fill="#ffb5a7"
+                />
 
-                  {/* Right Ear */}
-                  <path
-                    className="cat-ear-r"
-                    d="M 66 35 L 62 22 L 54 32 Z"
-                    fill="#faf9f6"
-                  />
-                  <path
-                    className="cat-ear-r"
-                    d="M 64 33 L 61 25 L 57 31 Z"
-                    fill="#ffb5a7"
-                  />
+                {/* Right Ear */}
+                <path
+                  className="cat-ear-r"
+                  d="M 66 35 L 62 22 L 54 32 Z"
+                  fill="#faf9f6"
+                />
+                <path
+                  className="cat-ear-r"
+                  d="M 64 33 L 61 25 L 57 31 Z"
+                  fill="#ffb5a7"
+                />
 
-                  {/* Face Details */}
-                  {/* Whiskers */}
-                  <line x1="32" y1="44" x2="22" y2="43" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
-                  <line x1="32" y1="47" x2="21" y2="48" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
-                  <line x1="68" y1="44" x2="78" y2="43" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
-                  <line x1="68" y1="47" x2="79" y2="48" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
+                {/* Face Details */}
+                {/* Whiskers */}
+                <line x1="32" y1="44" x2="22" y2="43" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="32" y1="47" x2="21" y2="48" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="68" y1="44" x2="78" y2="43" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
+                <line x1="68" y1="47" x2="79" y2="48" stroke="#cbd5e1" strokeWidth="1.5" strokeLinecap="round" />
 
-                  {/* Eyes */}
-                  {isCheckedInToday ? (
-                    <>
-                      <path d="M 39 43 Q 43 46 47 43" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" />
-                      <path d="M 53 43 Q 57 46 61 43" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" />
-                      <circle cx="38" cy="48" r="2.5" fill="#fec5bb" opacity="0.8" />
-                      <circle cx="62" cy="48" r="2.5" fill="#fec5bb" opacity="0.8" />
-                    </>
-                  ) : (
-                    <>
-                      <line x1="38" y1="44" x2="46" y2="44" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
-                      <line x1="54" y1="44" x2="62" y2="44" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
-                    </>
-                  )}
-
-                  {/* Nose & Mouth */}
-                  <polygon points="49.2,47 50.8,47 50,48.2" fill="#ffb5a7" />
-                  <path d="M 47.5 49 Q 50 51.2 50 49 Q 50 51.2 52.5 49" fill="none" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" />
-
-                  {/* Accessories based on Streak */}
-                  {streakCount >= 5 && (
-                    <g>
-                      <circle cx="20" cy="74" r="6" fill="#f43f5e" />
-                      <path d="M 20 80 Q 15 82 12 79 M 20 68 Q 23 65 21 62" fill="none" stroke="#f43f5e" strokeWidth="1" />
-                    </g>
-                  )}
-
-                  {streakCount >= 15 && (
-                    <g>
-                      <path d="M 41 51 Q 50 54 59 51" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" />
-                      <circle cx="50" cy="53.5" r="3" fill="#fbbf24" stroke="#d97706" strokeWidth="0.5" />
-                      <circle cx="50" cy="54.5" r="0.6" fill="#1e293b" />
-                    </g>
-                  )}
-
-                  {streakCount >= 30 && (
-                    <path
-                      d="M 44 26 L 42 16 L 47 20 L 50 14 L 53 20 L 58 16 L 56 26 Z"
-                      fill="#fbbf24"
-                      stroke="#d97706"
-                      strokeWidth="1.5"
-                      strokeLinejoin="round"
-                    />
-                  )}
-                </svg>
-
-                {/* Micro pet/feed badge overlay */}
-                <button
-                  onClick={() => {
-                    triggerHaptic("light");
-                    triggerWaterAnimation();
-                  }}
-                  title="Feed or Pet Mimi!"
-                  className="absolute bottom-1.5 right-1.5 p-1.5 bg-white/90 hover:bg-white rounded-full border border-pink-100 text-rose-500 shadow-sm hover:scale-110 active:scale-95 transition-all duration-300"
-                >
-                  🐾
-                </button>
-              </div>
-            </div>
-
-            {/* Right Column: Information & Actions */}
-            <div className="md:col-span-8 lg:col-span-9 space-y-4 text-center md:text-left min-w-0">
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2 bg-rose-50 text-rose-500 rounded-xl">
-                    <Flame className="w-5 h-5 fill-current" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg md:text-xl lg:text-2xl font-extrabold text-[var(--text-main)] font-display flex items-center gap-2">
-                      {streakCount} Day Love Streak
-                    </h3>
-                    <p className="text-xs md:text-sm text-[var(--text-muted)] font-mono font-bold tracking-wider uppercase">
-                      Consecutive Check-ins & Pet Status
-                    </p>
-                  </div>
-                </div>
-
-                <span className="text-xs md:text-sm bg-rose-50 border border-rose-200 text-rose-700 px-3.5 py-1 rounded-full font-bold">
-                  {streakCount >= 30
-                    ? "Royal Calico 👑"
-                    : streakCount >= 15
-                      ? "Cozy Companion 🐱"
-                      : streakCount >= 5
-                        ? "Playful Kitty 🧶"
-                        : "Sleepy Kitten 🐾"}
-                </span>
-              </div>
-
-              <p className="text-sm md:text-base lg:text-lg text-[var(--text-muted)] leading-relaxed font-medium">
-                {isCheckedInToday
-                  ? "Marsha is happily purring beside us. Every visit, every cuddle, and every little bit of love helps her grow happier while making our little bubble feel even more like home."
-                  : "Marsha is curled up, waiting for today's cuddle and treat. Feed her and check in today to keep your relationship streak alive and earn XP."}
-              </p>
-
-              {/* Growth milestone indicator */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-xs md:text-sm text-[var(--text-muted)] font-mono font-semibold">
-                  <span>Next Accessory Unlock Progress</span>
-                  <span>{streakCount >= 30 ? "Maximum Level" : `${Math.round((streakCount % 10) * 10)}%`}</span>
-                </div>
-                <div className="h-2 bg-black/5 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-rose-400 to-amber-400 rounded-full transition-all duration-500"
-                    style={{ width: streakCount >= 30 ? "100%" : `${Math.max(5, (streakCount % 10) * 10)}%` }}
-                  />
-                </div>
-                <p className="text-xs md:text-sm text-[var(--text-muted)]/80 italic font-medium">
-                  {streakCount >= 30
-                    ? "Incredible! Mimi is in her ultimate, most majestic form, loving you both eternally! 👑"
-                    : `Next Accessory Unlock: ${Math.ceil((streakCount + 0.1) / 10) * 10}-day streak milestone!`}
-                </p>
-              </div>
-
-              {/* Check-In Action Button */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-                <button
-                  onClick={handleCheckIn}
-                  className={`w-full sm:w-auto px-6 py-3 rounded-xl text-sm md:text-base font-bold transition-all flex items-center justify-center gap-2.5 shadow-sm hover:scale-[1.01] active:scale-[0.99] ${isCheckedInToday
-                    ? "bg-rose-500 hover:bg-rose-600 text-white"
-                    : "bg-gradient-to-r from-rose-400 to-amber-500 hover:opacity-95 text-white"
-                    }`}
-                >
-                  {isCheckedInToday ? (
-                    <>
-                      <span>🐾 Give Mimi Salmon Treat (+5 XP)</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>🐟 Feed Mimi & Check In (+25 XP)</span>
-                    </>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => {
-                    triggerHaptic("heavy");
-                    setStreakCount(1);
-                    localStorage.setItem("couple_relationship_streak", "1");
-                  }}
-                  className="text-xs text-gray-400 hover:text-rose-400 transition-colors font-mono py-1 px-2 mt-2 sm:mt-0"
-                  title="Only use if you want to start fresh with a new calico kitten!"
-                >
-                  Reset Pet Status
-                </button>
-              </div>
-
-            </div>
-          </div>
-        </motion.div>
-
-        {/* SPOTLIGHT: MEMORY OF THE DAY WIDGET */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.04 }}
-          className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 lg:p-8 rounded-2xl md:rounded-3xl relative overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md lg:col-span-12 xl:col-span-12"
-          id="spotlight-memory-widget"
-        >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-rose-200/20 to-transparent rounded-full pointer-events-none blur-2xl" />
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 relative z-10 items-center">
-
-            {/* Left: Text Info block */}
-            <div className="md:col-span-7 lg:col-span-8 space-y-4.5 text-center md:text-left min-w-0">
-              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-50 to-rose-50 border border-rose-100/60 rounded-full text-xs font-extrabold uppercase tracking-widest text-rose-600 shadow-sm">
-                <Sparkles className="w-4 h-4 text-amber-500 fill-current animate-spin-slow" />
-                <span>Memory Spotlight of the Day</span>
-              </div>
-
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-serif text-[var(--text-main)] font-bold italic tracking-tight leading-tight">
-                {spotlightMemory ? spotlightMemory.title : "Capture a Moment Today!"}
-              </h2>
-
-              <p className="text-sm md:text-base text-[var(--text-muted)] leading-relaxed max-w-2xl font-medium">
-                {spotlightMemory
-                  ? (spotlightMemory.description || "A beautiful moment frozen in time. No description was left, but the feelings are forever shared in our digital home.")
-                  : "Your digital timeline is waiting for its next gorgeous chapter. Capture a photobooth strip or log a cozy milestone, and it might be spotlighted here for 24 hours!"}
-              </p>
-
-              {/* Date and Countdown details */}
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-sm pt-1">
-                <div className="flex items-center gap-1.5 text-[var(--text-muted)] font-mono text-xs font-semibold">
-                  <Calendar className="w-4 h-4 text-rose-400" />
-                  <span>
-                    {spotlightMemory
-                      ? `Captured: ${new Date(spotlightMemory.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}`
-                      : "No memories added yet"}
-                  </span>
-                </div>
-
-                {spotlightMemory && (
-                  <div className="text-[10px] bg-rose-50/80 text-rose-700 border border-rose-100 px-3 py-1 rounded-full font-mono uppercase font-black tracking-wider flex items-center gap-1.5 shadow-xs">
-                    <span className="animate-pulse">●</span> Rotates In: {rotationCountdown}
-                  </div>
-                )}
-              </div>
-
-              {/* Actions: Love & Explore */}
-              <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-2">
-                {spotlightMemory ? (
+                {/* Eyes */}
+                {isCheckedInToday ? (
                   <>
-                    <button
-                      onClick={() => {
-                        triggerHaptic("success");
-                        awardXp(15, "showering love on our Spotlight Memory of the Day!");
-
-                        // Confetti / Floating Emojis explosion
-                        const count = 14;
-                        const rect = document.getElementById("spotlight-frame")?.getBoundingClientRect();
-                        const xBase = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
-                        const yBase = rect ? rect.top + rect.height / 2 : window.innerHeight / 2;
-                        for (let i = 0; i < count; i++) {
-                          const star = document.createElement("div");
-                          star.innerText = ["💖", "🌸", "✨", "🥰", "🎀", "🧸"][Math.floor(Math.random() * 6)];
-                          star.style.position = "fixed";
-                          star.style.left = `${xBase + (Math.random() - 0.5) * 120}px`;
-                          star.style.top = `${yBase + (Math.random() - 0.5) * 120}px`;
-                          star.style.fontSize = `${24 + Math.random() * 24}px`;
-                          star.style.pointerEvents = "none";
-                          star.style.zIndex = "9999";
-                          star.style.transition = "all 1s cubic-bezier(0.1, 0.8, 0.3, 1)";
-                          document.body.appendChild(star);
-                          setTimeout(() => {
-                            star.style.transform = `translateY(-140px) scale(0.2) rotate(${(Math.random() - 0.5) * 200}deg)`;
-                            star.style.opacity = "0";
-                          }, 50);
-                          setTimeout(() => star.remove(), 1050);
-                        }
-                      }}
-                      className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-sm hover:shadow-md hover:scale-[1.03] active:scale-95"
-                    >
-                      <span>🥰 Aww, Love This! (+15 XP)</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        triggerHaptic("light");
-                        window.dispatchEvent(new CustomEvent("changeTab", { detail: "memories" }));
-                      }}
-                      className="px-5 py-3 bg-white/75 hover:bg-white text-gray-700 hover:text-rose-600 border border-gray-200/80 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 hover:scale-103 shadow-xs"
-                    >
-                      <span>View Full Timeline</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
+                    <path d="M 39 43 Q 43 46 47 43" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" />
+                    <path d="M 53 43 Q 57 46 61 43" fill="none" stroke="#334155" strokeWidth="2" strokeLinecap="round" />
+                    <circle cx="38" cy="48" r="2.5" fill="#fec5bb" opacity="0.8" />
+                    <circle cx="62" cy="48" r="2.5" fill="#fec5bb" opacity="0.8" />
                   </>
                 ) : (
-                  <button
-                    onClick={() => {
-                      triggerHaptic("medium");
-                      window.dispatchEvent(new CustomEvent("changeTab", { detail: "memories" }));
-                    }}
-                    className="px-6 py-3.5 bg-gradient-to-r from-rose-400 to-rose-500 text-white rounded-xl text-sm font-bold transition-all flex items-center gap-2.5 shadow hover:scale-105 active:scale-95 group"
-                  >
-                    <Camera className="w-5 h-5 transition-transform group-hover:scale-110 group-hover:rotate-6" />
-                    <span>Open Photobooth & Save Memories</span>
-                  </button>
+                  <>
+                    <line x1="38" y1="44" x2="46" y2="44" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+                    <line x1="54" y1="44" x2="62" y2="44" stroke="#64748b" strokeWidth="2" strokeLinecap="round" />
+                  </>
                 )}
-              </div>
+
+                {/* Nose & Mouth */}
+                <polygon points="49.2,47 50.8,47 50,48.2" fill="#ffb5a7" />
+                <path d="M 47.5 49 Q 50 51.2 50 49 Q 50 51.2 52.5 49" fill="none" stroke="#475569" strokeWidth="1.5" strokeLinecap="round" />
+
+                {/* Accessories based on Streak */}
+                {streakCount >= 5 && (
+                  <g>
+                    <circle cx="20" cy="74" r="6" fill="#f43f5e" />
+                    <path d="M 20 80 Q 15 82 12 79 M 20 68 Q 23 65 21 62" fill="none" stroke="#f43f5e" strokeWidth="1" />
+                  </g>
+                )}
+
+                {streakCount >= 15 && (
+                  <g>
+                    <path d="M 41 51 Q 50 54 59 51" fill="none" stroke="#ef4444" strokeWidth="3" strokeLinecap="round" />
+                    <circle cx="50" cy="53.5" r="3" fill="#fbbf24" stroke="#d97706" strokeWidth="0.5" />
+                    <circle cx="50" cy="54.5" r="0.6" fill="#1e293b" />
+                  </g>
+                )}
+
+                {streakCount >= 30 && (
+                  <path
+                    d="M 44 26 L 42 16 L 47 20 L 50 14 L 53 20 L 58 16 L 56 26 Z"
+                    fill="#fbbf24"
+                    stroke="#d97706"
+                    strokeWidth="1.5"
+                    strokeLinejoin="round"
+                  />
+                )}
+              </svg>
+
+              {/* Micro pet/feed badge overlay */}
+              <button
+                onClick={() => {
+                  triggerHaptic("light");
+                  triggerWaterAnimation();
+                }}
+                title="Feed or Pet Mimi!"
+                className="absolute bottom-1.5 right-1.5 p-1.5 bg-white/90 hover:bg-white rounded-full border border-pink-100 text-rose-500 shadow-sm hover:scale-110 active:scale-95 transition-all duration-300"
+              >
+                🐾
+              </button>
             </div>
-
-            {/* Right: The stylized framed photo */}
-            <div className="md:col-span-5 lg:col-span-4 flex justify-center md:justify-end w-full">
-              {spotlightMemory ? (
-                <motion.div
-                  id="spotlight-frame"
-                  whileHover={{ scale: 1.05, rotate: 1 }}
-                  transition={{ type: "spring", stiffness: 120, damping: 14 }}
-                  className="relative bg-white p-5 pb-14 rounded-sm shadow-[0_15px_40px_rgba(0,0,0,0.18)] border border-gray-200/70 flex flex-col items-center gap-3.5 w-64 -rotate-2 group"
-                >
-                  {/* Visual paper tape design sticking polaroid onto card */}
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 w-16 h-6 bg-yellow-100/60 border-x border-dashed border-yellow-200/80 backdrop-blur-[1px] rotate-2 shadow-sm" />
-
-                  {/* Image layout container */}
-                  <div className="w-full aspect-square overflow-hidden bg-gray-50 border border-gray-100 rounded relative shadow-inner">
-                    <img
-                      src={spotlightMemory.imageUrl}
-                      alt={spotlightMemory.title}
-                      className="w-full h-full object-cover pointer-events-none select-none group-hover:scale-105 transition-transform duration-700"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-tr from-rose-300/5 via-transparent to-white/10 pointer-events-none" />
-                  </div>
-
-                  {/* Handwriting handwriting style typography */}
-                  <div className="text-center w-full pt-1.5 font-serif select-none">
-                    <p className="text-sm font-black text-gray-800 italic tracking-wide truncate max-w-full">
-                      ✨ {spotlightMemory.title} ✨
-                    </p>
-                    <p className="text-[10px] font-mono text-gray-400 mt-1 uppercase tracking-widest font-bold">
-                      ♥ {new Date(spotlightMemory.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} ♥
-                    </p>
-                  </div>
-                </motion.div>
-              ) : (
-                <div className="relative bg-white/40 border-2 border-dashed border-gray-300/80 p-6 rounded-3xl flex flex-col items-center justify-center text-center w-52 aspect-square shadow-inner">
-                  <Camera className="w-10 h-10 text-gray-300 mb-2 animate-pulse" />
-                  <p className="text-[11px] font-semibold text-gray-500 font-serif italic">No memories spotlighted yet</p>
-                  <p className="text-[9px] text-gray-400 mt-1">Photos from your photobooth or milestones will shine here!</p>
-                </div>
-              )}
-            </div>
-
           </div>
-        </motion.div>
 
-        {/* Milestone & Special Days Consolidated Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.05 }}
-          className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl lg:col-span-8 xl:col-span-8 shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md"
-          id="milestone-special-days-card"
-        >
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-[var(--border-color)]">
-
-            {/* Left Side: Next Milestone Countdown */}
-            <div className="space-y-4 pb-6 md:pb-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs md:text-sm font-mono font-bold tracking-widest uppercase text-[var(--text-muted)]">
-                  Next Milestone
-                </span>
-                <span className="text-xs md:text-sm bg-rose-50 text-rose-600 px-3.5 py-1 rounded-full font-serif font-bold italic shadow-xs border border-rose-100">
-                  {nextMilestoneDate ? new Date(nextMilestoneDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : "October 15, 2026"}
-                </span>
-              </div>
-
-              <div className="py-4 text-center">
-                <p className="text-xl md:text-2xl lg:text-3xl font-bold text-[var(--text-main)] mb-1 font-serif italic">
-                  "{nextMilestoneTitle || "Our Next Milestone"}"
-                </p>
-                <div className="font-serif text-7xl md:text-8xl lg:text-9xl font-extralight italic tracking-tight text-[var(--primary)] leading-none animate-pulse-slow my-3">
-                  {nextMilestoneDays}
+          {/* Right Column: Information & Actions */}
+          <div className="md:col-span-8 lg:col-span-9 space-y-4 text-center md:text-left min-w-0">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-rose-50 text-rose-500 rounded-xl">
+                  <Flame className="w-5 h-5 fill-current" />
                 </div>
-                <div className="text-xs md:text-sm font-mono font-bold tracking-widest uppercase text-[var(--text-muted)]">
-                  Days Remaining
+                <div>
+                  <h3 className="text-lg md:text-xl lg:text-2xl font-extrabold text-[var(--text-main)] font-display flex items-center gap-2">
+                    {streakCount} Day Love Streak
+                  </h3>
+                  <p className="text-xs md:text-sm text-[var(--text-muted)] font-mono font-bold tracking-wider uppercase">
+                    Consecutive Check-ins & Pet Status
+                  </p>
                 </div>
               </div>
 
-              <p className="text-xs md:text-sm text-[var(--text-muted)] text-center font-serif italic border-t border-[var(--border-color)] pt-4 mt-2">
-                "Every step closer is a beautiful step together."
+              <span className="text-xs md:text-sm bg-rose-50 border border-rose-200 text-rose-700 px-3.5 py-1 rounded-full font-bold">
+                {streakCount >= 30
+                  ? "Royal Calico 👑"
+                  : streakCount >= 15
+                    ? "Cozy Companion 🐱"
+                    : streakCount >= 5
+                      ? "Playful Kitty 🧶"
+                      : "Sleepy Kitten 🐾"}
+              </span>
+            </div>
+
+            <p className="text-sm md:text-base lg:text-lg text-[var(--text-muted)] leading-relaxed font-medium">
+              {isCheckedInToday
+                ? "Marsha is happily purring beside us. Every visit, every cuddle, and every little bit of love helps her grow happier while making our little bubble feel even more like home."
+                : "Marsha is curled up, waiting for today's cuddle and treat. Feed her and check in today to keep your relationship streak alive and earn XP."}
+            </p>
+
+            {/* Growth milestone indicator */}
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs md:text-sm text-[var(--text-muted)] font-mono font-semibold">
+                <span>Next Accessory Unlock Progress</span>
+                <span>{streakCount >= 30 ? "Maximum Level" : `${Math.round((streakCount % 10) * 10)}%`}</span>
+              </div>
+              <div className="h-2 bg-black/5 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-rose-400 to-amber-400 rounded-full transition-all duration-500"
+                  style={{ width: streakCount >= 30 ? "100%" : `${Math.max(5, (streakCount % 10) * 10)}%` }}
+                />
+              </div>
+              <p className="text-xs md:text-sm text-[var(--text-muted)]/80 italic font-medium">
+                {streakCount >= 30
+                  ? "Incredible! Mimi is in her ultimate, most majestic form, loving you both eternally! 👑"
+                  : `Next Accessory Unlock: ${Math.ceil((streakCount + 0.1) / 10) * 10}-day streak milestone!`}
               </p>
             </div>
 
-            {/* Right Side: Special Days (Anniversary & Birthdays) */}
-            <div className="space-y-5 pt-6 md:pt-0 md:pl-8">
-              <div className="flex items-center justify-between pb-1">
-                <h3 className="text-base md:text-lg lg:text-xl font-bold text-[var(--text-main)] flex items-center gap-2.5">
-                  <Calendar className="w-5 h-5 text-rose-500" />
-                  Special Days
-                </h3>
-                <span className="text-xs md:text-sm bg-[var(--primary)]/10 text-[var(--primary)] px-3 py-1 rounded-full font-bold">
-                  Countdown
-                </span>
-              </div>
-
-              <div className="space-y-4 divide-y divide-[var(--border-color)]">
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-pink-100 rounded-lg text-pink-500">
-                      <Heart className="w-5 h-5 fill-current" />
-                    </div>
-                    <div>
-                      <p className="text-sm md:text-base font-bold text-[var(--text-main)]">Next Anniversary</p>
-                      <p className="text-xs md:text-sm text-[var(--text-muted)] mt-0.5">{formatAnniversaryDisplay(anniversaryDate)}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-lg md:text-xl lg:text-2xl font-extrabold text-pink-600 font-display">{nextAnniversaryDays}</span>
-                    <span className="text-xs md:text-sm text-[var(--text-muted)] block mt-0.5">days left</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-yellow-100 rounded-lg text-yellow-600">
-                      <Gift className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm md:text-base font-bold text-[var(--text-main)]">{userA.name.split(" ")[0]}'s Birthday</p>
-                      <p className="text-xs md:text-sm text-[var(--text-muted)] mt-0.5">{formatBirthdayDisplay(birthdayA)}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-lg md:text-xl lg:text-2xl font-extrabold text-yellow-600 font-display">{birthdayDays.userA}</span>
-                    <span className="text-xs md:text-sm text-[var(--text-muted)] block mt-0.5">days left</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-4">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-blue-100 rounded-lg text-blue-500">
-                      <Compass className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm md:text-base font-bold text-[var(--text-main)]">{userB.name.split(" ")[0]}'s Birthday</p>
-                      <p className="text-xs md:text-sm text-[var(--text-muted)] mt-0.5">{formatBirthdayDisplay(birthdayB)}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-lg md:text-xl lg:text-2xl font-extrabold text-blue-600 font-display">{birthdayDays.userB}</span>
-                    <span className="text-xs md:text-sm text-[var(--text-muted)] block mt-0.5">days left</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </motion.div>
-
-        {/* Daily Quote Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.1 }}
-          className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl relative overflow-hidden group flex flex-col justify-between h-full shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md lg:col-span-4 xl:col-span-4"
-          id="quote-card"
-        >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-rose-200/10 to-transparent rounded-full pointer-events-none blur-xl" />
-
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-xs md:text-sm font-extrabold text-[var(--primary)] tracking-wider uppercase flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 fill-current text-[var(--primary)]" />
-                Curated Daily Love Quote
-              </h4>
+            {/* Check-In Action Button */}
+            <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
               <button
-                type="button"
-                onClick={() => {
-                  triggerHaptic("light");
-                  changeQuote();
-                }}
-                title="Draw a custom whisper of inspiration"
-                className="p-1.5 hover:bg-black/5 rounded-full transition-colors text-[var(--text-muted)] hover:text-[var(--primary)] cursor-pointer"
+                onClick={handleCheckIn}
+                className={`w-full sm:w-auto px-6 py-3 rounded-xl text-sm md:text-base font-bold transition-all flex items-center justify-center gap-2.5 shadow-sm hover:scale-[1.01] active:scale-[0.99] ${isCheckedInToday
+                  ? "bg-rose-500 hover:bg-rose-600 text-white"
+                  : "bg-gradient-to-r from-rose-400 to-amber-500 hover:opacity-95 text-white"
+                  }`}
               >
-                <RefreshCw className="w-4 h-4 hover:rotate-180 transition-transform duration-500" />
-              </button>
-            </div>
-
-            <div className="text-sm md:text-base font-serif italic text-[var(--text-main)] leading-relaxed relative z-10 py-1.5 font-medium">
-              {quoteLoading ? (
-                <span className="flex items-center gap-1.5 text-[var(--text-muted)] animate-pulse font-sans text-xs">
-                  <RefreshCw className="w-4 h-4 animate-spin text-[var(--primary)]" /> Fetching romantic whisper...
-                </span>
-              ) : fetchedQuote ? (
-                <>
-                  "{fetchedQuote.content}"
-                  {fetchedQuote.author && (
-                    <span className="block text-right text-xs text-[var(--text-muted)] font-mono not-italic mt-2">
-                      — {fetchedQuote.author}
-                    </span>
-                  )}
-                </>
-              ) : (
-                `"In your smile, I see something more beautiful than the stars."`
-              )}
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center mt-6 pt-3 border-t border-[var(--border-color)] text-[10px] text-[var(--text-muted)] relative z-10 font-mono">
-            <span>Stable for 24 hours</span>
-            <span>Next update in {(() => {
-              const now = new Date();
-              const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-              return Math.max(1, Math.round((tomorrow.getTime() - now.getTime()) / (1000 * 60 * 60)));
-            })()}h</span>
-          </div>
-          <Heart className="w-20 h-20 text-[var(--primary)]/5 absolute -right-6 -bottom-6 -rotate-12 pointer-events-none" />
-        </motion.div>
-
-        {/* Skies & Couple Mood Sync Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.15 }}
-          className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl lg:col-span-12 xl:col-span-12 space-y-4 shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md"
-          id="mood-skies-sync-card"
-        >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border-color)] pb-4 gap-3">
-            <div className="flex items-center gap-3">
-              <Smile className="w-6 h-6 text-rose-500 animate-bounce-slow" />
-              <div>
-                <h3 className="text-lg md:text-xl font-bold text-[var(--text-main)] font-serif italic">
-                  Skies & Couple Mood Sync
-                </h3>
-                <p className="text-xs text-[var(--text-muted)]">
-                  Share your current feelings and stay in sync with each other's moods and local weather.
-                </p>
-              </div>
-            </div>
-            <span className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-100 px-3.5 py-1 rounded-full font-bold flex items-center gap-1.5 self-start sm:self-auto shadow-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              Synchronized
-            </span>
-          </div>
-
-          {/* Core Grid: My Skies & Mood vs Partner's Skies & Mood */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-[var(--border-color)]">
-
-            {/* Left Column: Current User (My Side) */}
-            <div className="flex flex-col space-y-4 pb-6 md:pb-0 md:pr-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={activeProfile.avatar}
-                    alt={activeProfile.name}
-                    className="w-11 h-11 rounded-full border-2 border-[var(--primary)]/20 object-cover shadow-sm"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div>
-                    <p className="text-xs text-[var(--text-muted)] font-mono uppercase tracking-wider font-bold">My State</p>
-                    <p className="text-base font-extrabold text-[var(--text-main)] truncate max-w-[150px]">
-                      {activeProfile.name.split(" ")[0]}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Active Mood Showcase */}
-                <div className="flex items-center gap-2 bg-white/50 border border-white/60 p-2 px-3 rounded-2xl shadow-xs">
-                  <span className="text-3xl">
-                    {moodsList.find((m) => m.value === activeProfile.mood)?.emoji || "🌸"}
-                  </span>
-                  <div className="text-left">
-                    <p className="text-[10px] text-[var(--text-muted)] font-bold">Current Mood</p>
-                    <p className="text-xs font-black text-[var(--primary)] capitalize">
-                      {activeProfile.mood || "Happy"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Local Weather section */}
-              <div className="bg-white/30 border border-white/20 p-4 rounded-2xl flex items-center justify-between shadow-xs relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-amber-100/10 to-transparent rounded-full pointer-events-none blur-md" />
-
-                {weatherLoading ? (
-                  <div className="w-full py-4 flex flex-col items-center justify-center space-y-1.5">
-                    <Compass className="w-6 h-6 text-[var(--primary)] animate-spin" />
-                    <span className="text-xs text-[var(--text-muted)] animate-pulse font-medium">Sensing my skies...</span>
-                  </div>
-                ) : weatherError && !localWeather ? (
-                  <div className="w-full py-2 flex flex-col items-center justify-center text-center">
-                    <AlertCircle className="w-5 h-5 text-red-400 mb-1" />
-                    <span className="text-xs text-red-500 font-bold">Skies hazy</span>
-                    <button
-                      type="button"
-                      onClick={() => fetchWeatherByCoords(CITY_PRESETS[0].lat, CITY_PRESETS[0].lon, CITY_PRESETS[0].name)}
-                      className="text-[10px] underline text-[var(--primary)] mt-1 font-semibold"
-                    >
-                      Load fallback
-                    </button>
-                  </div>
-                ) : localWeather ? (
-                  <div className="flex items-center justify-between w-full">
-                    <div className="space-y-1 text-left">
-                      <span className="text-xs font-mono font-bold tracking-wider uppercase text-[var(--text-muted)] flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5 text-[var(--primary)]" />
-                        {localWeather.name}
-                      </span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black font-display text-[var(--text-main)]">{localWeather.temp}°C</span>
-                      </div>
-                      <span className="text-xs text-[var(--primary)] font-bold block">
-                        {localWeather.description}
-                      </span>
-                      <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] font-mono pt-1">
-                        <Wind className="w-3 h-3" />
-                        <span>{localWeather.windspeed} km/h wind</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-1.5">
-                      <div className="bg-white/40 border border-white/50 px-2.5 py-1 rounded-xl shadow-xs text-right backdrop-blur-xs flex items-center gap-1.5 font-mono text-[10px] font-bold text-[var(--text-main)]">
-                        <Clock className="w-3 h-3 text-[var(--primary)]" />
-                        <span>{getLocalTime()}</span>
-                      </div>
-                      <div className="flex items-center justify-center pr-1">
-                        <ArtisticWeatherIcon code={localWeather.code} isDay={localWeather.isDay} className="w-14 h-14" />
-                      </div>
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-
-            {/* Right Column: Partner (Partner's Side) */}
-            <div className="flex flex-col space-y-4 pt-6 md:pt-0 md:pl-8">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={partnerProfile.avatar}
-                    alt={partnerProfile.name}
-                    className="w-11 h-11 rounded-full border-2 border-[var(--primary)]/20 object-cover shadow-sm"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div>
-                    <p className="text-xs text-[var(--text-muted)] font-mono uppercase tracking-wider font-bold">Partner's State</p>
-                    <p className="text-base font-extrabold text-[var(--text-main)] truncate max-w-[150px]">
-                      {partnerProfile.name.split(" ")[0]}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Partner's Showcase */}
-                <div className="flex items-center gap-2 bg-white/50 border border-white/60 p-2 px-3 rounded-2xl shadow-xs">
-                  <span className="text-3xl">
-                    {moodsList.find((m) => m.value === partnerProfile.mood)?.emoji || "🌸"}
-                  </span>
-                  <div className="text-left">
-                    <p className="text-[10px] text-[var(--text-muted)] font-bold">Current Mood</p>
-                    <p className="text-xs font-black text-[var(--primary)] capitalize">
-                      {partnerProfile.mood || "Happy"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Partner's Weather section */}
-              <div className="bg-white/30 border border-white/20 p-4 rounded-2xl flex items-center justify-between shadow-xs relative overflow-hidden group">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-blue-100/10 to-transparent rounded-full pointer-events-none blur-md" />
-
-                {partnerLoading ? (
-                  <div className="w-full py-4 flex flex-col items-center justify-center space-y-1.5">
-                    <Compass className="w-6 h-6 text-[var(--accent)] animate-spin" />
-                    <span className="text-xs text-[var(--text-muted)] animate-pulse font-medium">Sensing partner skies...</span>
-                  </div>
-                ) : partnerWeather ? (
-                  <div className="flex items-center justify-between w-full">
-                    <div className="space-y-1 text-left">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-mono font-bold tracking-wider uppercase text-[var(--text-muted)] flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-[var(--accent)]" />
-                          {partnerWeather ? partnerWeather.city : partnerCity} Skies
-                        </span>
-                      </div>
-
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black font-display text-[var(--text-main)]">{partnerWeather.temp}°C</span>
-                      </div>
-                      <span className="text-xs text-[var(--primary)] font-bold block">
-                        {partnerWeather.desc}
-                      </span>
-                      <div className="flex items-center gap-1.5 text-[10px] text-[var(--text-muted)] font-mono pt-1">
-                        <Thermometer className="w-3.5 h-3.5" />
-                        <span>Feels wonderful</span>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col items-end gap-1.5">
-                      <div className="bg-white/40 border border-white/50 px-2.5 py-1 rounded-xl shadow-xs text-right backdrop-blur-xs flex items-center gap-1.5 font-mono text-[10px] font-bold text-[var(--text-main)]">
-                        <Clock className="w-3 h-3 text-[var(--accent)]" />
-                        <span>{getPartnerTime()}</span>
-                      </div>
-                      <div className="flex items-center justify-center pr-1">
-                        <ArtisticWeatherIcon code={partnerWeather.code} isDay={true} className="w-14 h-14" />
-                      </div>
-                    </div>
-                  </div>
+                {isCheckedInToday ? (
+                  <>
+                    <span>🐾 Give Mimi Salmon Treat (+5 XP)</span>
+                  </>
                 ) : (
-                  <div className="w-full py-4 flex flex-col items-center justify-center">
-                    <span className="text-xs text-[var(--text-muted)] font-mono">Unreachable skies</span>
-                  </div>
+                  <>
+                    <span>🐟 Feed Mimi & Check In (+25 XP)</span>
+                  </>
                 )}
-              </div>
-            </div>
+              </button>
 
-          </div>
-
-          {/* Interactive Mood Selector for Current User */}
-          <div className="space-y-4 bg-black/5 p-5 rounded-2xl border border-black/5 mt-6">
-            <p className="text-xs text-[var(--text-muted)] font-mono uppercase tracking-wider font-bold text-center md:text-left">
-              How are you feeling right now?
-            </p>
-
-            <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5">
-              {moodsList.map((moodItem) => (
-                <button
-                  key={moodItem.value}
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic("light");
-                    setSelectedMood(moodItem.value);
-                  }}
-                  className={`py-3 px-1 text-center rounded-2xl transition-all duration-300 flex flex-col items-center justify-center cursor-pointer ${selectedMood === moodItem.value
-                    ? "bg-white text-[var(--text-main)] shadow-md scale-110 font-extrabold border-2 border-[var(--primary)]/20"
-                    : "bg-white/30 border border-white/20 text-gray-400 hover:text-gray-600 hover:scale-105 hover:bg-white/60"
-                    }`}
-                  title={moodItem.label}
-                >
-                  <span className="text-2xl md:text-3xl">{moodItem.emoji}</span>
-                  <span className="text-[10px] block capitalize mt-1 font-semibold truncate max-w-full">{moodItem.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-2">
-              <input
-                type="text"
-                placeholder="Attach a cozy whisper or mood note (optional)..."
-                value={moodNote}
-                onChange={(e) => setMoodNote(e.target.value)}
-                className="flex-1 px-4 py-2.5 text-xs font-serif italic text-[var(--text-main)] bg-white/80 border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-[var(--primary)] placeholder-gray-400"
-              />
               <button
-                type="button"
                 onClick={() => {
-                  triggerHaptic("success");
-                  addMoodHistoryEntry(selectedMood, moodNote);
-                  setMoodNote("");
+                  triggerHaptic("heavy");
+                  setStreakCount(1);
+                  localStorage.setItem("couple_relationship_streak", "1");
                 }}
-                className="px-6 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white rounded-xl text-xs font-bold tracking-wider uppercase shadow-sm transition-colors flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-95 whitespace-nowrap cursor-pointer"
+                className="text-xs text-gray-400 hover:text-rose-400 transition-colors font-mono py-1 px-2 mt-2 sm:mt-0"
+                title="Only use if you want to start fresh with a new calico kitten!"
               >
-                <Heart className="w-3.5 h-3.5 fill-current animate-heartbeat" />
-                <span>Update & Gain +15 XP</span>
+                Reset Pet Status
               </button>
             </div>
           </div>
-        </motion.div>
+        </div>
+      </motion.div>
 
-        {/* Sweet Notes Board Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.2 }}
-          className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl lg:col-span-12 xl:col-span-12 space-y-4 shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md"
-          id="sweet-notes-board-card"
-        >
-          {/* Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border-color)] pb-3 gap-2">
-            <div className="flex items-center gap-2.5">
-              <Sparkles className="w-5 h-5 text-yellow-500 animate-spin-slow flex-shrink-0" />
-              <div>
-                <h3 className="text-base md:text-lg font-bold text-[var(--text-main)] font-serif italic">
-                  Sweet Notes Board
-                </h3>
-                <p className="text-[11px] text-[var(--text-muted)] leading-tight">
-                  Pin a sweet whisper, cute reminder, or an "I love you" on our shared couple corkboard.
-                </p>
-              </div>
+      {/* Sweet Notes Board Card */}
+      < motion.div
+        initial={{ opacity: 0, y: 12 }
+        }
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.2 }}
+        className="bg-white/40 border border-neutral-200/40 p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl lg:col-span-12 xl:col-span-12 space-y-4 shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md"
+        id="sweet-notes-board-card"
+      >
+        {/* Header */}
+        < div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-[var(--border-color)] pb-3 gap-2" >
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="w-5 h-5 text-yellow-500 animate-spin-slow flex-shrink-0" />
+            <div>
+              <h3 className="text-base md:text-lg font-bold text-[var(--text-main)] font-serif italic">
+                Sweet Notes Board
+              </h3>
+              <p className="text-[11px] text-[var(--text-muted)] leading-tight">
+                Pin a sweet whisper, cute reminder, or an "I love you" on our shared couple corkboard.
+              </p>
             </div>
-            <span className="text-[9px] font-mono font-bold text-[var(--primary)] bg-[var(--primary)]/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider self-start sm:self-auto">
-              {notes.length}/12 notes active
-            </span>
           </div>
+          <span className="text-[9px] font-mono font-bold text-[var(--primary)] bg-[var(--primary)]/10 px-2.5 py-0.5 rounded-full uppercase tracking-wider self-start sm:self-auto">
+            {notes.length}/12 notes active
+          </span>
+        </div >
 
-          {/* Stick a New Note Input Form */}
-          <div className="bg-black/5 p-2 sm:p-3 rounded-xl border border-black/5 flex flex-col sm:flex-row gap-2 items-center">
-            <input
-              type="text"
-              placeholder="Write a sweet reminder or note here..."
-              value={noteInput}
-              onChange={(e) => setNoteInput(e.target.value)}
-              maxLength={150}
-              className="flex-1 w-full px-3 py-1.5 text-xs font-sans text-slate-800 bg-white/80 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary)] placeholder-gray-400 h-9"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  addNote();
-                }
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => {
-                triggerHaptic("medium");
+        {/* Stick a New Note Input Form */}
+        < div className="bg-black/5 p-2 sm:p-3 rounded-xl border border-black/5 flex flex-col sm:flex-row gap-2 items-center" >
+          <input
+            type="text"
+            placeholder="Write a sweet reminder or note here..."
+            value={noteInput}
+            onChange={(e) => setNoteInput(e.target.value)}
+            maxLength={150}
+            className="flex-1 w-full px-3 py-1.5 text-xs font-sans text-slate-800 bg-white/80 border border-[var(--border-color)] rounded-lg focus:outline-none focus:border-[var(--primary)] placeholder-gray-400 h-9"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
                 addNote();
-              }}
-              disabled={!noteInput.trim()}
-              className={`w-full sm:w-auto px-4 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold tracking-wider uppercase shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap h-9 ${noteInput.trim()
-                ? "bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white hover:scale-[1.01] active:scale-95"
-                : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                }`}
-            >
-              <Plus className="w-3 h-3" />
-              <span>Stick Note (+15 XP)</span>
-            </button>
-          </div>
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic("medium");
+              addNote();
+            }}
+            disabled={!noteInput.trim()}
+            className={`w-full sm:w-auto px-4 py-1.5 rounded-lg text-[10px] sm:text-xs font-bold tracking-wider uppercase shadow-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap h-9 ${noteInput.trim()
+              ? "bg-[var(--primary)] hover:bg-[var(--primary)]/90 text-white hover:scale-[1.01] active:scale-95"
+              : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              }`}
+          >
+            <Plus className="w-3 h-3" />
+            <span>Stick Note (+15 XP)</span>
+          </button>
+        </div >
 
-          {/* Sticky Notes Corkboard Grid */}
-          {notes.length === 0 ? (
+        {/* Sticky Notes Corkboard Grid */}
+        {
+          notes.length === 0 ? (
             <div className="py-8 text-center text-[var(--text-muted)] italic font-serif text-xs">
               Our notes board is empty... write a sweet whisper above to start! 📝♥
             </div>
@@ -2540,309 +2541,310 @@ export default function HomeView() {
                 );
               })}
             </div>
-          )}
-        </motion.div>
+          )
+        }
+      </motion.div>
 
-        {/* 3. YouTube Listening Together Player */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.55, delay: 0.4 }}
-          className="p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl relative overflow-hidden bg-white/40 border border-neutral-200/40 shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md group lg:col-span-12 transition-all duration-500"
-          style={getAmbientStyles()}
-          id="youtube-listening-together"
-        >
-          {/* Decorative glowing gradient circle */}
-          <div className="absolute -top-12 -left-12 w-32 h-32 bg-red-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-red-500/20 transition-all duration-700" />
+      {/* 3. YouTube Listening Together Player */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.55, delay: 0.4 }}
+        className="p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl relative overflow-hidden bg-white/40 border border-neutral-200/40 shadow-[0_12px_40px_rgba(0,0,0,0.02)] backdrop-blur-md group lg:col-span-12 transition-all duration-500"
+        style={getAmbientStyles()}
+        id="youtube-listening-together"
+      >
+        {/* Decorative glowing gradient circle */}
+        <div className="absolute -top-12 -left-12 w-32 h-32 bg-red-500/10 rounded-full blur-2xl pointer-events-none group-hover:bg-red-500/20 transition-all duration-700" />
 
-          <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-            {/* LEFT COLUMN: Player & Search */}
-            <div className="flex-1 space-y-4">
-              <div className="flex items-center gap-2">
-                <div className={`w-2.5 h-2.5 rounded-full ${currentSong.isPlaying ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
-                <h3 className="text-sm font-semibold text-[var(--text-main)] flex items-center gap-1.5 font-display">
-                  <Music className="w-4 h-4 text-red-500" />
-                  Listening Together
-                </h3>
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          {/* LEFT COLUMN: Player & Search */}
+          <div className="flex-1 space-y-4">
+            <div className="flex items-center gap-2">
+              <div className={`w-2.5 h-2.5 rounded-full ${currentSong.isPlaying ? 'bg-red-500 animate-pulse' : 'bg-gray-400'}`} />
+              <h3 className="text-sm font-semibold text-[var(--text-main)] flex items-center gap-1.5 font-display">
+                <Music className="w-4 h-4 text-red-500" />
+                Listening Together
+              </h3>
+            </div>
+
+            {/* URL Paste & Search Bar */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-[10px] text-[var(--text-muted)] font-medium">
+                <span>Search song or paste YouTube Link:</span>
+                {searchError && <span className="text-red-500 font-semibold">{searchError}</span>}
               </div>
-
-              {/* URL Paste & Search Bar */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between items-center text-[10px] text-[var(--text-muted)] font-medium">
-                  <span>Search song or paste YouTube Link:</span>
-                  {searchError && <span className="text-red-500 font-semibold">{searchError}</span>}
-                </div>
-                <div className="flex gap-1.5">
-                  <div className="relative flex-1">
-                    <input
-                      type="text"
-                      placeholder="Search or paste link..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && handleSearchOrPaste()}
-                      className="w-full pl-8 pr-3 py-2 text-xs text-[var(--text-main)] bg-white/70 border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-red-500 font-mono text-[11px]"
-                    />
-                    <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleSearchOrPaste}
-                    disabled={searching}
-                    className="px-3 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-colors flex items-center gap-1 shadow-sm"
-                  >
-                    {searching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
-                    <span>Search</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Interactive Vinyl disk player details */}
-              <div className="flex items-center gap-5 p-4 bg-white/30 border border-white/40 rounded-xl backdrop-blur-md relative">
-                {/* Spinning Vinyl Record */}
-                <div className="relative flex-shrink-0 select-none">
-                  <img
-                    src={currentSong.artwork || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=256&auto=format&fit=crop"}
-                    alt="Album Artwork"
-                    className={`w-16 h-16 rounded-full object-cover border-2 border-black/10 shadow-lg transition-transform duration-1000 ${currentSong.isPlaying ? "animate-spin-slow" : ""
-                      }`}
-                    referrerPolicy="no-referrer"
+              <div className="flex gap-1.5">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search or paste link..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleSearchOrPaste()}
+                    className="w-full pl-8 pr-3 py-2 text-xs text-[var(--text-main)] bg-white/70 border border-[var(--border-color)] rounded-xl focus:outline-none focus:border-red-500 font-mono text-[11px]"
                   />
-                  <div className="absolute inset-0 m-auto w-4 h-4 bg-[var(--bg-app)] border-2 border-black/20 rounded-full shadow-inner flex items-center justify-center">
-                    <div className="w-1 h-1 bg-gray-400 rounded-full" />
-                  </div>
+                  <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-gray-400" />
                 </div>
-
-                <div className="flex-1 space-y-1 min-w-0">
-                  <span className="px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-[9px] font-bold text-red-600">
-                    Our Kind Of Melody
-                  </span>
-                  <p className="text-xs font-bold text-[var(--text-main)] truncate font-display tracking-tight mt-1">
-                    {currentSong.title}
-                  </p>
-                  <p className="text-[10px] text-[var(--text-muted)] truncate">{currentSong.artist}</p>
-
-                  {/* Equalizer lines */}
-                  {currentSong.isPlaying && (
-                    <div className="flex items-end gap-0.5 h-3.5 pt-1">
-                      <span className="w-0.5 bg-red-500 rounded-full animate-pulse" style={{ height: '70%' }} />
-                      <span className="w-0.5 bg-red-500 rounded-full animate-pulse" style={{ height: '100%', animationDelay: '150ms' }} />
-                      <span className="w-0.5 bg-red-500 rounded-full animate-pulse" style={{ height: '40%', animationDelay: '300ms' }} />
-                      <span className="w-0.5 bg-red-500 rounded-full animate-pulse" style={{ height: '80%', animationDelay: '450ms' }} />
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Synced Lyrics replacing YouTube Video Player */}
-              <div className="overflow-hidden rounded-xl border border-black/10 bg-white/20 backdrop-blur-md p-3.5 h-[160px] flex flex-col justify-center">
-                <div
-                  ref={lyricsScrollRef}
-                  className="space-y-3.5 h-full overflow-y-auto px-2 scroll-smooth font-serif text-xs md:text-sm leading-relaxed text-center italic text-gray-500 flex flex-col justify-start"
-                >
-                  {lyricsLoading ? (
-                    <div className="flex flex-col items-center justify-center py-8 gap-2 text-[var(--text-muted)] my-auto">
-                      <Loader2 className="w-4 h-4 animate-spin text-red-500" />
-                      <span className="text-[9px] font-mono">Loading matching lyrics...</span>
-                    </div>
-                  ) : lyricsLines ? (
-                    lyricsLines.map((line, idx) => {
-                      const isActive = idx === activeLineIndex;
-                      return (
-                        <div
-                          key={idx}
-                          ref={(el) => { lyricsLineRefs.current[idx] = el; }}
-                          className={`py-1 transition-all duration-300 ${isActive
-                            ? "text-red-600 font-bold scale-105 animate-pulse"
-                            : "opacity-45 scale-100 hover:opacity-85"
-                            }`}
-                        >
-                          {line.text}
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="my-auto text-[10px] text-gray-400 font-mono text-center">
-                      No lyrics file parsed for this track.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Transport controls */}
-              <div className="flex items-center justify-between py-2.5 px-4 bg-white/40 border border-white/50 rounded-xl">
-                <div className="flex items-center gap-1">
-                  {/* Shuffle Button */}
-                  <button
-                    type="button"
-                    onClick={() => setShuffleOn(!shuffleOn)}
-                    className={`p-1.5 rounded-lg transition-all ${shuffleOn ? "bg-red-50 text-red-600 font-bold" : "text-gray-400 hover:text-gray-600"
-                      }`}
-                    title="Shuffle Playlist"
-                  >
-                    <Shuffle className="w-3.5 h-3.5" />
-                  </button>
-
-                  {/* Repeat Button */}
-                  <button
-                    type="button"
-                    onClick={cycleRepeat}
-                    className={`p-1.5 rounded-lg transition-all flex items-center gap-0.5 ${repeatMode !== "off" ? "bg-red-50 text-red-600 font-bold" : "text-gray-400 hover:text-gray-600"
-                      }`}
-                    title="Repeat Track"
-                  >
-                    {repeatMode === "one" ? <Repeat1 className="w-3.5 h-3.5" /> : <Repeat className="w-3.5 h-3.5" />}
-                    {repeatMode !== "off" && <span className="text-[8px] font-mono">{repeatMode === "one" ? "1" : "all"}</span>}
-                  </button>
-                </div>
-
-                {/* Player Navigation Buttons */}
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => goToOffset(-1)}
-                    className="p-1.5 hover:bg-black/5 active:scale-90 rounded-full text-red-600 transition-all"
-                    title="Previous Track"
-                  >
-                    <SkipBack className="w-4 h-4 fill-current" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setSongPlayState(!currentSong.isPlaying)}
-                    className="p-2 bg-red-500 hover:bg-red-600 text-white active:scale-95 rounded-full shadow transition-all"
-                    title={currentSong.isPlaying ? "Pause" : "Play"}
-                  >
-                    {currentSong.isPlaying ? (
-                      <Pause className="w-4 h-4 fill-current" />
-                    ) : (
-                      <Play className="w-4 h-4 fill-current ml-0.5" />
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => goToOffset(1)}
-                    className="p-1.5 hover:bg-black/5 active:scale-90 rounded-full text-red-600 transition-all"
-                    title="Next Track"
-                  >
-                    <SkipForward className="w-4 h-4 fill-current" />
-                  </button>
-                </div>
-
-                {/* Progress counter */}
-                <div className="text-[10px] font-mono text-[var(--text-muted)] font-bold flex items-center gap-1.5">
-                  <span>{Math.floor(currentSong.progressMs / 60000)}:{(Math.floor((currentSong.progressMs % 60000) / 1000)).toString().padStart(2, "0")}</span>
-                  <span>/</span>
-                  <span>{Math.floor(currentSong.durationMs / 60000)}:{(Math.floor((currentSong.durationMs % 60000) / 1000)).toString().padStart(2, "0")}</span>
-                </div>
-              </div>
-
-              {/* Volume control */}
-              <div className="flex items-center gap-3 px-4 py-2.5 mt-2 bg-gradient-to-r from-white/30 to-white/50 border border-white/60 hover:border-[var(--primary)]/30 rounded-xl shadow-xs transition-all duration-300 group">
                 <button
                   type="button"
-                  onClick={() => handleVolumeChange(localVolume === 0 ? 100 : 0)}
-                  className="transition-transform duration-200 active:scale-90 hover:scale-105 cursor-pointer"
-                  title={localVolume === 0 ? "Unmute" : "Mute"}
+                  onClick={handleSearchOrPaste}
+                  disabled={searching}
+                  className="px-3 py-2 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white font-semibold rounded-xl text-xs transition-colors flex items-center gap-1 shadow-sm"
                 >
-                  {localVolume === 0 ? (
-                    <VolumeX className="w-4 h-4 text-gray-400" />
-                  ) : localVolume < 50 ? (
-                    <Volume1 className="w-4 h-4 text-[var(--primary)]" />
-                  ) : (
-                    <Volume2 className="w-4 h-4 text-[var(--primary)]" />
-                  )}
+                  {searching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                  <span>Search</span>
                 </button>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={localVolume}
-                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
-                  className="w-full h-1 bg-gray-200/80 rounded-lg appearance-none cursor-pointer accent-[var(--primary)] transition-all group-hover:bg-gray-300 focus:outline-none"
-                />
-                <span className="text-[10px] font-mono w-9 text-right font-black text-[var(--text-main)]">{localVolume}%</span>
               </div>
             </div>
 
-            {/* RIGHT COLUMN: Shared Playlist */}
-            <div className="flex-1 flex flex-col justify-between border-t md:border-t-0 md:border-l border-[var(--border-color)] pt-4 md:pt-0 md:pl-6 space-y-4">
-
-              {/* Header controls for right pane */}
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-[var(--text-main)] flex items-center gap-1.5 font-display">
-                  <Music className="w-4 h-4 text-red-500" />
-                  Shared Playlist
-                </h4>
-                <span className="text-[10px] font-mono text-[var(--text-muted)] font-bold">
-                  {playlistTracks.length} vibe tracks
-                </span>
-              </div>
-
-              {/* Sorting Filter Controls */}
-              <div className="flex flex-wrap gap-1.5 mb-1.5 flex-shrink-0">
-                {([
-                  ["recent", "Recent"],
-                  ["oldest", "Oldest"],
-                  ["az", "A to Z"],
-                  ["za", "Z to A"]
-                ] as const).map(([mode, label]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setSortMode(mode)}
-                    className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all border cursor-pointer ${sortMode === mode
-                      ? "bg-red-500 border-red-500 text-white shadow-sm"
-                      : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"
-                      }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Dynamic Playlist Pane */}
-              <div className="flex-1 min-h-[220px] max-h-[380px] overflow-y-auto pr-1">
-                <div className="space-y-2">
-                  {/* Playlist Tracks Mapping */}
-                  <div className="space-y-1.5">
-                    {sortedTracks.map((track) => {
-                      const isCurrent = track.videoId === currentSong.videoId;
-                      return (
-                        <button
-                          key={track.videoId}
-                          type="button"
-                          onClick={() => playTrack(track)}
-                          className={`w-full text-left p-2 rounded-xl border text-xs transition-all flex items-center gap-2.5 ${isCurrent
-                            ? "bg-red-50/70 border-red-200 font-semibold text-red-900 shadow-sm"
-                            : "bg-white/40 border-[var(--border-color)] hover:bg-white/80 text-[var(--text-main)]"
-                            }`}
-                        >
-                          <img
-                            src={track.thumbnail}
-                            alt="thumbnail"
-                            className="w-10 h-10 rounded-lg object-cover border"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate leading-tight font-display text-[11px]">{track.title}</p>
-                            <p className="text-[9px] text-[var(--text-muted)] truncate mt-0.5">{track.artist}</p>
-                          </div>
-                          {isCurrent && currentSong.isPlaying && (
-                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping mr-1" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+            {/* Interactive Vinyl disk player details */}
+            <div className="flex items-center gap-5 p-4 bg-white/30 border border-white/40 rounded-xl backdrop-blur-md relative">
+              {/* Spinning Vinyl Record */}
+              <div className="relative flex-shrink-0 select-none">
+                <img
+                  src={currentSong.artwork || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?q=80&w=256&auto=format&fit=crop"}
+                  alt="Album Artwork"
+                  className={`w-16 h-16 rounded-full object-cover border-2 border-black/10 shadow-lg transition-transform duration-1000 ${currentSong.isPlaying ? "animate-spin-slow" : ""
+                    }`}
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 m-auto w-4 h-4 bg-[var(--bg-app)] border-2 border-black/20 rounded-full shadow-inner flex items-center justify-center">
+                  <div className="w-1 h-1 bg-gray-400 rounded-full" />
                 </div>
               </div>
 
+              <div className="flex-1 space-y-1 min-w-0">
+                <span className="px-2 py-0.5 rounded-full bg-red-50 border border-red-200 text-[9px] font-bold text-red-600">
+                  Our Kind Of Melody
+                </span>
+                <p className="text-xs font-bold text-[var(--text-main)] truncate font-display tracking-tight mt-1">
+                  {currentSong.title}
+                </p>
+                <p className="text-[10px] text-[var(--text-muted)] truncate">{currentSong.artist}</p>
+
+                {/* Equalizer lines */}
+                {currentSong.isPlaying && (
+                  <div className="flex items-end gap-0.5 h-3.5 pt-1">
+                    <span className="w-0.5 bg-red-500 rounded-full animate-pulse" style={{ height: '70%' }} />
+                    <span className="w-0.5 bg-red-500 rounded-full animate-pulse" style={{ height: '100%', animationDelay: '150ms' }} />
+                    <span className="w-0.5 bg-red-500 rounded-full animate-pulse" style={{ height: '40%', animationDelay: '300ms' }} />
+                    <span className="w-0.5 bg-red-500 rounded-full animate-pulse" style={{ height: '80%', animationDelay: '450ms' }} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Synced Lyrics replacing YouTube Video Player */}
+            <div className="overflow-hidden rounded-xl border border-black/10 bg-white/20 backdrop-blur-md p-3.5 h-[160px] flex flex-col justify-center">
+              <div
+                ref={lyricsScrollRef}
+                className="space-y-3.5 h-full overflow-y-auto px-2 scroll-smooth font-serif text-xs md:text-sm leading-relaxed text-center italic text-gray-500 flex flex-col justify-start"
+              >
+                {lyricsLoading ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2 text-[var(--text-muted)] my-auto">
+                    <Loader2 className="w-4 h-4 animate-spin text-red-500" />
+                    <span className="text-[9px] font-mono">Loading matching lyrics...</span>
+                  </div>
+                ) : lyricsLines ? (
+                  lyricsLines.map((line, idx) => {
+                    const isActive = idx === activeLineIndex;
+                    return (
+                      <div
+                        key={idx}
+                        ref={(el) => { lyricsLineRefs.current[idx] = el; }}
+                        className={`py-1 transition-all duration-300 ${isActive
+                          ? "text-red-600 font-bold scale-105 animate-pulse"
+                          : "opacity-45 scale-100 hover:opacity-85"
+                          }`}
+                      >
+                        {line.text}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="my-auto text-[10px] text-gray-400 font-mono text-center">
+                    No lyrics file parsed for this track.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Transport controls */}
+            <div className="flex items-center justify-between py-2.5 px-4 bg-white/40 border border-white/50 rounded-xl">
+              <div className="flex items-center gap-1">
+                {/* Shuffle Button */}
+                <button
+                  type="button"
+                  onClick={() => setShuffleOn(!shuffleOn)}
+                  className={`p-1.5 rounded-lg transition-all ${shuffleOn ? "bg-red-50 text-red-600 font-bold" : "text-gray-400 hover:text-gray-600"
+                    }`}
+                  title="Shuffle Playlist"
+                >
+                  <Shuffle className="w-3.5 h-3.5" />
+                </button>
+
+                {/* Repeat Button */}
+                <button
+                  type="button"
+                  onClick={cycleRepeat}
+                  className={`p-1.5 rounded-lg transition-all flex items-center gap-0.5 ${repeatMode !== "off" ? "bg-red-50 text-red-600 font-bold" : "text-gray-400 hover:text-gray-600"
+                    }`}
+                  title="Repeat Track"
+                >
+                  {repeatMode === "one" ? <Repeat1 className="w-3.5 h-3.5" /> : <Repeat className="w-3.5 h-3.5" />}
+                  {repeatMode !== "off" && <span className="text-[8px] font-mono">{repeatMode === "one" ? "1" : "all"}</span>}
+                </button>
+              </div>
+
+              {/* Player Navigation Buttons */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => goToOffset(-1)}
+                  className="p-1.5 hover:bg-black/5 active:scale-90 rounded-full text-red-600 transition-all"
+                  title="Previous Track"
+                >
+                  <SkipBack className="w-4 h-4 fill-current" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setSongPlayState(!currentSong.isPlaying)}
+                  className="p-2 bg-red-500 hover:bg-red-600 text-white active:scale-95 rounded-full shadow transition-all"
+                  title={currentSong.isPlaying ? "Pause" : "Play"}
+                >
+                  {currentSong.isPlaying ? (
+                    <Pause className="w-4 h-4 fill-current" />
+                  ) : (
+                    <Play className="w-4 h-4 fill-current ml-0.5" />
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => goToOffset(1)}
+                  className="p-1.5 hover:bg-black/5 active:scale-90 rounded-full text-red-600 transition-all"
+                  title="Next Track"
+                >
+                  <SkipForward className="w-4 h-4 fill-current" />
+                </button>
+              </div>
+
+              {/* Progress counter */}
+              <div className="text-[10px] font-mono text-[var(--text-muted)] font-bold flex items-center gap-1.5">
+                <span>{Math.floor(currentSong.progressMs / 60000)}:{(Math.floor((currentSong.progressMs % 60000) / 1000)).toString().padStart(2, "0")}</span>
+                <span>/</span>
+                <span>{Math.floor(currentSong.durationMs / 60000)}:{(Math.floor((currentSong.durationMs % 60000) / 1000)).toString().padStart(2, "0")}</span>
+              </div>
+            </div>
+
+            {/* Volume control */}
+            <div className="flex items-center gap-3 px-4 py-2.5 mt-2 bg-gradient-to-r from-white/30 to-white/50 border border-white/60 hover:border-[var(--primary)]/30 rounded-xl shadow-xs transition-all duration-300 group">
+              <button
+                type="button"
+                onClick={() => handleVolumeChange(localVolume === 0 ? 100 : 0)}
+                className="transition-transform duration-200 active:scale-90 hover:scale-105 cursor-pointer"
+                title={localVolume === 0 ? "Unmute" : "Mute"}
+              >
+                {localVolume === 0 ? (
+                  <VolumeX className="w-4 h-4 text-gray-400" />
+                ) : localVolume < 50 ? (
+                  <Volume1 className="w-4 h-4 text-[var(--primary)]" />
+                ) : (
+                  <Volume2 className="w-4 h-4 text-[var(--primary)]" />
+                )}
+              </button>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={localVolume}
+                onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                className="w-full h-1 bg-gray-200/80 rounded-lg appearance-none cursor-pointer accent-[var(--primary)] transition-all group-hover:bg-gray-300 focus:outline-none"
+              />
+              <span className="text-[10px] font-mono w-9 text-right font-black text-[var(--text-main)]">{localVolume}%</span>
             </div>
           </div>
-        </motion.div>
 
-      </div> {/* Closing home-bento-grid */}
+          {/* RIGHT COLUMN: Shared Playlist */}
+          <div className="flex-1 flex flex-col justify-between border-t md:border-t-0 md:border-l border-[var(--border-color)] pt-4 md:pt-0 md:pl-6 space-y-4">
+
+            {/* Header controls for right pane */}
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-[var(--text-main)] flex items-center gap-1.5 font-display">
+                <Music className="w-4 h-4 text-red-500" />
+                Shared Playlist
+              </h4>
+              <span className="text-[10px] font-mono text-[var(--text-muted)] font-bold">
+                {playlistTracks.length} vibe tracks
+              </span>
+            </div>
+
+            {/* Sorting Filter Controls */}
+            <div className="flex flex-wrap gap-1.5 mb-1.5 flex-shrink-0">
+              {([
+                ["recent", "Recent"],
+                ["oldest", "Oldest"],
+                ["az", "A to Z"],
+                ["za", "Z to A"]
+              ] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setSortMode(mode)}
+                  className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all border cursor-pointer ${sortMode === mode
+                    ? "bg-red-500 border-red-500 text-white shadow-sm"
+                    : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"
+                    }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Dynamic Playlist Pane */}
+            <div className="flex-1 min-h-[220px] max-h-[380px] overflow-y-auto pr-1">
+              <div className="space-y-2">
+                {/* Playlist Tracks Mapping */}
+                <div className="space-y-1.5">
+                  {sortedTracks.map((track) => {
+                    const isCurrent = track.videoId === currentSong.videoId;
+                    return (
+                      <button
+                        key={track.videoId}
+                        type="button"
+                        onClick={() => playTrack(track)}
+                        className={`w-full text-left p-2 rounded-xl border text-xs transition-all flex items-center gap-2.5 ${isCurrent
+                          ? "bg-red-50/70 border-red-200 font-semibold text-red-900 shadow-sm"
+                          : "bg-white/40 border-[var(--border-color)] hover:bg-white/80 text-[var(--text-main)]"
+                          }`}
+                      >
+                        <img
+                          src={track.thumbnail}
+                          alt="thumbnail"
+                          className="w-10 h-10 rounded-lg object-cover border"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate leading-tight font-display text-[11px]">{track.title}</p>
+                          <p className="text-[9px] text-[var(--text-muted)] truncate mt-0.5">{track.artist}</p>
+                        </div>
+                        {isCurrent && currentSong.isPlaying && (
+                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping mr-1" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </motion.div>
+
     </div>
+  </div>
   );
 }
