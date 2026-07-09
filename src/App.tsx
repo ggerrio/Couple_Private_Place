@@ -102,6 +102,31 @@ function AppContent() {
     return () => window.removeEventListener("toggleNavbar", handler);
   }, []);
 
+  // Listen for setMusicVolume events
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const vol = (e as CustomEvent<number>).detail;
+      localStorage.setItem("music_volume", String(vol));
+      const frame = playerIframeRef.current;
+      if (frame) {
+        frame.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "setVolume", args: [vol] }), "*");
+      }
+    };
+    window.addEventListener("setMusicVolume", handler);
+    return () => window.removeEventListener("setMusicVolume", handler);
+  }, []);
+
+  // Sync volume whenever the player/song loads
+  useEffect(() => {
+    const frame = playerIframeRef.current;
+    if (!frame || !currentSong.videoId) return;
+    const vol = Number(localStorage.getItem("music_volume") || "80");
+    const t = setTimeout(() => {
+      frame.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "setVolume", args: [vol] }), "*");
+    }, 1200); // 1.2s delay to make sure player API is initialized
+    return () => clearTimeout(t);
+  }, [currentSong.isPlaying, currentSong.videoId]);
+
   // Listen for cross-component tab-change events (e.g. from HomeView shortcuts)
   useEffect(() => {
     const handler = (e: Event) => {

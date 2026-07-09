@@ -809,7 +809,7 @@ function SketchCanvas() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         sortedStrokes.forEach((stroke: any) => {
-          drawPoints(ctx, stroke.points as StrokePoint[]);
+          drawPoints(ctx, stroke.points || [], stroke.color, stroke.size);
         });
 
         lastStrokesRef.current = sortedStrokes;
@@ -832,13 +832,13 @@ function SketchCanvas() {
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         sortedStrokes.forEach((stroke: any) => {
-          drawPoints(ctx, stroke.points as StrokePoint[]);
+          drawPoints(ctx, stroke.points || [], stroke.color, stroke.size);
         });
       } else {
         const newStrokes = sortedStrokes.slice(prevStrokes.length);
         newStrokes.forEach((stroke: any) => {
           if (stroke.userId !== currentUser) {
-            drawPoints(ctx, stroke.points as StrokePoint[]);
+            drawPoints(ctx, stroke.points || [], stroke.color, stroke.size);
           }
         });
       }
@@ -900,8 +900,8 @@ function SketchCanvas() {
     }
   }, []);
 
-  const drawPoints = (ctx: CanvasRenderingContext2D, points: StrokePoint[]) => {
-    if (points.length === 0) return;
+  const drawPoints = (ctx: CanvasRenderingContext2D, points: any[], strokeColor?: string, strokeSize?: number) => {
+    if (!points || points.length === 0) return;
 
     const prevStrokeStyle = ctx.strokeStyle;
     const prevLineWidth = ctx.lineWidth;
@@ -913,19 +913,23 @@ function SketchCanvas() {
     let lastY = 0;
 
     points.forEach((p) => {
-      if (p.type === "start") {
+      const type = p.t || p.type;
+      const color = p.color || strokeColor || "#000000";
+      const size = p.size || strokeSize || 4;
+
+      if (type === "start" || type === "s") {
         ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size / 2, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
+        ctx.arc(p.x, p.y, size / 2, 0, Math.PI * 2);
+        ctx.fillStyle = color;
         ctx.fill();
         lastX = p.x;
         lastY = p.y;
-      } else if (p.type === "draw") {
+      } else if (type === "draw" || type === "d") {
         ctx.beginPath();
         ctx.moveTo(lastX, lastY);
         ctx.lineTo(p.x, p.y);
-        ctx.strokeStyle = p.color;
-        ctx.lineWidth = p.size;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = size;
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.stroke();
@@ -952,8 +956,17 @@ function SketchCanvas() {
     return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
   };
 
+  // Enforce Max points
+  const MAX_POINTS = 30000;
+  const totalPoints = strokesDocs.reduce((acc, s) => acc + (s.points?.length || 0), 0);
+  const isLimitReached = totalPoints >= MAX_POINTS;
+
   const onPointerDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (e.cancelable) e.preventDefault();
+    if (isLimitReached) {
+      alert("Canvas points limit reached! Clear canvas or undo some strokes to draw more.");
+      return;
+    }
     const canvas = canvasRef.current;
     if (!canvas) return;
     isDrawingRef.current = true;
@@ -971,12 +984,12 @@ function SketchCanvas() {
     ctx.fillStyle = activeColor;
     ctx.fill();
 
-    strokeBufferRef.current.push({ x, y, color: activeColor, size: brushSize, type: "start" });
-  }, [color, brushSize, isEraser]);
+    strokeBufferRef.current.push({ x: Math.round(x), y: Math.round(y), t: "s" } as any);
+  }, [color, brushSize, isEraser, isLimitReached]);
 
   const onPointerMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (e.cancelable) e.preventDefault();
-    if (!isDrawingRef.current) return;
+    if (!isDrawingRef.current || isLimitReached) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const { x, y } = getPos(e, canvas);
@@ -996,14 +1009,14 @@ function SketchCanvas() {
     lastXRef.current = x;
     lastYRef.current = y;
 
-    strokeBufferRef.current.push({ x, y, color: activeColor, size: brushSize, type: "draw" });
-  }, [color, brushSize, isEraser]);
+    strokeBufferRef.current.push({ x: Math.round(x), y: Math.round(y), t: "d" } as any);
+  }, [color, brushSize, isEraser, isLimitReached]);
 
   const onPointerUp = useCallback(async () => {
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
     const activeColor = isEraser ? "#ffffff" : color;
-    strokeBufferRef.current.push({ x: 0, y: 0, color: activeColor, size: brushSize, type: "end" });
+    strokeBufferRef.current.push({ x: 0, y: 0, t: "e" } as any);
 
     const points = strokeBufferRef.current.splice(0);
     if (points.length === 0) return;
@@ -1011,6 +1024,8 @@ function SketchCanvas() {
       await safeUpdateDoc(doc(db, "rooms", "sketch_room"), {
         strokes: customArrayUnion({
           userId: currentUser,
+          color: activeColor,
+          size: brushSize,
           points,
           ts: Date.now(),
         })
@@ -1025,6 +1040,7 @@ function SketchCanvas() {
     try {
       await setDoc(doc(db, "rooms", "sketch_room"), { sessionId: newSessionId, strokes: [] });
       setUndoneStrokes([]);
+      setStrokesDocs([]);
     } catch (e) { console.error("[clear sketch]", e); }
   }, []);
 
@@ -1036,6 +1052,7 @@ function SketchCanvas() {
     setUndoneStrokes((prev) => [...prev, lastStroke]);
 
     const nextStrokes = strokesDocs.filter((s) => s !== lastStroke);
+    setStrokesDocs(nextStrokes); // Optimistic Update
     try {
       await setDoc(doc(db, "rooms", "sketch_room"), { strokes: nextStrokes }, { merge: true });
     } catch (e) { console.error("[undo error]", e); }
@@ -1046,12 +1063,14 @@ function SketchCanvas() {
     const toRestore = undoneStrokes[undoneStrokes.length - 1];
     setUndoneStrokes((prev) => prev.slice(0, -1));
 
+    const nextStrokes = [...strokesDocs, toRestore];
+    setStrokesDocs(nextStrokes); // Optimistic Update
     try {
       await safeUpdateDoc(doc(db, "rooms", "sketch_room"), {
         strokes: customArrayUnion(toRestore)
       });
     } catch (e) { console.error("[redo error]", e); }
-  }, [undoneStrokes]);
+  }, [undoneStrokes, strokesDocs]);
 
   const saveDrawing = useCallback(async () => {
     const canvas = canvasRef.current;
@@ -1140,7 +1159,12 @@ function SketchCanvas() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-      <h3 className="text-sm font-bold text-[var(--text-main)]">Collaborative Sketch Studio</h3>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-bold text-[var(--text-main)]">Collaborative Sketch Studio</h3>
+        <div className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border transition-all ${isLimitReached ? "bg-red-50 text-red-500 border-red-200 animate-pulse" : "bg-white/40 text-[var(--text-muted)] border-[var(--border-color)]"}`}>
+          Detail: {totalPoints.toLocaleString()} / {MAX_POINTS.toLocaleString()} {isLimitReached && "⚠️ Limit Reached"}
+        </div>
+      </div>
 
       {/* Toolbar controls */}
       <div className="glass-panel rounded-2xl p-3 flex flex-wrap items-center gap-3 border border-[var(--border-color)]">

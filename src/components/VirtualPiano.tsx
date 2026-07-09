@@ -218,6 +218,7 @@ export const WhitePianoKey = React.memo(({
   playNote,
   stopNote,
   isMaximized = false,
+  darkMode = false,
 }: {
   note: string;
   charKey: string;
@@ -226,6 +227,7 @@ export const WhitePianoKey = React.memo(({
   playNote: (note: string) => void;
   stopNote: (note: string) => void;
   isMaximized?: boolean;
+  darkMode?: boolean;
 }) => {
   return (
     <button
@@ -233,8 +235,11 @@ export const WhitePianoKey = React.memo(({
       onMouseDown={() => playNote(note)}
       onMouseUp={() => stopNote(note)}
       onMouseLeave={() => stopNote(note)}
-      className={`relative select-none outline-none border-r border-stone-300/60 rounded-b-xl flex flex-col justify-end items-center pb-4 text-center transition-[transform,background-color,box-shadow] duration-77 ease-out cursor-pointer group bg-gradient-to-b from-stone-100 via-white to-stone-50 hover:to-stone-100 text-stone-400 hover:text-stone-700 shadow-[0_4px_4px_rgba(0,0,0,0.1),_inset_0_2px_0_rgba(255,255,255,0.8)] border-b-[6px] border-b-stone-200/80 ${isMaximized ? "h-[55vh] sm:h-[60vh]" : "h-52 md:h-72"
-        }`}
+      className={`relative select-none outline-none rounded-b-xl flex flex-col justify-end items-center pb-4 text-center transition-[transform,background-color,box-shadow] duration-77 ease-out cursor-pointer group shadow-[0_4px_4px_rgba(0,0,0,0.1)] ${
+        darkMode
+          ? "bg-gradient-to-b from-neutral-800 via-neutral-700 to-neutral-800 hover:to-neutral-750 text-neutral-400 hover:text-neutral-250 border-r border-r-neutral-800/40 border-b-[6px] border-b-neutral-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+          : "bg-gradient-to-b from-stone-100 via-white to-stone-50 hover:to-stone-100 text-stone-400 hover:text-stone-700 border-r border-r-stone-300/60 border-b-[6px] border-b-stone-200/80 shadow-[_inset_0_2px_0_rgba(255,255,255,0.8)]"
+      } ${isMaximized ? "h-[55vh] sm:h-[60vh]" : "h-52 md:h-72"}`}
       style={{ width: "calc(100% / 36)" }}
     >
       <span className="ripple-container hidden absolute inset-0 pointer-events-none overflow-hidden rounded-b-xl flex items-center justify-center">
@@ -242,12 +247,16 @@ export const WhitePianoKey = React.memo(({
       </span>
 
       {showKeys && (
-        <span className="text-[10px] uppercase font-sans tracking-tighter select-none block font-bold transition-opacity duration-150 relative z-10 opacity-40 group-hover:opacity-80 text-stone-600">
+        <span className={`text-[10px] uppercase font-sans tracking-tighter select-none block font-bold transition-opacity duration-150 relative z-10 opacity-40 group-hover:opacity-80 ${
+          darkMode ? "text-neutral-300" : "text-stone-600"
+        }`}>
           {charKey}
         </span>
       )}
       {showNotes && (
-        <span className="text-[9px] font-bold mt-1 select-none block font-serif transition-opacity duration-150 relative z-10 opacity-30 group-hover:opacity-60 text-stone-500">
+        <span className={`text-[9px] font-bold mt-1 select-none block font-serif transition-opacity duration-150 relative z-10 opacity-30 group-hover:opacity-60 ${
+          darkMode ? "text-neutral-400" : "text-stone-500"
+        }`}>
           {note}
         </span>
       )}
@@ -266,6 +275,7 @@ export const BlackPianoKey = React.memo(({
   leftOffset,
   blackKeyWidthPercent,
   isMaximized = false,
+  darkMode = false,
 }: {
   note: string;
   charKey: string;
@@ -276,6 +286,7 @@ export const BlackPianoKey = React.memo(({
   leftOffset: number;
   blackKeyWidthPercent: number;
   isMaximized?: boolean;
+  darkMode?: boolean;
 }) => {
   return (
     <button
@@ -283,8 +294,11 @@ export const BlackPianoKey = React.memo(({
       onMouseDown={() => playNote(note)}
       onMouseUp={() => stopNote(note)}
       onMouseLeave={() => stopNote(note)}
-      className={`absolute top-0 select-none outline-none rounded-b-md flex flex-col justify-end items-center pb-3 text-center pointer-events-auto transition-[transform,background-color,box-shadow] duration-77 ease-out cursor-pointer group bg-gradient-to-b from-stone-900 via-stone-950 to-black hover:from-stone-800 text-stone-200 hover:text-white shadow-[0_6px_10px_rgba(0,0,0,0.55),_inset_0_1px_1px_rgba(255,255,255,0.15)] border-t border-t-stone-800 border-x border-x-stone-900 ${isMaximized ? "h-[33vh] sm:h-[36vh]" : "h-[120px] md:h-[170px]"
-        }`}
+      className={`absolute top-0 select-none outline-none rounded-b-md flex flex-col justify-end items-center pb-3 text-center pointer-events-auto transition-[transform,background-color,box-shadow] duration-77 ease-out cursor-pointer group shadow-[0_6px_10px_rgba(0,0,0,0.55)] border-t border-x ${
+        darkMode
+          ? "bg-gradient-to-b from-neutral-900 via-neutral-950 to-black hover:from-neutral-850 text-neutral-400 hover:text-white border-t-neutral-800 border-x-neutral-900"
+          : "bg-gradient-to-b from-stone-900 via-stone-950 to-black hover:from-stone-800 text-stone-200 hover:text-white border-t-stone-800 border-x-stone-900"
+      } ${isMaximized ? "h-[33vh] sm:h-[36vh]" : "h-[120px] md:h-[170px]"}`}
       style={{
         width: `${blackKeyWidthPercent}%`,
         left: `calc(${leftOffset}% - ${blackKeyWidthPercent / 2}%)`,
@@ -310,7 +324,7 @@ export const BlackPianoKey = React.memo(({
 BlackPianoKey.displayName = "BlackPianoKey";
 
 export default function VirtualPiano() {
-  const { session } = useCouple();
+  const { session, darkMode } = useCouple();
   const [engineStarted, setEngineStarted] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isClearingSync, setIsClearingSync] = useState(false);
@@ -1190,10 +1204,10 @@ export default function VirtualPiano() {
   };
 
   const bentoCardStyle: React.CSSProperties = {
-    backgroundColor: "rgba(253, 242, 248, 0.65)",
+    backgroundColor: darkMode ? "rgba(24, 24, 27, 0.65)" : "rgba(253, 242, 248, 0.65)",
     backdropFilter: "blur(12px) saturate(140%)",
     WebkitBackdropFilter: "blur(12px) saturate(140%)",
-    border: "1px solid rgba(247, 227, 235, 0.5)",
+    border: darkMode ? "1px solid rgba(255, 255, 255, 0.05)" : "1px solid rgba(247, 227, 235, 0.5)",
     boxShadow: "0 8px 32px rgba(0, 0, 0, 0.15)",
   };
 
@@ -1210,13 +1224,17 @@ export default function VirtualPiano() {
         <div className="flex flex-col md:flex-row justify-between items-start gap-6" id="piano-header">
           <div>
             <h1
-              className="text-4xl md:text-5xl font-serif text-[#4a3a3a] font-semibold leading-tight tracking-tight flex items-center gap-3"
+              className={`text-4xl md:text-5xl font-serif font-semibold leading-tight tracking-tight flex items-center gap-3 ${
+                darkMode ? "text-amber-100/90" : "text-[#4a3a3a]"
+              }`}
               id="piano-main-title"
             >
-              <Music className="w-8 h-8 md:w-10 md:h-10 text-[#4a3a3a]" /> Grand Virtuoso
+              <Music className={`w-8 h-8 md:w-10 md:h-10 ${darkMode ? "text-amber-100/90" : "text-[#4a3a3a]"}`} /> Grand Virtuoso
             </h1>
             <p
-              className="font-sans text-sm text-[#7a6a6a] uppercase tracking-[0.2em] mt-2 font-semibold"
+              className={`font-sans text-sm uppercase tracking-[0.2em] mt-2 font-semibold ${
+                darkMode ? "text-neutral-400" : "text-[#7a6a6a]"
+              }`}
               id="piano-sub-title"
             >
               Professional Audio Sampler & Keyboard
@@ -1225,7 +1243,7 @@ export default function VirtualPiano() {
 
           <div className="flex flex-wrap items-center gap-4 md:gap-6" id="piano-indicators">
             <div className="flex flex-col items-end">
-              <span className="font-sans text-[10px] text-[#8a7a7a] uppercase font-bold mb-1">Engine Status</span>
+              <span className={`font-sans text-[10px] uppercase font-bold mb-1 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Engine Status</span>
               <div className="flex items-center space-x-2">
                 <span className={`w-2 h-2 rounded-full transition-all duration-300 ${engineStarted ? "bg-emerald-500 shadow-[0_0_8px_#10b981]" : "bg-red-500 shadow-[0_0_8px_#ef4444]"}`}></span>
                 {engineStarted ? (
@@ -1239,7 +1257,9 @@ export default function VirtualPiano() {
                 ) : (
                   <button
                     onClick={startPianoEngine}
-                    className="font-sans text-xs text-[#4a3a3a] hover:text-stone-800 font-bold uppercase underline tracking-wider cursor-pointer outline-none border-none bg-transparent select-none p-0"
+                    className={`font-sans text-xs font-bold uppercase underline tracking-wider cursor-pointer outline-none border-none bg-transparent select-none p-0 ${
+                      darkMode ? "text-amber-200 hover:text-amber-100" : "text-[#4a3a3a] hover:text-stone-800"
+                    }`}
                     title="Initialize Web Audio API Context"
                   >
                     Connect Engine
@@ -1248,9 +1268,9 @@ export default function VirtualPiano() {
               </div>
             </div>
 
-            <div className="flex flex-col items-end border-l border-pink-200/50 pl-4 md:pl-6">
-              <span className="font-sans text-[10px] text-[#8a7a7a] uppercase font-bold mb-1">Acoustic Samples</span>
-              <div className="flex items-center space-x-1.5 text-xs text-[#4a3a3a] font-semibold">
+            <div className={`flex flex-col items-end border-l pl-4 md:pl-6 ${darkMode ? "border-neutral-800" : "border-pink-200/50"}`}>
+              <span className={`font-sans text-[10px] uppercase font-bold mb-1 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Acoustic Samples</span>
+              <div className={`flex items-center space-x-1.5 text-xs font-semibold ${darkMode ? "text-neutral-200" : "text-[#4a3a3a]"}`}>
                 {isLoaded ? (
                   <>
                     <span className="w-2 h-2 bg-amber-500 rounded-full shadow-[0_0_6px_rgba(245,158,11,0.6)] animate-pulse" />
@@ -1259,36 +1279,38 @@ export default function VirtualPiano() {
                 ) : (
                   <>
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
-                    <span className="text-[#8a7a7a]">Downloading...</span>
+                    <span className={darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}>Downloading...</span>
                   </>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-col items-end border-l border-pink-200/50 pl-4 md:pl-6">
-              <span className="font-sans text-[10px] text-[#8a7a7a] uppercase font-bold mb-1">Instrument Preset</span>
-              <span className="font-sans text-xs text-[#4a3a3a] font-semibold capitalize flex items-center gap-1">
-                <Layers className="w-3.5 h-3.5 text-[#8a7a7a]" />
+            <div className={`flex flex-col items-end border-l pl-4 md:pl-6 ${darkMode ? "border-neutral-800" : "border-pink-200/50"}`}>
+              <span className={`font-sans text-[10px] uppercase font-bold mb-1 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Instrument Preset</span>
+              <span className={`font-sans text-xs font-semibold capitalize flex items-center gap-1 ${darkMode ? "text-neutral-200" : "text-[#4a3a3a]"}`}>
+                <Layers className={`w-3.5 h-3.5 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`} />
                 {instrument === "piano" ? "Grand Piano" : instrument === "musicbox" ? "Celestial Music Box" : "Ambient Pad"}
               </span>
             </div>
 
-            <div className="flex flex-col items-end border-l border-pink-200/50 pl-4 md:pl-6">
-              <span className="font-sans text-[10px] text-[#8a7a7a] uppercase font-bold mb-1">Couple Duo Sync</span>
+            <div className={`flex flex-col items-end border-l pl-4 md:pl-6 ${darkMode ? "border-neutral-800" : "border-pink-200/50"}`}>
+              <span className={`font-sans text-[10px] uppercase font-bold mb-1 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Couple Duo Sync</span>
               <button
                 onClick={() => setShowConfigModal(true)}
-                className="flex items-center space-x-1.5 text-xs text-[#4a3a3a] font-semibold hover:opacity-80 active:scale-95 transition-all select-none cursor-pointer outline-none border-none bg-transparent"
+                className={`flex items-center space-x-1.5 text-xs font-semibold hover:opacity-80 active:scale-95 transition-all select-none cursor-pointer outline-none border-none bg-transparent ${
+                  darkMode ? "text-neutral-200" : "text-[#4a3a3a]"
+                }`}
                 title="Duo Config"
               >
                 {!isFirebaseConfigured ? (
                   <>
                     <WifiOff className="w-3.5 h-3.5 text-stone-400" />
-                    <span className="text-[#8a7a7a] hover:underline">Solo Mode</span>
+                    <span className={`${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"} hover:underline`}>Solo Mode</span>
                   </>
                 ) : (
                   <>
                     <Wifi className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-                    <span className="text-emerald-700 font-bold hover:underline">Duo Connected</span>
+                    <span className={`${darkMode ? "text-emerald-400" : "text-emerald-700"} font-bold hover:underline`}>Duo Connected</span>
                   </>
                 )}
               </button>
@@ -1298,16 +1320,22 @@ export default function VirtualPiano() {
 
         {/* --- Session Recorder Module --- */}
         <div
-          className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#fbf5f2]/85 p-4 md:p-5 rounded-3xl border border-orange-100/30 shadow-sm transition-all duration-300"
+          className={`flex flex-col sm:flex-row justify-between items-center gap-4 p-4 md:p-5 rounded-3xl border shadow-sm transition-all duration-300 ${
+            darkMode
+              ? "bg-neutral-900/40 border-neutral-800"
+              : "bg-[#fbf5f2]/85 border-orange-100/30"
+          }`}
           id="piano-recorder-bar"
         >
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-500 shadow-inner">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${
+              darkMode ? "bg-neutral-850 text-rose-400" : "bg-rose-50 text-rose-500"
+            }`}>
               <Disc className={`w-5 h-5 ${isRecording ? "animate-pulse text-red-500" : ""}`} />
             </div>
             <div>
-              <p className="text-xs font-bold text-[#5a4a4a]">Performance Recorder</p>
-              <p className="text-[10px] text-[#8a7a7a] uppercase tracking-wider font-semibold">
+              <p className={`text-xs font-bold ${darkMode ? "text-neutral-200" : "text-[#5a4a4a]"}`}>Performance Recorder</p>
+              <p className={`text-[10px] uppercase tracking-wider font-semibold ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>
                 {isRecording
                   ? "Recording audio feed..."
                   : isPlayingRecording
@@ -1375,7 +1403,9 @@ export default function VirtualPiano() {
                     stopRecordingPlayback();
                     setRecordedEvents([]);
                   }}
-                  className="flex items-center justify-center w-8 h-8 rounded-xl bg-stone-100 hover:bg-red-50 hover:text-red-500 text-[#8a7a7a] transition-all cursor-pointer outline-none border-none select-none"
+                  className={`flex items-center justify-center w-8 h-8 rounded-xl transition-all cursor-pointer outline-none border-none select-none ${
+                    darkMode ? "bg-neutral-800 hover:bg-red-950/40 text-red-400" : "bg-stone-100 hover:bg-red-50 hover:text-red-500 text-[#8a7a7a]"
+                  }`}
                   title="Delete Recording"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -1387,9 +1417,13 @@ export default function VirtualPiano() {
 
         {/* --- Settings Panel --- */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6" id="piano-settings-grid">
-          <div className="lg:col-span-8 bg-white/50 rounded-3xl p-5 md:p-6 border border-stone-200/40 flex flex-col gap-6" id="piano-synth-bento">
-            <div className="flex flex-wrap items-center justify-between gap-4 border-b border-stone-100 pb-4">
-              <span className="text-sm font-bold text-[#5a4a4a] flex items-center gap-2">
+          <div className={`lg:col-span-8 rounded-3xl p-5 md:p-6 border flex flex-col gap-6 ${
+            darkMode ? "bg-neutral-900/40 border-neutral-850" : "bg-white/50 border-stone-200/40"
+          }`} id="piano-synth-bento">
+            <div className={`flex flex-wrap items-center justify-between gap-4 border-b pb-4 ${
+              darkMode ? "border-neutral-800" : "border-stone-100"
+            }`}>
+              <span className={`text-sm font-bold flex items-center gap-2 ${darkMode ? "text-amber-100/90" : "text-[#5a4a4a]"}`}>
                 <Keyboard className="w-4 h-4" /> Keyboard Engine Controls
               </span>
 
@@ -1397,8 +1431,10 @@ export default function VirtualPiano() {
                 <button
                   onClick={() => setShowNotes(!showNotes)}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer outline-none border ${showNotes
-                    ? "bg-[#E6C594] text-stone-900 border-[#E6C594]"
-                    : "bg-stone-50 text-[#8a7a7a] border-stone-200/50 hover:bg-stone-100"
+                    ? "bg-[#E6C594] text-stone-900 !text-stone-900 border-[#E6C594]"
+                    : darkMode
+                      ? "bg-neutral-800 text-neutral-300 border-neutral-750 hover:bg-neutral-750"
+                      : "bg-stone-50 text-[#8a7a7a] border-stone-200/50 hover:bg-stone-100"
                     }`}
                 >
                   Notes
@@ -1406,8 +1442,10 @@ export default function VirtualPiano() {
                 <button
                   onClick={() => setShowKeys(!showKeys)}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider uppercase transition-all cursor-pointer outline-none border ${showKeys
-                    ? "bg-[#E6C594] text-stone-900 border-[#E6C594]"
-                    : "bg-stone-50 text-[#8a7a7a] border-stone-200/50 hover:bg-stone-100"
+                    ? "bg-[#E6C594] text-stone-900 !text-stone-900 border-[#E6C594]"
+                    : darkMode
+                      ? "bg-neutral-800 text-neutral-300 border-neutral-750 hover:bg-neutral-750"
+                      : "bg-stone-50 text-[#8a7a7a] border-stone-200/50 hover:bg-stone-100"
                     }`}
                 >
                   Keycap Caps
@@ -1417,15 +1455,17 @@ export default function VirtualPiano() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               <div className="flex flex-col">
-                <label className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider mb-2">Instrument Preset</label>
+                <label className={`text-[10px] uppercase font-bold tracking-wider mb-2 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Instrument Preset</label>
                 <div className="flex flex-col gap-1.5">
                   {(["piano", "musicbox", "pad"] as const).map((inst) => (
                     <button
                       key={inst}
                       onClick={() => setInstrument(inst)}
                       className={`w-full py-2.5 px-4 rounded-xl text-left text-xs font-bold transition-all cursor-pointer select-none outline-none border ${instrument === inst
-                        ? "bg-[#E6C594] text-stone-900 border-[#E6C594] shadow-inner"
-                        : "bg-white text-[#7a6a6a] border-stone-200/50 hover:bg-stone-50 hover:text-stone-800"
+                        ? "bg-[#E6C594] text-stone-900 !text-stone-900 border-[#E6C594] shadow-inner"
+                        : darkMode
+                          ? "bg-neutral-800/40 text-neutral-300 border-neutral-750 hover:bg-neutral-800 hover:text-neutral-100"
+                          : "bg-white text-[#7a6a6a] border-stone-200/50 hover:bg-stone-50 hover:text-stone-800"
                         }`}
                     >
                       {inst === "piano" ? "🎹 Grand Acoustic Piano" : inst === "musicbox" ? "✨ Celestial Music Box" : "🌫️ Ambient String Pad"}
@@ -1436,23 +1476,29 @@ export default function VirtualPiano() {
 
               <div className="flex flex-col gap-6">
                 <div>
-                  <label className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider mb-2 block">Pitch Transposition</label>
-                  <div className="flex items-center bg-white rounded-2xl border border-stone-200/50 p-1 w-full justify-between">
+                  <label className={`text-[10px] uppercase font-bold tracking-wider mb-2 block ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Pitch Transposition</label>
+                  <div className={`flex items-center rounded-2xl border p-1 w-full justify-between ${
+                    darkMode ? "bg-neutral-800/60 border-neutral-750" : "bg-white border-stone-200/50"
+                  }`}>
                     <button
                       onClick={() => setTranspose((t) => Math.max(-12, t - 1))}
-                      className="w-10 h-10 rounded-xl bg-stone-50 hover:bg-stone-100 flex items-center justify-center text-stone-700 transition-all cursor-pointer select-none outline-none border-none"
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer select-none outline-none border-none ${
+                        darkMode ? "bg-neutral-750 hover:bg-neutral-700 text-neutral-200" : "bg-stone-50 hover:bg-stone-100 text-stone-700"
+                      }`}
                     >
                       <Minus className="w-4 h-4" />
                     </button>
                     <div className="flex flex-col items-center">
-                      <span className="text-sm font-black text-stone-800">
+                      <span className={`text-sm font-black ${darkMode ? "text-neutral-200" : "text-stone-800"}`}>
                         {transpose > 0 ? `+${transpose}` : transpose}
                       </span>
-                      <span className="text-[8px] text-[#8a7a7a] font-bold uppercase tracking-widest">Semitones</span>
+                      <span className={`text-[8px] font-bold uppercase tracking-widest ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Semitones</span>
                     </div>
                     <button
                       onClick={() => setTranspose((t) => Math.min(12, t + 1))}
-                      className="w-10 h-10 rounded-xl bg-stone-50 hover:bg-stone-100 flex items-center justify-center text-stone-700 transition-all cursor-pointer select-none outline-none border-none"
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer select-none outline-none border-none ${
+                        darkMode ? "bg-neutral-750 hover:bg-neutral-700 text-neutral-200" : "bg-stone-50 hover:bg-stone-100 text-stone-700"
+                      }`}
                     >
                       <Plus className="w-4 h-4" />
                     </button>
@@ -1460,7 +1506,9 @@ export default function VirtualPiano() {
                   {transpose !== 0 && (
                     <button
                       onClick={() => setTranspose(0)}
-                      className="mt-1.5 text-[9px] text-[#8a7a7a] hover:text-stone-800 flex items-center gap-1 font-bold underline select-none cursor-pointer outline-none border-none bg-transparent"
+                      className={`mt-1.5 text-[9px] flex items-center gap-1 font-bold underline select-none cursor-pointer outline-none border-none bg-transparent ${
+                        darkMode ? "text-neutral-400 hover:text-neutral-200" : "text-[#8a7a7a] hover:text-stone-800"
+                      }`}
                     >
                       <RotateCcw className="w-2.5 h-2.5" /> Reset transpose
                     </button>
@@ -1469,30 +1517,37 @@ export default function VirtualPiano() {
 
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <label className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider">Volume Level</label>
-                    <span className="text-xs font-serif font-semibold text-stone-700">{volume}%</span>
+                    <label className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Volume Level</label>
+                    <span className={`text-xs font-serif font-semibold ${darkMode ? "text-neutral-300" : "text-stone-700"}`}>{volume}%</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Volume2 className="w-4 h-4 text-[#8a7a7a]" />
+                    <Volume2 className={`w-4 h-4 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`} />
                     <input
                       type="range"
                       min="0"
                       max="100"
                       value={volume}
                       onChange={(e) => setVolume(Number(e.target.value))}
-                      className="w-full accent-[#E6C594] h-1.5 bg-stone-100 rounded-lg cursor-pointer"
+                      className={`w-full accent-[#E6C594] h-1.5 rounded-lg cursor-pointer ${
+                        darkMode ? "bg-neutral-800" : "bg-stone-100"
+                      }`}
                     />
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col">
-                <label className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider mb-2">Damper Sustain Pedal</label>
+                <label className={`text-[10px] uppercase font-bold tracking-wider mb-2 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Damper Sustain Pedal</label>
                 <div
-                  className={`flex-1 rounded-2xl p-4 flex flex-col justify-between border transition-all ${sustainActive
-                    ? "bg-amber-50/80 border-[#E6C594]/60 shadow-inner text-[#7c5e2e]"
-                    : "bg-white border-stone-200/50 text-[#7a6a6a]"
-                    }`}
+                  className={`flex-1 rounded-2xl p-4 flex flex-col justify-between border transition-all ${
+                    sustainActive
+                      ? darkMode
+                        ? "bg-amber-950/20 border-[#E6C594]/40 shadow-inner text-amber-200/90"
+                        : "bg-amber-50/80 border-[#E6C594]/60 shadow-inner text-[#7c5e2e]"
+                      : darkMode
+                        ? "bg-neutral-850/40 border-neutral-750 text-neutral-400"
+                        : "bg-white border-stone-200/50 text-[#7a6a6a]"
+                  }`}
                 >
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-bold leading-normal">
@@ -1500,31 +1555,42 @@ export default function VirtualPiano() {
                     </span>
                     <button
                       onClick={() => setSustainLocked(!sustainLocked)}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer outline-none border border-none ${sustainLocked
-                        ? "bg-[#E6C594] text-stone-900"
-                        : "bg-stone-50 hover:bg-stone-100 text-stone-600"
-                        }`}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all cursor-pointer outline-none border border-none ${
+                        sustainLocked
+                          ? "bg-[#E6C594] text-stone-900 !text-stone-900"
+                          : darkMode
+                            ? "bg-neutral-700 hover:bg-neutral-650 text-neutral-300"
+                            : "bg-stone-50 hover:bg-stone-100 text-stone-600"
+                      }`}
                       title={sustainLocked ? "Unlock Sustain Pedal" : "Lock Sustain Pedal (Latching)"}
                     >
                       {sustainLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                     </button>
                   </div>
-                  <p className="text-[9px] text-[#8a7a7a] leading-relaxed mt-2">
-                    Press <span className="px-1.5 py-0.5 rounded bg-stone-100 border font-mono font-bold text-stone-600">Spacebar</span> to sustain notes dynamically.
+                  <p className={`text-[9px] leading-relaxed mt-2 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>
+                    Press <span className={`px-1.5 py-0.5 rounded border font-mono font-bold ${
+                      darkMode ? "bg-neutral-800 border-neutral-700 text-neutral-300" : "bg-stone-100 border-stone-200 text-stone-600"
+                    }`}>Spacebar</span> to sustain notes dynamically.
                   </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="lg:col-span-4 bg-white/50 rounded-3xl p-5 md:p-6 border border-stone-200/40 flex flex-col gap-4" id="piano-sheets-bento">
-            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
-              <span className="text-sm font-bold text-[#5a4a4a] flex items-center gap-2">
+          <div className={`lg:col-span-4 rounded-3xl p-5 md:p-6 border flex flex-col gap-4 ${
+            darkMode ? "bg-neutral-900/40 border-neutral-850" : "bg-white/50 border-stone-200/40"
+          }`} id="piano-sheets-bento">
+            <div className={`flex items-center justify-between border-b pb-3 ${
+              darkMode ? "border-neutral-800" : "border-stone-100"
+            }`}>
+              <span className={`text-sm font-bold flex items-center gap-2 ${darkMode ? "text-amber-100/90" : "text-[#5a4a4a]"}`}>
                 <BookOpen className="w-4 h-4" /> Song Sheets Preset
               </span>
               <button
                 onClick={() => setSheetPanelExpanded(!sheetPanelExpanded)}
-                className="text-stone-500 hover:text-stone-800 transition-all select-none cursor-pointer outline-none border-none bg-transparent"
+                className={`transition-all select-none cursor-pointer outline-none border-none bg-transparent ${
+                  darkMode ? "text-neutral-400 hover:text-neutral-250" : "text-stone-50 hover:text-stone-800"
+                }`}
               >
                 {sheetPanelExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
@@ -1533,7 +1599,7 @@ export default function VirtualPiano() {
             {sheetPanelExpanded && (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider">Song Presets</label>
+                  <label className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Song Presets</label>
                   <div className="grid grid-cols-2 gap-1.5">
                     {SHEET_PRESETS.map((preset, idx) => (
                       <button
@@ -1543,7 +1609,11 @@ export default function VirtualPiano() {
                           setSheetText(preset.notes);
                           setCurrentSheetIndex(-1);
                         }}
-                        className="py-2 px-2.5 rounded-xl bg-white border border-stone-200/40 text-[10px] font-bold text-stone-700 hover:bg-stone-50 hover:text-stone-900 transition-all text-left truncate cursor-pointer outline-none select-none"
+                        className={`py-2 px-2.5 rounded-xl border text-[10px] font-bold transition-all text-left truncate cursor-pointer outline-none select-none ${
+                          darkMode
+                            ? "bg-neutral-800/40 border-neutral-750 text-neutral-300 hover:bg-neutral-800 hover:text-white"
+                            : "bg-white border-stone-200/40 text-stone-700 hover:bg-stone-50 hover:text-stone-900"
+                        }`}
                         title={preset.name}
                       >
                         {preset.name}
@@ -1554,8 +1624,8 @@ export default function VirtualPiano() {
 
                 <div className="flex flex-col gap-1">
                   <div className="flex justify-between items-center">
-                    <label className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider">Interactive Feed</label>
-                    <span className="text-[9px] font-bold text-stone-500 uppercase">Step index: {currentSheetIndex >= 0 ? currentSheetIndex + 1 : "-"}</span>
+                    <label className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Interactive Feed</label>
+                    <span className={`text-[9px] font-bold uppercase ${darkMode ? "text-neutral-400" : "text-stone-500"}`}>Step index: {currentSheetIndex >= 0 ? currentSheetIndex + 1 : "-"}</span>
                   </div>
                   <textarea
                     value={sheetText}
@@ -1564,13 +1634,15 @@ export default function VirtualPiano() {
                       setSheetText(e.target.value);
                     }}
                     placeholder="Enter sheet code sequence..."
-                    className="w-full h-16 rounded-xl border border-stone-200/40 p-2.5 text-xs font-mono bg-white text-stone-800 focus:outline-none focus:ring-1 focus:ring-[#E6C594]"
+                    className={`w-full h-16 rounded-xl border p-2.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-[#E6C594] ${
+                      darkMode ? "bg-neutral-800/60 border-neutral-750 text-neutral-200" : "bg-white border-stone-200/40 text-stone-800"
+                    }`}
                   />
                 </div>
 
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
-                    <label className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider mb-1 block">Speed ({playSpeed}x)</label>
+                    <label className={`text-[10px] uppercase font-bold tracking-wider mb-1 block ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Speed ({playSpeed}x)</label>
                     <input
                       type="range"
                       min="0.5"
@@ -1578,14 +1650,16 @@ export default function VirtualPiano() {
                       step="0.1"
                       value={playSpeed}
                       onChange={(e) => setPlaySpeed(Number(e.target.value))}
-                      className="w-full accent-[#E6C594] h-1 bg-stone-100 rounded-lg cursor-pointer"
+                      className={`w-full accent-[#E6C594] h-1 rounded-lg cursor-pointer ${
+                        darkMode ? "bg-neutral-800" : "bg-stone-100"
+                      }`}
                     />
                   </div>
                   <div className="flex gap-1">
                     {!isPlayingSheet ? (
                       <button
                         onClick={startSheetPlayback}
-                        className="px-4 py-2.5 bg-[#E6C594] text-stone-900 rounded-xl text-xs font-bold hover:bg-[#ebd2aa] transition-all cursor-pointer outline-none border-none select-none"
+                        className="px-4 py-2.5 bg-[#E6C594] text-stone-900 !text-stone-900 rounded-xl text-xs font-bold hover:bg-[#ebd2aa] transition-all cursor-pointer outline-none border-none select-none"
                       >
                         Autoplay
                       </button>
@@ -1607,17 +1681,21 @@ export default function VirtualPiano() {
         {/* --- Keyboard Virtual Surface --- */}
         <div className="flex flex-col relative" id="piano-interactive-keyboard-surface">
           {!engineStarted && (
-            <div className="absolute inset-0 z-40 bg-white/70 backdrop-blur-md rounded-3xl flex flex-col justify-center items-center p-6 border border-stone-200/30">
-              <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center mb-4 text-[#CBB084] shadow-inner">
+            <div className={`absolute inset-0 z-40 backdrop-blur-md rounded-3xl flex flex-col justify-center items-center p-6 border ${
+              darkMode ? "bg-black/70 border-neutral-800" : "bg-white/70 border-stone-200/30"
+            }`}>
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-4 text-[#CBB084] shadow-inner ${
+                darkMode ? "bg-neutral-800" : "bg-amber-50"
+              }`}>
                 <Music className="w-8 h-8" />
               </div>
-              <h3 className="text-xl font-serif text-[#4a3a3a] font-semibold">Unlock Audio Engine</h3>
-              <p className="text-xs text-[#7a6a6a] mt-1 text-center max-w-sm">
+              <h3 className={`text-xl font-serif font-semibold ${darkMode ? "text-amber-100" : "text-[#4a3a3a]"}`}>Unlock Audio Engine</h3>
+              <p className={`text-xs mt-1 text-center max-w-sm ${darkMode ? "text-neutral-400" : "text-[#7a6a6a]"}`}>
                 Interact with the Grand Virtuoso for acoustic samples and our melody sync.
               </p>
               <button
                 onClick={startPianoEngine}
-                className="mt-6 px-8 py-3 bg-[#E6C594] hover:bg-[#ebd2aa] text-stone-900 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer outline-none border-none select-none"
+                className="mt-6 px-8 py-3 bg-[#E6C594] hover:bg-[#ebd2aa] text-stone-900 !text-stone-900 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer outline-none border-none select-none"
               >
                 Connect Audio Engine
               </button>
@@ -1625,11 +1703,13 @@ export default function VirtualPiano() {
           )}
 
           <div className="flex justify-between items-center mb-4">
-            <span className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider">Interactive Ivory Keys (88 Standard)</span>
+            <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Interactive Ivory Keys (88 Standard)</span>
             <div className="flex gap-2">
               <button
                 onClick={toggleFullscreen}
-                className="p-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-600 transition-all cursor-pointer outline-none border-none select-none"
+                className={`p-1.5 rounded-lg transition-all cursor-pointer outline-none border-none select-none ${
+                  darkMode ? "bg-neutral-850 hover:bg-neutral-800 text-neutral-300" : "bg-stone-100 hover:bg-stone-200 text-stone-600"
+                }`}
                 title={isMaximized ? "Minimize Keyboard Layout" : "Maximize & Lock Browser Shortcuts"}
               >
                 {isMaximized ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -1642,8 +1722,11 @@ export default function VirtualPiano() {
             onTouchStart={handleTouchTrack}
             onTouchMove={handleTouchTrack}
             onTouchEnd={handleTouchEnd}
-            className={`w-full relative select-none flex items-stretch border border-stone-300 rounded-2xl overflow-x-auto overflow-y-hidden shadow-2xl p-1 bg-stone-100 ${isMaximized ? "fixed inset-x-0 bottom-0 z-50 h-[65vh] p-4 bg-white" : ""
-              }`}
+            className={`w-full relative select-none flex items-stretch border rounded-2xl overflow-x-auto overflow-y-hidden shadow-2xl p-1 ${
+              isMaximized
+                ? darkMode ? "fixed inset-x-0 bottom-0 z-50 h-[65vh] p-4 bg-neutral-900" : "fixed inset-x-0 bottom-0 z-50 h-[65vh] p-4 bg-white"
+                : darkMode ? "bg-neutral-950/40 border-neutral-800" : "bg-stone-100 border-stone-300"
+            }`}
             style={{ touchAction: "none" }}
             id="piano-keys-scroller"
           >
@@ -1658,6 +1741,7 @@ export default function VirtualPiano() {
                   playNote={playNote}
                   stopNote={stopNote}
                   isMaximized={isMaximized}
+                  darkMode={darkMode}
                 />
               ))}
 
@@ -1677,6 +1761,7 @@ export default function VirtualPiano() {
                     leftOffset={leftOffset}
                     blackKeyWidthPercent={blackKeyWidthPercent}
                     isMaximized={isMaximized}
+                    darkMode={darkMode}
                   />
                 );
               })}
@@ -1696,22 +1781,28 @@ export default function VirtualPiano() {
       {/* --- Couple Duo Configuration Modal --- */}
       {showConfigModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 select-none">
-          <div className="bg-white rounded-[32px] p-6 max-w-md w-full border border-pink-100/50 shadow-2xl">
-            <h3 className="text-xl font-serif text-[#4a3a3a] font-semibold flex items-center gap-2">
+          <div className={`rounded-[32px] p-6 max-w-md w-full border shadow-2xl transition-colors duration-300 ${
+            darkMode ? "bg-neutral-900 border-neutral-800 text-neutral-100" : "bg-white border-pink-100/50 text-stone-800"
+          }`}>
+            <h3 className={`text-xl font-serif font-semibold flex items-center gap-2 ${darkMode ? "text-amber-100" : "text-[#4a3a3a]"}`}>
               <Wifi className="w-5 h-5 text-emerald-500 animate-pulse" /> Couple Session Configuration
             </h3>
-            <p className="text-xs text-[#7a6a6a] mt-2 leading-relaxed">
+            <p className={`text-xs mt-2 leading-relaxed ${darkMode ? "text-neutral-400" : "text-[#7a6a6a]"}`}>
               Connect with your partner in real time using Firebase Realtime Database. Realtime Database sockets transmit notes with minimal latency and minimal data footprint.
             </p>
 
             <div className="mt-5 space-y-4">
-              <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200/50">
-                <span className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider block mb-1">Session Socket Room Path</span>
-                <span className="text-xs font-mono font-bold text-stone-800 select-all">/rooms/couple_piano_session/events</span>
+              <div className={`p-3 rounded-2xl border ${
+                darkMode ? "bg-neutral-850 border-neutral-800" : "bg-stone-50 border-stone-200/50"
+              }`}>
+                <span className={`text-[10px] uppercase font-bold tracking-wider block mb-1 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Session Socket Room Path</span>
+                <span className={`text-xs font-mono font-bold select-all ${darkMode ? "text-neutral-200" : "text-stone-800"}`}>/rooms/couple_piano_session/events</span>
               </div>
-              <div className="p-3 bg-stone-50 rounded-2xl border border-stone-200/50">
-                <span className="text-[10px] text-[#8a7a7a] uppercase font-bold tracking-wider block mb-1">Local User identifier</span>
-                <span className="text-xs font-mono font-bold text-stone-800">{localUserIdRef.current || "Loading ID..."}</span>
+              <div className={`p-3 rounded-2xl border ${
+                darkMode ? "bg-neutral-850 border-neutral-800" : "bg-stone-50 border-stone-200/50"
+              }`}>
+                <span className={`text-[10px] uppercase font-bold tracking-wider block mb-1 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Local User identifier</span>
+                <span className={`text-xs font-mono font-bold ${darkMode ? "text-neutral-200" : "text-stone-800"}`}>{localUserIdRef.current || "Loading ID..."}</span>
               </div>
             </div>
 
@@ -1720,14 +1811,18 @@ export default function VirtualPiano() {
                 <button
                   disabled={isClearingSync}
                   onClick={clearSyncDatabase}
-                  className="px-4 py-2 bg-stone-100 hover:bg-red-50 text-[#8a7a7a] hover:text-red-500 rounded-xl text-xs font-bold transition-all disabled:opacity-50 cursor-pointer outline-none border-none select-none"
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-50 cursor-pointer outline-none border-none select-none ${
+                    darkMode ? "bg-neutral-800 hover:bg-red-950/40 text-neutral-400 hover:text-red-400" : "bg-stone-100 hover:bg-red-50 text-[#8a7a7a] hover:text-red-500"
+                  }`}
                 >
                   {isClearingSync ? "Purging events..." : "Clear Room Feed"}
                 </button>
               )}
               <button
                 onClick={() => setShowConfigModal(false)}
-                className="px-6 py-2.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition-all"
+                className={`px-6 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  darkMode ? "bg-amber-100 hover:bg-amber-50 text-neutral-900" : "bg-stone-900 hover:bg-stone-800 text-white"
+                }`}
               >
                 Close Settings
               </button>

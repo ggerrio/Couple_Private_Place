@@ -343,6 +343,7 @@ function TimelineSection() {
 
   // Caption inline edit in modal
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitleText, setEditTitleText] = useState("");
   const [editDesc, setEditDesc] = useState("");
 
   // Modal and comments state
@@ -579,19 +580,38 @@ function TimelineSection() {
       });
 
     try {
-      const raw = await readAsDataUrl(file);
-      let dataUrl = raw;
-      try {
-        dataUrl = await compressDataUrl(raw);
-      } catch (compressErr) {
-        // Compression failed – use raw data-url as fallback (still valid)
-        console.warn("[milestone] Canvas compression failed, using raw:", compressErr);
+      let finalUrl = "";
+      if (cloudinaryCloudName && cloudinaryUploadPreset) {
+        try {
+          // Compress the image before uploading to Cloudinary
+          const raw = await readAsDataUrl(file);
+          const compressedDataUrl = await compressDataUrl(raw);
+          // Convert compressed data URL back to Blob for Cloudinary upload
+          const res = await fetch(compressedDataUrl);
+          const blob = await res.blob();
+          finalUrl = await uploadToCloudinary(blob, `milestone-${Date.now()}.jpg`, cloudinaryCloudName, cloudinaryUploadPreset);
+        } catch (uploadErr) {
+          console.error("Cloudinary upload failed, falling back to base64:", uploadErr);
+          const raw = await readAsDataUrl(file);
+          try {
+            finalUrl = await compressDataUrl(raw);
+          } catch {
+            finalUrl = raw;
+          }
+        }
+      } else {
+        const raw = await readAsDataUrl(file);
+        try {
+          finalUrl = await compressDataUrl(raw);
+        } catch {
+          finalUrl = raw;
+        }
       }
-      setMImagePreview(dataUrl);
-      setMImageUrl(dataUrl);
+      setMImagePreview(finalUrl);
+      setMImageUrl(finalUrl);
     } catch (err) {
       console.error("[milestone image upload]", err);
-      alert("Could not read the image file. Please try a different one.");
+      alert("Could not read or upload the image file. Please try a different one.");
     } finally {
       setMImageUploading(false);
       e.target.value = "";
@@ -970,74 +990,67 @@ function TimelineSection() {
                 </button>
 
                 {currentMem.imageUrl && (
-                  currentMem.type === "photobooth" ? (
-                    <div className="w-full bg-slate-900 p-4 flex flex-col items-center justify-center relative overflow-hidden flex-shrink-0 border-b border-gray-100 min-h-[340px]">
-                      <div
-                        className="absolute inset-0 bg-cover bg-center blur-md opacity-25 scale-110 pointer-events-none"
-                        style={{ backgroundImage: `url(${currentMem.imageUrl})` }}
-                      />
-                      <div className="w-full max-w-xs bg-[var(--color-muted)] p-4 pb-12 shadow-2xl border border-[var(--color-border)] rounded-sm relative z-10">
-                        <div className="absolute bottom-3 left-0 right-0 text-center font-serif italic text-xs text-rose-500/80 font-bold tracking-wider select-none">
-                          Our Sweet Memories 📸
-                        </div>
-                        <div className="w-full overflow-hidden flex items-center justify-center border border-[var(--color-border)] bg-white">
-                          <img src={currentMem.imageUrl} alt={currentMem.title} className="max-w-full max-h-[55vh] object-contain" />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="w-full h-44 relative bg-black/5 flex-shrink-0">
-                      <img
-                        src={currentMem.imageUrl}
-                        alt={currentMem.title}
-                        className={`w-full h-full object-cover \${filterObj ? filterObj.class : ""}`}
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                      <div className="absolute bottom-4 left-5 right-12 text-white">
-                        <div className="flex items-center gap-1 text-[9px] text-white/85 font-mono">
-                          <Calendar className="w-3 h-3" />
-                          {new Date(currentMem.date).toLocaleDateString("en-US", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </div>
-                        <h3 className="text-base font-serif font-bold tracking-tight mt-0.5 text-white drop-shadow-sm">
-                          {currentMem.title}
-                        </h3>
-                      </div>
-                    </div>
-                  )
+                  <div className="w-full h-48 relative bg-black/5 flex-shrink-0 border-b border-gray-100">
+                    <img
+                      src={currentMem.imageUrl}
+                      alt={currentMem.title}
+                      className={`w-full h-full object-cover ${filterObj ? filterObj.class : ""}`}
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
                 )}
 
-                {!currentMem.imageUrl && (
-                  <div className="p-6 pb-2 border-b border-gray-100 flex-shrink-0">
-                    <div className="flex items-center gap-1.5 text-[9px] text-gray-500 font-mono">
-                      <Calendar className="w-3 h-3" />
+                {/* Unified Title & Metadata Header */}
+                <div className="p-5 pb-3 border-b border-gray-100 flex-shrink-0">
+                  <div className="flex flex-wrap items-center gap-1.5 text-[9px] text-gray-500 font-mono">
+                    <Calendar className="w-3 h-3 text-rose-400" />
+                    <span>
                       {new Date(currentMem.date).toLocaleDateString("en-US", {
                         year: "numeric",
                         month: "long",
                         day: "numeric",
                       })}
-                    </div>
-                    <h3 className="text-lg font-serif font-bold tracking-tight text-[var(--text-main)] mt-1">
-                      {currentMem.title}
-                    </h3>
+                    </span>
+                    <span>•</span>
+                    <span>By {currentMem.creatorId === "user_a" ? userA.name.split(" ")[0] : userB.name.split(" ")[0]}</span>
+                    {currentMem.type && (
+                      <>
+                        <span>•</span>
+                        <span className="text-rose-500 font-semibold uppercase tracking-wider text-[8px]">
+                          {currentMem.type}
+                        </span>
+                      </>
+                    )}
                   </div>
-                )}
+                  <h3 className="text-base font-serif font-bold tracking-tight text-[var(--text-main)] mt-1.5 leading-tight">
+                    {currentMem.title}
+                  </h3>
+                </div>
 
                 <div className="flex-1 overflow-y-auto p-5 space-y-4 scrollbar-thin">
-                  {/* Caption Editor Logic */}
+                  {/* Caption & Title Editor Logic */}
                   {editingId === currentMem.id ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={editDesc}
-                        onChange={(e) => setEditDesc(e.target.value)}
-                        rows={3}
-                        className="w-full text-xs p-2 border border-gray-200 rounded-xl outline-none resize-none bg-white text-gray-800"
-                        placeholder="Edit caption..."
-                      />
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Title</label>
+                        <input
+                          type="text"
+                          value={editTitleText}
+                          onChange={(e) => setEditTitleText(e.target.value)}
+                          className="w-full text-xs p-2 border border-gray-200 rounded-lg outline-none bg-white text-gray-800 font-bold"
+                          placeholder="Edit title..."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] uppercase tracking-wider text-gray-400 font-bold">Caption</label>
+                        <textarea
+                          value={editDesc}
+                          onChange={(e) => setEditDesc(e.target.value)}
+                          rows={3}
+                          className="w-full text-xs p-2 border border-gray-200 rounded-lg outline-none resize-none bg-white text-gray-800"
+                          placeholder="Edit caption..."
+                        />
+                      </div>
                       <div className="flex gap-2 justify-end">
                         <button
                           onClick={() => setEditingId(null)}
@@ -1047,7 +1060,7 @@ function TimelineSection() {
                         </button>
                         <button
                           onClick={async () => {
-                            await updateMemory(currentMem.id, { description: editDesc });
+                            await updateMemory(currentMem.id, { title: editTitleText, description: editDesc });
                             setEditingId(null);
                             triggerHaptic("success");
                           }}
@@ -1062,18 +1075,17 @@ function TimelineSection() {
                       <p className="text-xs text-gray-600 leading-relaxed flex-1">
                         {currentMem.description || <span className="italic opacity-50">No caption added.</span>}
                       </p>
-                      {currentMem.creatorId === currentUser && (
-                        <button
-                          onClick={() => {
-                            setEditingId(currentMem.id);
-                            setEditDesc(currentMem.description || "");
-                            triggerHaptic("light");
-                          }}
-                          className="text-[10px] text-[var(--primary)] hover:underline font-bold flex-shrink-0 cursor-pointer"
-                        >
-                          Edit
-                        </button>
-                      )}
+                      <button
+                        onClick={() => {
+                          setEditingId(currentMem.id);
+                          setEditTitleText(currentMem.title || "");
+                          setEditDesc(currentMem.description || "");
+                          triggerHaptic("light");
+                        }}
+                        className="text-[10px] text-[var(--primary)] hover:underline font-bold flex-shrink-0 cursor-pointer"
+                      >
+                        Edit
+                      </button>
                     </div>
                   )}
 
@@ -1491,10 +1503,22 @@ function PhotoboothSection() {
           capturedRoundRef.current = room.round;
           const shot = captureFrame();
           if (shot) {
-            const field = currentUser === room.hostId ? "photosA" : "photosB";
-            updateDoc(doc(db, "photobooth_rooms", roomCode), {
-              [field]: arrayUnion(shot),
-            }).catch((e) => console.error("[capture upload]", e));
+            (async () => {
+              let uploadUrl = shot;
+              if (cloudinaryCloudName && cloudinaryUploadPreset) {
+                try {
+                  const res = await fetch(shot);
+                  const blob = await res.blob();
+                  uploadUrl = await uploadToCloudinary(blob, `photobooth_shot-${Date.now()}.jpg`, cloudinaryCloudName, cloudinaryUploadPreset);
+                } catch (err) {
+                  console.error("Failed to upload frame to Cloudinary, saving base64 fallback:", err);
+                }
+              }
+              const field = currentUser === room.hostId ? "photosA" : "photosB";
+              await updateDoc(doc(db, "photobooth_rooms", roomCode), {
+                [field]: arrayUnion(uploadUrl),
+              });
+            })().catch((e) => console.error("[capture upload]", e));
             triggerHaptic("heavy");
           }
         }
@@ -1634,10 +1658,15 @@ function PhotoboothSection() {
       }
 
       setSavedUrl(imageUrl);
+      const formattedDate = new Date().toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric"
+      });
       addMemory({
         type: "photobooth",
-        title: `${LAYOUTS[room.layout].label} Live Photobooth`,
-        description: `Captured live together in room ${room.code} 💌`,
+        title: `${formattedDate}, Live Photobooth`,
+        description: "Capturing every smile and sweet moment we share 📸💕",
         imageUrl,
         date: new Date().toISOString(),
         creatorId: currentUser,
@@ -1680,13 +1709,13 @@ function PhotoboothSection() {
 
             return (
               <div key={rowIdx} className="grid grid-cols-2 gap-2 aspect-[8/3]">
-                {/* User A Slot */}
+                {/* Host Slot (Left) */}
                 <div className="rounded-md overflow-hidden aspect-square bg-black/10 relative shadow-inner border border-black/5 flex items-center justify-center">
                   {photoA ? (
-                    <img src={photoA} alt={`Round \${rowIdx + 1} A`} className={`w-full h-full object-cover \${filterCss}`} referrerPolicy="no-referrer" />
-                  ) : isActiveRow && currentUser === "user_a" && cam.isActive ? (
+                    <img src={photoA} alt={`Round ${rowIdx + 1} Host`} className={`w-full h-full object-cover ${filterCss}`} referrerPolicy="no-referrer" />
+                  ) : isActiveRow && currentUser === room.hostId && cam.isActive ? (
                     <video ref={attachVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
-                  ) : isActiveRow && room.guestId ? (
+                  ) : isActiveRow && room.hostId ? (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-black/35 text-white text-center p-1">
                       <Sparkles className="w-4 h-4 animate-pulse mb-1 text-[var(--primary)]" />
                       <span className="text-[8px] font-semibold text-gray-200">Posing...</span>
@@ -1698,11 +1727,11 @@ function PhotoboothSection() {
                   )}
                 </div>
 
-                {/* User B Slot */}
+                {/* Guest Slot (Right) */}
                 <div className="rounded-md overflow-hidden aspect-square bg-black/10 relative shadow-inner border border-black/5 flex items-center justify-center">
                   {photoB ? (
-                    <img src={photoB} alt={`Round \${rowIdx + 1} B`} className={`w-full h-full object-cover \${filterCss}`} referrerPolicy="no-referrer" />
-                  ) : isActiveRow && currentUser === "user_b" && cam.isActive ? (
+                    <img src={photoB} alt={`Round ${rowIdx + 1} Guest`} className={`w-full h-full object-cover ${filterCss}`} referrerPolicy="no-referrer" />
+                  ) : isActiveRow && currentUser === room.guestId && cam.isActive ? (
                     <video ref={attachVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" style={{ transform: "scaleX(-1)" }} />
                   ) : isActiveRow && room.guestId ? (
                     <div className="w-full h-full flex flex-col items-center justify-center bg-black/35 text-white text-center p-1">

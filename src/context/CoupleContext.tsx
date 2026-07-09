@@ -650,6 +650,10 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const updateMemory = useCallback(async (id: string, updates: Partial<Memory>) => {
+    // Instantly update local state for snappy UI & offline support
+    setMemories((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, ...updates } : m))
+    );
     try {
       const dbUpdates: Record<string, any> = {};
       if (updates.title !== undefined) dbUpdates.title = updates.title;

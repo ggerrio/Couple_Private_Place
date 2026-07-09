@@ -56,6 +56,10 @@ import {
   ChevronDown,
   ListMusic,
   Search,
+  Volume2,
+  Volume1,
+  VolumeX,
+  Clock,
 } from "lucide-react";
 
 const quotes = [
@@ -390,6 +394,58 @@ export default function HomeView() {
     memories,
   } = useCouple();
 
+  // Clock tick state to update local times dynamically
+  const [timeTick, setTimeTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeTick((t) => t + 1);
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const normalizeTzName = (tz: string) => {
+    const clean = tz.replace(/[\(\)]/g, "").toUpperCase();
+    if (clean === "GMT+7" || clean === "GMT+07:00" || clean === "UTC+7" || clean === "UTC+07:00" || clean === "WIB") return "WIB";
+    if (clean === "GMT+8" || clean === "GMT+08:00" || clean === "UTC+8" || clean === "UTC+08:00" || clean === "WITA") return "WITA";
+    if (clean === "GMT+9" || clean === "GMT+09:00" || clean === "UTC+9" || clean === "UTC+09:00" || clean === "WIT") return "WIT";
+    return tz;
+  };
+
+  const getLocalTime = () => {
+    const d = new Date();
+    const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    const parts = d.toLocaleTimeString("en-US", { timeZoneName: "short" }).split(" ");
+    const tz = parts[parts.length - 1]; // e.g. "WIB", "GMT+7"
+    return `${timeStr} (${normalizeTzName(tz)})`;
+  };
+
+  const getPartnerTime = () => {
+    const offsetMinutes = (partnerProfile as any).timezoneOffset !== undefined 
+      ? (partnerProfile as any).timezoneOffset 
+      : (partnerWeather?.utcOffset ?? null);
+
+    if (offsetMinutes === null) {
+      const d = new Date();
+      const parts = d.toLocaleTimeString("en-US", { timeZoneName: "short" }).split(" ");
+      const tz = parts[parts.length - 1];
+      const timeStr = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+      return `${timeStr} (${normalizeTzName(tz)})`;
+    }
+    const now = new Date();
+    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+    const partnerDate = new Date(utc + (offsetMinutes * 60000));
+    const timeStr = partnerDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+    
+    const offsetHours = offsetMinutes / 60;
+    const sign = offsetHours >= 0 ? "+" : "";
+    let tzName = `GMT${sign}${offsetHours}`;
+    if (offsetHours === 7) tzName = "WIB";
+    else if (offsetHours === 8) tzName = "WITA";
+    else if (offsetHours === 9) tzName = "WIT";
+    
+    return `${timeStr} (${tzName})`;
+  };
+
   const nextMilestoneTitle = "Our Next Anniversary";
   const nextMilestoneDate = useMemo(() => {
     if (!anniversaryDate) return "";
@@ -700,6 +756,12 @@ export default function HomeView() {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
   const [extractedColor, setExtractedColor] = useState<string>("rgba(239, 68, 68, 0.08)");
+
+  const [localVolume, setLocalVolume] = useState(() => Number(localStorage.getItem("music_volume") || "100"));
+  const handleVolumeChange = (val: number) => {
+    setLocalVolume(val);
+    window.dispatchEvent(new CustomEvent("setMusicVolume", { detail: val }));
+  };
 
   useEffect(() => {
     if (!currentSong.artwork) {
@@ -1175,6 +1237,15 @@ export default function HomeView() {
     }
   }, [currentUser, activeProfile.mood]);
 
+  // Sync local timezone details to Firestore
+  useEffect(() => {
+    const tzOffset = -new Date().getTimezoneOffset(); // in minutes, e.g. +420
+    const tzName = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (activeProfile.timezoneOffset !== tzOffset || activeProfile.timezoneName !== tzName) {
+      updateProfile(currentUser, { timezoneOffset: tzOffset, timezoneName: tzName });
+    }
+  }, [currentUser, activeProfile.timezoneOffset, activeProfile.timezoneName, updateProfile]);
+
   // Geolocation query to automatically fetch local weather (reverse-geocoded to city name)
   useEffect(() => {
     if (typeof window !== "undefined" && navigator.geolocation) {
@@ -1244,6 +1315,7 @@ export default function HomeView() {
     icon: string;
     city: string;
     code: number;
+    utcOffset: number | null;
   }
 
   function mapWwoToWmo(wwoCode: string): number {
@@ -1265,12 +1337,30 @@ export default function HomeView() {
       const json = await res.json();
       const cur = json.current_condition?.[0];
       if (!cur) return null;
+
+      const tz = json.time_zone?.[0];
+      const offsetStr = tz?.utcOffset; // e.g. "+07:00"
+      let utcOffset: number | null = null;
+      if (offsetStr) {
+        const match = offsetStr.match(/^([+-]?)(\d{1,2}):?(\d{2})?$/);
+        if (match) {
+          const sign = match[1] === "-" ? -1 : 1;
+          const hours = parseInt(match[2], 10);
+          const minutes = match[3] ? parseInt(match[3], 10) : 0;
+          utcOffset = sign * (hours * 60 + minutes);
+        } else {
+          const val = parseFloat(offsetStr);
+          if (!isNaN(val)) utcOffset = val * 60;
+        }
+      }
+
       return {
         temp: parseInt(cur.temp_C),
         desc: cur.weatherDesc?.[0]?.value ?? "Unknown",
         icon: weatherIcon(cur.weatherCode),
         city,
-        code: mapWwoToWmo(cur.weatherCode)
+        code: mapWwoToWmo(cur.weatherCode),
+        utcOffset
       };
     } catch {
       return null;
@@ -1331,7 +1421,8 @@ export default function HomeView() {
     code: activeWeather.code,
     name: activeWeather.city,
     windspeed: 12,
-    isDay: true
+    isDay: true,
+    utcOffset: activeWeather.utcOffset
   } : null;
 
   const fetchWeatherByCoords = async (lat: number, lon: number, customName?: string) => {
@@ -2189,8 +2280,14 @@ export default function HomeView() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-center pr-1">
-                      <ArtisticWeatherIcon code={localWeather.code} isDay={localWeather.isDay} className="w-14 h-14" />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <div className="bg-white/40 border border-white/50 px-2.5 py-1 rounded-xl shadow-xs text-right backdrop-blur-xs flex items-center gap-1.5 font-mono text-[10px] font-bold text-[var(--text-main)]">
+                        <Clock className="w-3 h-3 text-[var(--primary)]" />
+                        <span>{getLocalTime()}</span>
+                      </div>
+                      <div className="flex items-center justify-center pr-1">
+                        <ArtisticWeatherIcon code={localWeather.code} isDay={localWeather.isDay} className="w-14 h-14" />
+                      </div>
                     </div>
                   </div>
                 ) : null}
@@ -2260,8 +2357,14 @@ export default function HomeView() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-center pr-1">
-                      <ArtisticWeatherIcon code={partnerWeather.code} isDay={true} className="w-14 h-14" />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <div className="bg-white/40 border border-white/50 px-2.5 py-1 rounded-xl shadow-xs text-right backdrop-blur-xs flex items-center gap-1.5 font-mono text-[10px] font-bold text-[var(--text-main)]">
+                        <Clock className="w-3 h-3 text-[var(--accent)]" />
+                        <span>{getPartnerTime()}</span>
+                      </div>
+                      <div className="flex items-center justify-center pr-1">
+                        <ArtisticWeatherIcon code={partnerWeather.code} isDay={true} className="w-14 h-14" />
+                      </div>
                     </div>
                   </div>
                 ) : (
@@ -2633,6 +2736,33 @@ export default function HomeView() {
                   <span>{Math.floor(currentSong.durationMs / 60000)}:{(Math.floor((currentSong.durationMs % 60000) / 1000)).toString().padStart(2, "0")}</span>
                 </div>
               </div>
+
+              {/* Volume control */}
+              <div className="flex items-center gap-3 px-4 py-2.5 mt-2 bg-gradient-to-r from-white/30 to-white/50 border border-white/60 hover:border-[var(--primary)]/30 rounded-xl shadow-xs transition-all duration-300 group">
+                <button
+                  type="button"
+                  onClick={() => handleVolumeChange(localVolume === 0 ? 100 : 0)}
+                  className="transition-transform duration-200 active:scale-90 hover:scale-105 cursor-pointer"
+                  title={localVolume === 0 ? "Unmute" : "Mute"}
+                >
+                  {localVolume === 0 ? (
+                    <VolumeX className="w-4 h-4 text-gray-400" />
+                  ) : localVolume < 50 ? (
+                    <Volume1 className="w-4 h-4 text-[var(--primary)]" />
+                  ) : (
+                    <Volume2 className="w-4 h-4 text-[var(--primary)]" />
+                  )}
+                </button>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={localVolume}
+                  onChange={(e) => handleVolumeChange(Number(e.target.value))}
+                  className="w-full h-1 bg-gray-200/80 rounded-lg appearance-none cursor-pointer accent-[var(--primary)] transition-all group-hover:bg-gray-300 focus:outline-none"
+                />
+                <span className="text-[10px] font-mono w-9 text-right font-black text-[var(--text-main)]">{localVolume}%</span>
+              </div>
             </div>
 
             {/* RIGHT COLUMN: Shared Playlist */}
@@ -2649,31 +2779,31 @@ export default function HomeView() {
                 </span>
               </div>
 
+              {/* Sorting Filter Controls */}
+              <div className="flex flex-wrap gap-1.5 mb-1.5 flex-shrink-0">
+                {([
+                  ["recent", "Recent"],
+                  ["oldest", "Oldest"],
+                  ["az", "A to Z"],
+                  ["za", "Z to A"]
+                ] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setSortMode(mode)}
+                    className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all border cursor-pointer ${sortMode === mode
+                      ? "bg-red-500 border-red-500 text-white shadow-sm"
+                      : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"
+                      }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
               {/* Dynamic Playlist Pane */}
               <div className="flex-1 min-h-[220px] max-h-[380px] overflow-y-auto pr-1">
                 <div className="space-y-2">
-                  {/* Sorting Filter Controls */}
-                  <div className="flex flex-wrap gap-1.5 mb-3">
-                    {([
-                      ["recent", "Recent"],
-                      ["oldest", "Oldest"],
-                      ["az", "A to Z"],
-                      ["za", "Z to A"]
-                    ] as const).map(([mode, label]) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setSortMode(mode)}
-                        className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all border ${sortMode === mode
-                          ? "bg-red-500 border-red-500 text-white shadow-sm"
-                          : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"
-                          }`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
                   {/* Playlist Tracks Mapping */}
                   <div className="space-y-1.5">
                     {sortedTracks.map((track) => {
