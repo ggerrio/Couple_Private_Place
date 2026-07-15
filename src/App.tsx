@@ -92,6 +92,15 @@ function setupGlobalErrorHandler() {
       event.preventDefault();
       return;
     }
+    // Also catch "message channel closed" errors from YouTube iframe postMessage
+    if (
+      event.reason instanceof Error &&
+      typeof event.reason.message === "string" &&
+      event.reason.message.includes("message channel closed")
+    ) {
+      event.preventDefault();
+      return;
+    }
     // Log other unhandled rejections for debugging (but don't suppress)
     console.warn("[App] Unhandled promise rejection:", event.reason?.name, event.reason?.message);
   };
@@ -105,6 +114,10 @@ function AppContent() {
 
   const { session, currentUser, userA, userB, darkMode, toggleDarkMode, activeSurprise, setActiveSurprise, isOnboarding, currentSong, setSongPlayState, anniversaryDate, birthdayA, birthdayB, fontTheme, colorTheme } = useCouple();
   const [activeTab, setActiveTab] = useState<TabId>("home");
+  const activeTabRef = useRef(activeTab);
+  // Sync the ref whenever activeTab state changes
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+
   const mainContainerRef = useRef<HTMLDivElement>(null);
 
   // ── Emotional experiences ────────────────────────────────────────────
@@ -153,15 +166,16 @@ function AppContent() {
     }
   }, [activeTab]);
 
-  // Navigate to a tab with direction tracking for spatial transitions
+  // Navigate to a tab using ref for current tab to avoid stale closures
   const handleTabClick = useCallback((tab: TabId) => {
-    const prevIdx = TAB_IDS.indexOf(activeTab);
+    const current = activeTabRef.current;
+    const prevIdx = TAB_IDS.indexOf(current);
     const nextIdx = TAB_IDS.indexOf(tab);
     if (nextIdx !== prevIdx) {
       setNavDirection(nextIdx > prevIdx ? 1 : -1);
     }
     setActiveTab(tab);
-  }, [activeTab]);
+  }, []);
 
   const handleToggleDarkMode = (e: React.MouseEvent) => {
     const x = e.clientX;
@@ -228,16 +242,25 @@ function AppContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentSong.videoId]);
 
+  // Helper: safely send postMessage to YouTube player, catch channel-closed errors
+  const safePostMessage = useCallback((msg: string) => {
+    try {
+      playerIframeRef.current?.contentWindow?.postMessage(msg, "*");
+    } catch {
+      // Ignore — YouTube iframe channel may close during navigation
+    }
+  }, []);
+
   // Send real play/pause commands to the already-loaded player
   useEffect(() => {
     const frame = playerIframeRef.current;
     if (!frame || !currentSong.videoId) return;
     const cmd = currentSong.isPlaying ? "playVideo" : "pauseVideo";
     const t = setTimeout(() => {
-      frame.contentWindow?.postMessage(JSON.stringify({ event: "command", func: cmd, args: [] }), "*");
+      safePostMessage(JSON.stringify({ event: "command", func: cmd, args: [] }));
     }, 250);
     return () => clearTimeout(t);
-  }, [currentSong.isPlaying, currentSong.videoId]);
+  }, [currentSong.isPlaying, currentSong.videoId, safePostMessage]);
 
   // Sync and pause global audio when partner plays a video in the co-watching theater
   // Uses dynamic import so Firestore SDK is only loaded after login
@@ -276,14 +299,11 @@ function AppContent() {
     const handler = (e: Event) => {
       const vol = (e as CustomEvent<number>).detail;
       localStorage.setItem("music_volume", String(vol));
-      const frame = playerIframeRef.current;
-      if (frame) {
-        frame.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "setVolume", args: [vol] }), "*");
-      }
+      safePostMessage(JSON.stringify({ event: "command", func: "setVolume", args: [vol] }));
     };
     window.addEventListener("setMusicVolume", handler);
     return () => window.removeEventListener("setMusicVolume", handler);
-  }, []);
+  }, [safePostMessage]);
 
   // Sync volume whenever the player/song loads
   useEffect(() => {
@@ -291,17 +311,18 @@ function AppContent() {
     if (!frame || !currentSong.videoId) return;
     const vol = Number(localStorage.getItem("music_volume") || "80");
     const t = setTimeout(() => {
-      frame.contentWindow?.postMessage(JSON.stringify({ event: "command", func: "setVolume", args: [vol] }), "*");
+      safePostMessage(JSON.stringify({ event: "command", func: "setVolume", args: [vol] }));
     }, 1200); // 1.2s delay to make sure player API is initialized
     return () => clearTimeout(t);
-  }, [currentSong.isPlaying, currentSong.videoId]);
+  }, [currentSong.isPlaying, currentSong.videoId, safePostMessage]);
 
   // Listen for cross-component tab-change events (e.g. from HomeView shortcuts)
   useEffect(() => {
     const handler = (e: Event) => {
       const tab = (e as CustomEvent<TabId>).detail;
       if (tab) {
-        const prevIdx = TAB_IDS.indexOf(activeTab);
+        const current = activeTabRef.current;
+        const prevIdx = TAB_IDS.indexOf(current);
         const nextIdx = TAB_IDS.indexOf(tab);
         if (nextIdx !== prevIdx) {
           setNavDirection(nextIdx > prevIdx ? 1 : -1);
@@ -469,7 +490,7 @@ function AppContent() {
               <p className="text-xs text-[var(--text-muted)] font-handwrite animate-pulse-slow">Unfolding a new page...</p>
             </div>
           }>
-            <AnimatePresence mode="popLayout">
+            <AnimatePresence>
               <motion.div
                 key={activeTab}
                 variants={{
