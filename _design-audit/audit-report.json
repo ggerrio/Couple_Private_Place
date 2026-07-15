@@ -1,0 +1,120 @@
+{
+  "pages": [
+    {
+      "viewport": "desktop",
+      "route": "/",
+      "title": "Ger & Nic",
+      "url": "http://localhost:3000/",
+      "pathname": "/",
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Sanctuary Login"
+        }
+      ],
+      "links": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "text": "Sign in with Google",
+          "href": null,
+          "aria": null,
+          "class": "w-full py-3.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold uppercase trac",
+          "visible": true
+        }
+      ],
+      "sections": [],
+      "images": [],
+      "bodyBg": "rgb(250, 246, 240)",
+      "bodyColor": "rgb(44, 26, 29)",
+      "bodyFont": "\"Plus Jakarta Sans\", ui-sans-serif, system-ui, sans-serif",
+      "fonts": [
+        "Cormorant Garamond",
+        "JetBrains Mono",
+        "Plus Jakarta Sans"
+      ],
+      "colors": [
+        "rgb(44, 26, 29)",
+        "rgb(250, 246, 240)",
+        "oklch(0.373 0.034 259.733)",
+        "rgb(255, 255, 255)"
+      ],
+      "visibleText": "Sanctuary LoginAccess our private couple spaceSign in with GooglePowered by Firebase Authentication",
+      "hasNav": false,
+      "hasAside": false,
+      "scrollHeight": 900
+    },
+    {
+      "viewport": "mobile",
+      "route": "/",
+      "title": "Ger & Nic",
+      "url": "http://localhost:3000/",
+      "pathname": "/",
+      "headings": [
+        {
+          "level": "H2",
+          "text": "Sanctuary Login"
+        }
+      ],
+      "links": [
+        {
+          "tag": "BUTTON",
+          "role": null,
+          "text": "Sign in with Google",
+          "href": null,
+          "aria": null,
+          "class": "w-full py-3.5 bg-white hover:bg-gray-50 text-gray-700 border border-gray-200 rounded-xl text-xs font-bold uppercase trac",
+          "visible": true
+        }
+      ],
+      "sections": [],
+      "images": [],
+      "bodyBg": "rgb(250, 246, 240)",
+      "bodyColor": "rgb(44, 26, 29)",
+      "bodyFont": "\"Plus Jakarta Sans\", ui-sans-serif, system-ui, sans-serif",
+      "fonts": [
+        "Cormorant Garamond",
+        "JetBrains Mono",
+        "Plus Jakarta Sans"
+      ],
+      "colors": [
+        "rgb(44, 26, 29)",
+        "rgb(250, 246, 240)",
+        "oklch(0.373 0.034 259.733)",
+        "rgb(255, 255, 255)"
+      ],
+      "visibleText": "Sanctuary LoginAccess our private couple spaceSign in with GooglePowered by Firebase Authentication",
+      "hasNav": false,
+      "hasAside": false,
+      "scrollHeight": 844
+    }
+  ],
+  "interactions": [],
+  "errors": [],
+  "nav": [],
+  "views": [],
+  "scrollExploration": [
+    {
+      "scrollY": 0,
+      "visible": [
+        "Sanctuary Login"
+      ]
+    },
+    {
+      "scrollY": 600,
+      "visible": [
+        "Sanctuary Login"
+      ]
+    }
+  ],
+  "forms": [],
+  "allClickables": [
+    {
+      "tag": "BUTTON",
+      "text": "Sign in with Google",
+      "href": null,
+      "aria": null,
+      "role": null
+    }
+  ]
+}

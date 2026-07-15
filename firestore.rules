@@ -1,0 +1,35 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ────────── Helper functions ────────────────────────────────────────
+    // Reads the admin email from the admin_config document in Firestore
+    function getAdminEmail() {
+      return get(/databases/$(database)/documents/settings/admin_config).data.admin_email;
+    }
+
+    // Returns true if the requester's email matches the stored admin email
+    function isAdmin() {
+      return request.auth != null && request.auth.token.email == getAdminEmail();
+    }
+
+    // ────────── Admin config — can only be modified by the admin ────────
+    match /settings/admin_config {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // ────────── Profiles — users can update their own, admin can do all ─
+    match /profiles/{profileId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      // Allow update if: user is admin, OR the user owns this profile slot
+      allow update: if isAdmin() || request.auth.uid == resource.data.auth_id;
+      allow delete: if isAdmin();
+    }
+
+    // ────────── Everything else — any authenticated user can access ─────
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

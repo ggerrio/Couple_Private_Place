@@ -1,0 +1,2133 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Our Little Universe — Design System v2
+   ========================================================================
+   A warm, accessible, dreamy design system for Gerrio & Nicole's
+   private digital sanctuary. Built with love, for love.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Fonts ─────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Reenie+Beanie&family=Courier+Prime:wght@400;700&family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─── Tailwind Theme Overrides ──────────────────────────────────────────── */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", serif;
+  --font-mono: "Courier Prime", ui-monospace, monospace;
+  --font-display: "Playfair Display", serif;
+  --font-handwrite: "Caveat", cursive;
+  --font-handwrite-curly: "Reenie Beanie", cursive;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   1. DESIGN TOKENS — Color, Spacing, Shadow
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  color-scheme: light;
+  /* ─── Base Palette ──────────────────────────────────────────────────── */
+  --color-primary:         #C06C54;  /* Vintage Terracotta */
+  --color-on-primary:      #FFFFFF;  /* White */
+  --color-secondary:       #8D7B68;  /* Muted Wood Cocoa */
+  --color-accent:          #C06C54;  /* Vintage Terracotta */
+  --color-background:      #F7F1E5;  /* Warm Antique Cream */
+  --color-foreground:      #3E342B;  /* Soft Dark Roast Espresso */
+  --color-muted:           #EADFCF;  /* Parchment Kraft Paper */
+  --color-border:          #DFD2C0;  /* Subtle Craft Border */
+  --color-ring:            #C06C54;
+  --color-destructive:     #B23B3B;
+
+  /* ─── Text Colors (WCAG AA compliant) ───────────────────────────────── */
+  --text-primary:          #3E342B;  /* Soft Dark Roast Espresso */
+  --text-main:             #3E342B;  /* Alias for backward compatibility */
+  --text-secondary:        #78685C;  /* Warm Taupe */
+  --text-muted:            #A08F83;  /* Berry-Tinted Grey */
+  --text-inverse:          #FFFFFF;  /* Pure White */
+
+  /* ─── Background Tokens ─────────────────────────────────────────────── */
+  --bg-app:                #F7F1E5;
+  --bg-gradient:           linear-gradient(180deg, #F7F1E5 0%, #EFE5D3 100%);
+  --card-bg:               rgba(255, 255, 255, 0.98);
+  --card-bg-solid:         #FFFFFF;
+  --border-color:          #DFD2C0;
+
+  /* ─── Primary RGB (for rgba usage) ──────────────────────────────────── */
+  --primary:               #C06C54;
+  --primary-rgb:           192, 108, 84;
+
+  /* ─── Treehouse: Modern Refined Pastel Tones ────────────────────── */
+  --wood-walnut:           #4A3B32;
+  --wood-oak:              #8D7B68;
+  --wood-pine:             #DFD2C0;
+  --wood-dark:             #3E342B;
+  --fabric-linen:          #EADFCF;
+  --fabric-cream:          #F7F1E5;
+  --fabric-natural:        #DFD2C0;
+  --foliage-forest:        #7D8B75;
+  --foliage-spring:        #7D8B75;
+  --foliage-light:         #A3B09B;
+  --light-warm:            #FFF2D4;
+  --light-sun:             #EBB242;
+  --metal-brass:           #A8895F;
+  --metal-copper:          #C06C54;
+
+  /* ─── Derived Treehouse Tokens ──────────────────────────────────────── */
+  --tree-bg:               var(--fabric-cream);
+  --tree-wood:             var(--wood-oak);
+  --tree-wood-dark:        var(--wood-walnut);
+  --tree-floor:            var(--fabric-linen);
+  --tree-accent:           var(--wood-pine);
+
+  /* ─── Spacing Scale ─────────────────────────────────────────────────── */
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  16px;
+  --space-lg:  24px;
+  --space-xl:  32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+  --space-4xl: 96px;
+  --space-section: clamp(2.5rem, 5vw, 4rem);
+
+  /* ─── 5-Color Accent Palette ─────────────────────────────────────────── */
+  --color-accent-rose:     #C06C54;  /* Vintage Terracotta */
+  --color-accent-gold:     #EBB242;  /* Warm Ochre Mustard */
+  --color-accent-moss:     #7D8B75;  /* Sage Olive Green */
+  --color-accent-lavender: #9C8C96;  /* Warm Dusty Mauve */
+  --color-accent-coral:    #D69485;  /* Vintage Coral Clay */
+
+  /* ─── Typography Scale ──────────────────────────────────────────────── */
+  --text-xs:   12px;
+  --text-sm:   14px;
+  --text-base: 16px;
+  --text-lg:   18px;
+  --text-xl:   20px;
+  --text-2xl:  24px;
+  --text-3xl:  30px;
+  --text-4xl:  36px;
+  --text-5xl:  48px;
+  --text-6xl:  60px;
+
+  /* ─── Warm, Soft Shadows ────────────────────────────────────────────── */
+  --shadow-sm:   0 1px 3px rgba(43, 35, 36, 0.04);
+  --shadow-md:   0 4px 12px rgba(43, 35, 36, 0.06), 0 1px 3px rgba(43, 35, 36, 0.04);
+  --shadow-lg:   0 10px 25px rgba(43, 35, 36, 0.08), 0 4px 6px rgba(43, 35, 36, 0.04);
+  --shadow-xl:   0 20px 40px rgba(43, 35, 36, 0.1), 0 8px 10px rgba(43, 35, 36, 0.05);
+  --shadow-card: 0 2px 8px rgba(43, 35, 36, 0.04), 0 1px 2px rgba(43, 35, 36, 0.03);
+
+  /* ─── Border Radius ─────────────────────────────────────────────────── */
+  --radius-sm:  8px;
+  --radius-md:  12px;
+  --radius-lg:  16px;
+  --radius-xl:  20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
+  --radius-full: 9999px;
+  --radius: 0.625rem;
+  
+  /* ─── Shadcn/ui Semantic Tokens (mapped to treehouse colors) ────────── */
+  --background:  #FBF8F6;
+  --foreground:  #2B2324;
+  --card:        #FFFFFF;
+  --card-foreground: #2B2324;
+  --popover:     #FFFFFF;
+  --popover-foreground: #2B2324;
+  --primary-foreground: #FFFFFF;
+  --secondary:   #F3ECE9;
+  --secondary-foreground: #2B2324;
+  --muted:       #F3ECE9;
+  --muted-foreground: #615354;
+  --accent:      #F3ECE9;
+  --accent-foreground: #2B2324;
+  --destructive: #B84A54;
+  --border:      #E8DFDB;
+  --input:       #E8DFDB;
+  --ring:        #D37B85;
+  --chart-1:     #D37B85;
+  --chart-2:     #A38374;
+  --chart-3:     #8FA89B;
+  --chart-4:     #EBB852;
+  --chart-5:     #E29596;
+  --sidebar:     #FFFFFF;
+  --sidebar-foreground: #2B2324;
+  --sidebar-primary: #D37B85;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F3ECE9;
+  --sidebar-accent-foreground: #2B2324;
+  --sidebar-border: #E8DFDB;
+  --sidebar-ring: #D37B85;
+}
+
+/* ─── Theme Preset 1: Cozy Wood & Oak (Default) ─── */
+.color-theme-cozy-wood {
+  /* Inherits from :root */
+}
+
+/* ─── Theme Preset 2: Cosmic Charcoal & Lavender (Luminous Celestial) ─── */
+.color-theme-cosmic-charcoal {
+  --color-primary:         #7B61FF;  /* Luminous Indigo Star */
+  --color-on-primary:      #FFFFFF;
+  --color-secondary:       #5B5676;  /* Muted Evening Slate */
+  --color-accent:          #EAA8FF;  /* Nebula Lavender Pink */
+  --color-background:      #FAF9FF;  /* Soft Dreamy Alabaster Violet */
+  --color-foreground:      #1B162C;  /* Deep Midnight Charcoal */
+  --color-muted:           #E6E1F5;  /* Soft Lavender Dusk Paper */
+  --color-border:          #D3CCE8;  /* Cosmic Violet Border */
+  --color-ring:            #7B61FF;
+
+  --text-primary:          #1B162C;
+  --text-main:             #1B162C;
+  --text-secondary:        #50486D;
+  --text-muted:            #8479A3;
+  --text-inverse:          #FFFFFF;
+
+  --bg-app:                #FAF9FF;
+  --bg-gradient:           linear-gradient(180deg, #FAF9FF 0%, #EEECF8 100%);
+  --card-bg:               rgba(255, 255, 255, 0.98);
+  --card-bg-solid:         #FFFFFF;
+  --border-color:          #D3CCE8;
+
+  --primary:               #7B61FF;
+  --primary-rgb:           123, 97, 255;
+}
+
+.dark .color-theme-cosmic-charcoal {
+  --color-primary:         #A898FF;  /* Glowing Nebula Purple */
+  --color-on-primary:      #0B0813;  /* Cosmic Void Noir */
+  --color-secondary:       #8C86A8;  /* Muted Dusty Asteroid */
+  --color-accent:          #F8B6FF;  /* Soft Supernova Pink */
+  --color-background:      #0D0B14;  /* Midnight Deep Void */
+  --color-foreground:      #ECE9F5;  /* Stardust Light Gray */
+  --color-muted:           #1C182A;  /* Chalky Nebula Dust */
+  --color-border:          rgba(255, 255, 255, 0.08);
+  --color-ring:            #A898FF;
+
+  --text-primary:          #ECE9F5;
+  --text-main:             #ECE9F5;
+  --text-secondary:        #BAB5CD;
+  --text-muted:            #827B9B;
+  --text-inverse:          #0B0813;
+
+  --bg-app:                #0D0B14;
+  --bg-gradient:           linear-gradient(180deg, #0D0B14 0%, #151124 100%);
+  --card-bg:               rgba(23, 20, 34, 0.98);
+  --card-bg-solid:         #171422;
+  --border-color:          rgba(255, 255, 255, 0.08);
+
+  --primary:               #A898FF;
+  --primary-rgb:           168, 152, 255;
+}
+
+/* ─── Theme Preset 3: Emerald & Sage Garden (Cozy Botanical Sanctuary) ─── */
+.color-theme-emerald-sage {
+  --color-primary:         #4A6B53;  /* Calming Sage Green / Emerald Forest */
+  --color-on-primary:      #FFFFFF;
+  --color-secondary:       #6B7F72;  /* Muted Laurel Moss */
+  --color-accent:          #4A6B53;
+  --color-background:      #F2F5F3;  /* Soft Pale Mint/Alabaster */
+  --color-foreground:      #1C2E24;  /* Deep Forest Ivy */
+  --color-muted:           #D8E2DC;  /* Soft Sage Mist Paper */
+  --color-border:          #C4D1C9;  /* Botanical Sage Border */
+  --color-ring:            #4A6B53;
+
+  --text-primary:          #1C2E24;
+  --text-main:             #1C2E24;
+  --text-secondary:        #495E53;  /* Soft Laurel Charcoal */
+  --text-muted:            #738A7E;
+  --text-inverse:          #FFFFFF;
+
+  --bg-app:                #F2F5F3;
+  --bg-gradient:           linear-gradient(180deg, #F2F5F3 0%, #E3EBE6 100%);
+  --card-bg:               rgba(255, 255, 255, 0.98);
+  --card-bg-solid:         #FFFFFF;
+  --border-color:          #C4D1C9;
+
+  --primary:               #4A6B53;
+  --primary-rgb:           74, 107, 83;
+
+  --foliage-forest:        #4A6B53;
+  --foliage-spring:        #5E7F68;
+  --foliage-light:         #9DBAA4;
+  --wood-walnut:           #2D3A32;
+  --wood-oak:              #4A5F52;
+  --wood-pine:             #C4D1C9;
+  --wood-dark:             #1C2E24;
+  --fabric-linen:          #D8E2DC;
+  --fabric-cream:          #F2F5F3;
+  --fabric-natural:        #C4D1C9;
+}
+
+.dark .color-theme-emerald-sage {
+  --color-primary:         #8FBFA0;  /* Luminous Sage Green */
+  --color-on-primary:      #0D1712;  /* Deep Obsidian Spruce */
+  --color-secondary:       #6C8575;  /* Muted Juniper */
+  --color-accent:          #8FBFA0;
+  --color-background:      #0E1713;  /* Deep Pine Night */
+  --color-foreground:      #E8EFEA;  /* Pale Mint Ash */
+  --color-muted:           #1B2A22;  /* Chalky Obsidian Mint */
+  --color-border:          rgba(255, 255, 255, 0.08);
+  --color-ring:            #8FBFA0;
+
+  --text-primary:          #E8EFEA;
+  --text-main:             #E8EFEA;
+  --text-secondary:        #B2C5BA;
+  --text-muted:            #7E9387;
+  --text-inverse:          #0D1712;
+
+  --bg-app:                #0E1713;
+  --bg-gradient:           linear-gradient(180deg, #0E1713 0%, #15241C 100%);
+  --card-bg:               rgba(20, 31, 25, 0.98);
+  --card-bg-solid:         #141F19;
+  --border-color:          rgba(255, 255, 255, 0.08);
+
+  --primary:               #8FBFA0;
+  --primary-rgb:           143, 191, 160;
+
+  --foliage-forest:        #8FBFA0;
+  --foliage-spring:        #6C8575;
+  --foliage-light:         #4A6B53;
+  --wood-walnut:           #0D1712;
+  --wood-oak:              #1B2A22;
+  --wood-pine:             #253B2F;
+  --wood-dark:             #0D1712;
+  --fabric-linen:          #1B2A22;
+  --fabric-cream:          #0E1713;
+  --fabric-natural:        #253B2F;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   2. THEME VARIATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Default (Light) Theme is root ────────────────────────────────────── */
+
+
+
+
+
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   3. GLOBAL STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Custom Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.1); border-radius: 999px; }
+.dark ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); }
+
+/* Custom Scrollbar for Scrapbook Popup Content */
+.scrapbook-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(232, 180, 184, 0.5) rgba(45, 42, 38, 0.03);
+}
+.dark .scrapbook-scrollbar {
+  scrollbar-color: rgba(244, 63, 94, 0.4) rgba(255, 255, 255, 0.02);
+}
+.scrapbook-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scrapbook-scrollbar::-webkit-scrollbar-track {
+  background: rgba(45, 42, 38, 0.03);
+  border-radius: 999px;
+}
+.scrapbook-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(232, 180, 184, 0.5);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+.scrapbook-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 180, 184, 0.8);
+}
+.dark .scrapbook-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+}
+.dark .scrapbook-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(244, 63, 94, 0.4);
+}
+.dark .scrapbook-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 63, 94, 0.6);
+}
+
+/* ─── Base Body ─────────────────────────────────────────────────────────── */
+body {
+  font-family: var(--font-sans) !important;
+  font-size: var(--text-base);
+  line-height: 1.6;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Typography: Headings ──────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: var(--font-display) !important;
+  font-weight: 700;
+}
+
+.font-handwrite {
+  font-family: var(--font-handwrite) !important;
+}
+
+/* ─── Accessibility: Force Minimum Font Size ────────────────────────────── */
+/* Any text-* class below 12px gets bumped up */
+[class*="text-["] {
+  font-size: max(12px, 1em) !important;
+}
+
+/* Target known small Tailwind classes */
+.text-xs       { font-size: var(--text-xs) !important; }   /* 12px */
+.text-sm       { font-size: var(--text-sm) !important; }   /* 14px */
+.text-base     { font-size: var(--text-base) !important; } /* 16px */
+
+/* Override tiny arbitrary sizes */
+[class*="text-["][class*="7px"],
+[class*="text-["][class*="8px"],
+[class*="text-["][class*="9px"],
+[class*="text-["][class*="10px"],
+[class*="text-["][class*="11px"] {
+  font-size: 12px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   4. COMPONENT STYLES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Legacy tree-card — kept for SkeletonCard compatibility */
+.tree-card {
+  background-color: var(--card-bg-solid);
+  border: 3px solid var(--text-main);
+  border-radius: 24px;
+  padding: var(--space-lg);
+  box-shadow: 6px 6px 0 0 var(--text-main);
+}
+
+/* ─── 5-Color Accent Utility Classes ────────────────────────────────── */
+.accent-rose     { color: var(--color-accent-rose); }
+.accent-gold     { color: var(--color-accent-gold); }
+.accent-moss     { color: var(--color-accent-moss); }
+.accent-lavender { color: var(--color-accent-lavender); }
+.accent-coral    { color: var(--color-accent-coral); }
+
+.accent-rose:hover     { color: var(--color-accent-rose); filter: brightness(1.15); }
+.accent-gold:hover     { color: var(--color-accent-gold); filter: brightness(1.15); }
+.accent-moss:hover     { color: var(--color-accent-moss); filter: brightness(1.15); }
+.accent-lavender:hover { color: var(--color-accent-lavender); filter: brightness(1.15); }
+.accent-coral:hover    { color: var(--color-accent-coral); filter: brightness(1.15); }
+
+.bg-accent-rose     { background-color: color-mix(in srgb, var(--color-accent-rose) 12%, transparent); }
+.bg-accent-gold     { background-color: color-mix(in srgb, var(--color-accent-gold) 12%, transparent); }
+.bg-accent-moss     { background-color: color-mix(in srgb, var(--color-accent-moss) 12%, transparent); }
+.bg-accent-lavender { background-color: color-mix(in srgb, var(--color-accent-lavender) 12%, transparent); }
+.bg-accent-coral    { background-color: color-mix(in srgb, var(--color-accent-coral) 12%, transparent); }
+
+/* Accent badge/icons hover glow animation */
+.accent-glow {
+  transition: all 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.accent-glow:hover {
+  transform: scale(1.08);
+  filter: drop-shadow(0 0 8px rgba(var(--primary-rgb), 0.25));
+}
+
+/* ─── Button System — delegated to StickerButton and shadcn/ui Button ── */
+/* Legacy btn-primary/btn-secondary/input-spec removed — use StickerButton or Button */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   5. NARRATIVE & ATMOSPHERIC COMPONENTS (Existing Styles Preserved)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Chapter Signs — Carved Wood Labels ───────────────────────────────── */
+.scene-chapter {
+  font-family: var(--font-mono, 'JetBrains Mono', monospace);
+  font-size: var(--text-xs);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--wood-walnut, #5C3A1E);
+  background: linear-gradient(135deg, 
+    color-mix(in srgb, var(--wood-oak) 20%, var(--fabric-cream) 90%),
+    color-mix(in srgb, var(--wood-pine) 10%, var(--fabric-cream) 95%)
+  );
+  display: inline-block;
+  padding: 0.35rem 1.2rem 0.35rem 1.2rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--wood-oak) 25%, transparent);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    0 2px 4px rgba(92, 58, 30, 0.08);
+  position: relative;
+  margin-bottom: 1rem;
+}
+
+/* Brass nail details */
+.scene-chapter::before {
+  content: '•';
+  position: absolute;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--metal-brass, #B87333);
+  font-size: 6px;
+  opacity: 0.6;
+}
+
+.scene-chapter::after {
+  content: '•';
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--metal-brass, #B87333);
+  font-size: 6px;
+  opacity: 0.6;
+}
+
+.dark .scene-chapter {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--wood-walnut) 30%, var(--card-bg) 80%),
+    color-mix(in srgb, var(--wood-oak) 10%, var(--card-bg) 90%)
+  );
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--wood-walnut) 20%, transparent);
+}
+
+/* ─── Scene Sections ────────────────────────────────────────────────────── */
+.scene-section {
+  position: relative;
+  padding: 2rem 0.75rem;
+  background: color-mix(in srgb, var(--fabric-cream) 30%, transparent);
+  border-radius: var(--radius-xl);
+  transition: background 0.3s ease;
+}
+
+.dark .scene-section {
+  background: color-mix(in srgb, var(--card-bg) 50%, transparent);
+}
+
+.scene-ambient {
+  position: relative;
+}
+
+.scene-ambient::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 30% 50%, color-mix(in srgb, var(--primary) 6%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+/* ─── Wood-Plank Dividers ───────────────────────────────────────────────── */
+.scene-section:not(:last-child)::after {
+  content: '';
+  display: block;
+  width: 80px;
+  height: 4px;
+  margin: 2.5rem auto;
+  background: linear-gradient(90deg, 
+    transparent, 
+    color-mix(in srgb, var(--wood-oak) 30%, transparent) 20%,
+    color-mix(in srgb, var(--wood-oak) 40%, transparent) 50%,
+    color-mix(in srgb, var(--wood-oak) 30%, transparent) 80%,
+    transparent
+  );
+  border-radius: 2px;
+  position: relative;
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 8px,
+      color-mix(in srgb, var(--wood-walnut) 6%, transparent) 8px,
+      color-mix(in srgb, var(--wood-walnut) 6%, transparent) 9px,
+      transparent 9px,
+      transparent 16px
+    ),
+    linear-gradient(90deg, 
+      transparent, 
+      color-mix(in srgb, var(--wood-oak) 30%, transparent) 20%,
+      color-mix(in srgb, var(--wood-oak) 40%, transparent) 50%,
+      color-mix(in srgb, var(--wood-oak) 30%, transparent) 80%,
+      transparent
+    );
+}
+
+.dark .scene-section:not(:last-child)::after {
+  background-image: 
+    repeating-linear-gradient(
+      90deg,
+      transparent 0px,
+      transparent 8px,
+      color-mix(in srgb, var(--wood-walnut) 10%, transparent) 8px,
+      color-mix(in srgb, var(--wood-walnut) 10%, transparent) 9px,
+      transparent 9px,
+      transparent 16px
+    ),
+    linear-gradient(90deg, 
+      transparent, 
+      color-mix(in srgb, var(--wood-oak) 15%, transparent) 20%,
+      color-mix(in srgb, var(--wood-oak) 20%, transparent) 50%,
+      color-mix(in srgb, var(--wood-oak) 15%, transparent) 80%,
+      transparent
+    );
+}
+
+/* ─── Arrival Typography ────────────────────────────────────────────────── */
+.arrival-title {
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.arrival-sub {
+  font-family: var(--font-handwrite);
+  font-size: clamp(1rem, 2.5vw, 1.4rem);
+  opacity: 0.75;
+  color: var(--text-secondary);
+}
+
+/* ─── Companion Nest ────────────────────────────────────────────────────── */
+.companion-nest {
+  border: 1px solid color-mix(in srgb, var(--wood-oak) 15%, transparent);
+  border-radius: var(--radius-3xl);
+  padding: 1.5rem;
+  position: relative;
+}
+
+.companion-nest::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 20%;
+  right: 20%;
+  height: 3px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--wood-oak) 0px,
+    var(--wood-oak) 6px,
+    transparent 6px,
+    transparent 10px
+  );
+  opacity: 0.15;
+  border-radius: 2px;
+}
+
+.dark .companion-nest {
+  border-color: color-mix(in srgb, var(--wood-oak) 10%, transparent);
+}
+
+/* ─── Fairy Lights ──────────────────────────────────────────────────────── */
+.treehouse-fairy-lights {
+  position: relative;
+  height: 24px;
+  margin-bottom: 1rem;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.treehouse-fairy-lights::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, 
+    transparent 0%, 
+    color-mix(in srgb, var(--wood-oak) 20%, transparent) 10%,
+    color-mix(in srgb, var(--wood-oak) 20%, transparent) 90%,
+    transparent 100%
+  );
+}
+
+.treehouse-fairy-lights .fairy-bulb {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  top: 6px;
+}
+
+.treehouse-fairy-lights .fairy-bulb:nth-child(1) { left: 5%;  }
+.treehouse-fairy-lights .fairy-bulb:nth-child(2) { left: 18%; }
+.treehouse-fairy-lights .fairy-bulb:nth-child(3) { left: 32%; }
+.treehouse-fairy-lights .fairy-bulb:nth-child(4) { left: 48%; }
+.treehouse-fairy-lights .fairy-bulb:nth-child(5) { left: 62%; }
+.treehouse-fairy-lights .fairy-bulb:nth-child(6) { left: 75%; }
+.treehouse-fairy-lights .fairy-bulb:nth-child(7) { left: 88%; }
+
+.fairy-bulb {
+  background: var(--light-warm, #FEF3C7);
+  box-shadow: 0 0 6px 2px color-mix(in srgb, var(--light-warm) 60%, transparent),
+              0 0 12px 4px color-mix(in srgb, var(--light-sun) 30%, transparent);
+  animation: fairy-twinkle 3s ease-in-out infinite;
+}
+
+.fairy-bulb:nth-child(odd) { animation-delay: 0.5s; }
+.fairy-bulb:nth-child(3n) { animation-delay: 1.2s; }
+.fairy-bulb:nth-child(4n+1) { animation-delay: 0.2s; }
+
+@keyframes fairy-twinkle {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  25% { opacity: 1; transform: scale(1.15); }
+  50% { opacity: 0.5; transform: scale(0.9); }
+  75% { opacity: 0.9; transform: scale(1.05); }
+}
+
+.fairy-bulb::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 4px;
+  background: linear-gradient(to bottom, var(--light-warm), transparent);
+  opacity: 0.4;
+  border-radius: 0 0 2px 2px;
+}
+
+.dark .fairy-bulb {
+  background: var(--light-sun);
+  box-shadow: 0 0 8px 3px color-mix(in srgb, var(--light-sun) 50%, transparent),
+              0 0 16px 6px color-mix(in srgb, var(--light-sun) 20%, transparent);
+}
+
+/* ─── Lantern Glow ──────────────────────────────────────────────────────── */
+.treehouse-lantern {
+  position: absolute;
+  width: 32px;
+  height: 48px;
+  pointer-events: none;
+  opacity: 0.15;
+}
+
+.treehouse-lantern::before {
+  content: '🏮';
+  font-size: 20px;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  filter: saturate(0.5) brightness(0.8);
+}
+
+.treehouse-lantern::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 20px;
+  height: 20px;
+  background: radial-gradient(circle, var(--light-warm), transparent 70%);
+  border-radius: 50%;
+  animation: lantern-flicker 3s ease-in-out infinite;
+}
+
+@keyframes lantern-flicker {
+  0%, 100% { opacity: 0.6; transform: translateX(-50%) scale(1); }
+  30% { opacity: 0.8; transform: translateX(-50%) scale(1.08); }
+  60% { opacity: 0.5; transform: translateX(-50%) scale(0.95); }
+}
+
+.treehouse-lantern--left { left: 0; top: 20%; }
+.treehouse-lantern--right { right: 0; top: 40%; }
+
+/* ─── Canopy / Dappled Light ────────────────────────────────────────────── */
+.treehouse-canopy { position: relative; }
+
+.treehouse-canopy::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    circle at 20% 10%, 
+    color-mix(in srgb, var(--foliage-light) 4%, transparent) 0px,
+    transparent 60px
+  ),
+  radial-gradient(
+    circle at 80% 15%,
+    color-mix(in srgb, var(--foliage-spring) 3%, transparent) 0px,
+    transparent 50px
+  );
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   6. DOCK NAVIGATION
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dock-runner {
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 4px 30px rgba(0, 0, 0, 0.03),
+    0 1px 3px rgba(0, 0, 0, 0.02),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  position: relative;
+}
+
+.dark .dock-runner {
+  background: rgba(15, 12, 10, 0.55);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 4px 30px rgba(0, 0, 0, 0.2),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   7. VINTAGE RADIO CABINET (Music Player)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.radio-cabinet {
+  position: relative;
+  background: linear-gradient(145deg, #3E2723 0%, #5C3A1E 30%, #4A2F1A 60%, #3E2723 100%);
+  border: 2px solid #2C1A0E;
+  border-radius: var(--radius-2xl);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.3),
+    0 8px 32px rgba(62, 39, 35, 0.3);
+  overflow: hidden;
+}
+
+.radio-cabinet::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    rgba(255, 255, 255, 0.015) 1px,
+    transparent 2px,
+    rgba(0, 0, 0, 0.02) 3px,
+    transparent 4px
+  );
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.radio-speaker-grille {
+  position: relative;
+  background: radial-gradient(ellipse at center, #2C1A0E 0%, #1A0E08 100%);
+  border: 1px solid rgba(196, 149, 106, 0.3);
+  overflow: hidden;
+}
+
+.radio-speaker-grille::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    repeating-linear-gradient(0deg, transparent 0px, transparent 3px, rgba(196, 149, 106, 0.06) 3px, rgba(196, 149, 106, 0.06) 4px),
+    repeating-linear-gradient(90deg, transparent 0px, transparent 3px, rgba(196, 149, 106, 0.06) 3px, rgba(196, 149, 106, 0.06) 4px);
+  pointer-events: none;
+}
+
+.radio-brass-knob {
+  background: linear-gradient(145deg, #D4A76A 0%, #B87333 40%, #8B5A2B 60%, #A0683A 100%);
+  border: 1px solid #6B3A1A;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  border-radius: 50%;
+  transition: all 200ms ease;
+}
+
+.radio-brass-knob:hover {
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2),
+    0 3px 8px rgba(147, 90, 43, 0.4);
+}
+
+.radio-brass-knob:active { transform: scale(0.95); }
+
+.radio-amber-glow { animation: amber-pulse 4s ease-in-out infinite; }
+
+@keyframes amber-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.radio-vinyl {
+  position: relative;
+  border-radius: 50%;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(255, 255, 255, 0.05);
+}
+
+.radio-vinyl::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    transparent 40%,
+    transparent 60%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  pointer-events: none;
+}
+
+.radio-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 20px;
+}
+
+.radio-equalizer span {
+  width: 3px;
+  background: linear-gradient(to top, #FDE68A, #F59E0B);
+  border-radius: 2px 2px 0 0;
+  animation: eq-wave 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes eq-wave {
+  0% { height: 10%; }
+  100% { height: 90%; }
+}
+
+.eq-wave { animation: eq-wave 1.2s ease-in-out infinite alternate; }
+
+.radio-panel {
+  background: rgba(44, 26, 14, 0.6);
+  border: 1px solid rgba(196, 149, 106, 0.2);
+  backdrop-filter: blur(4px);
+  border-radius: var(--radius-lg);
+}
+
+.radio-btn-brass {
+  background: linear-gradient(145deg, #D4A76A, #A0683A);
+  border: 1px solid #6B3A1A;
+  color: #1A0E08;
+  font-weight: 700;
+  transition: all 200ms ease;
+}
+
+.radio-btn-brass:hover {
+  background: linear-gradient(145deg, #E0B87A, #B07848);
+  transform: translateY(-1px);
+}
+
+.radio-btn-brass:active { transform: scale(0.95); }
+
+.radio-glow-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(253, 224, 71, 0.15), transparent 70%);
+  pointer-events: none;
+  animation: amber-pulse 4s ease-in-out infinite;
+}
+
+.dark .radio-cabinet {
+  background: linear-gradient(145deg, #1A1008 0%, #2C1A0E 30%, #1A1008 60%, #0E0804 100%);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.4),
+    0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.dark .radio-brass-knob {
+  background: linear-gradient(145deg, #8B6A3A 0%, #6B4A2A 40%, #5A3A1A 60%, #6B4A2A 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   8. BACKGROUND PATTERNS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes aurora-glow {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 50% 100%; }
+}
+
+.aurora-bg {
+  background-color: var(--bg-app);
+  background-image:
+    radial-gradient(at 10% 20%, color-mix(in srgb, var(--color-primary) 10%, transparent) 0px, transparent 50%),
+    radial-gradient(at 90% 10%, color-mix(in srgb, var(--color-secondary) 12%, transparent) 0px, transparent 50%),
+    radial-gradient(at 50% 80%, color-mix(in srgb, var(--color-accent) 6%, transparent) 0px, transparent 50%);
+  background-size: 200% 200%;
+  animation: aurora-glow 12s ease-in-out infinite alternate;
+}
+
+/* ─── Spotlight Mantle ──────────────────────────────────────────────────── */
+.spotlight-mantle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.spotlight-mantle::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 10%;
+  right: 10%;
+  height: 6px;
+  background: linear-gradient(to bottom,
+    color-mix(in srgb, var(--wood-oak) 25%, transparent),
+    transparent
+  );
+  border-radius: 0 0 4px 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   9. ROOM TRANSITIONS (Spatial Navigation)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   10. ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes pulseGlow { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.05); opacity: 0.8; } }
+.pulse-glow { animation: pulseGlow 3s infinite ease-in-out; }
+
+@keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.animate-spin-slow { animation: spin-slow 20s linear infinite; }
+
+@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.shimmer-bg { background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.6) 50%, transparent 100%); animation: shimmer 1.8s linear infinite; }
+
+/* Enhanced shimmer for skeletons */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--border-color) 40%, transparent) 8%,
+    color-mix(in srgb, var(--border-color) 15%, transparent) 18%,
+    color-mix(in srgb, var(--border-color) 40%, transparent) 33%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    110deg,
+    rgba(255,255,255,0.06) 8%,
+    rgba(255,255,255,0.015) 18%,
+    rgba(255,255,255,0.06) 33%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.animate-float { animation: float 4s ease-in-out infinite; }
+
+@keyframes heartbeat { 0%, 100% { transform: scale(1); } 25% { transform: scale(1.1); } 40% { transform: scale(1); } 60% { transform: scale(1.1); } }
+.animate-heartbeat { animation: heartbeat 2.5s infinite ease-in-out; }
+
+@keyframes pulse-slow { 0%, 100% { opacity: 0.5; } 50% { opacity: 0.8; } }
+.animate-pulse-slow { animation: pulse-slow 4s ease-in-out infinite; }
+
+/* Treehouse-specific animations */
+@keyframes leaf-sway { 0%, 100% { transform: rotate(-2deg); } 50% { transform: rotate(2deg); } }
+.animate-leaf-sway { animation: leaf-sway 6s ease-in-out infinite; }
+
+@keyframes bounce-slow { 0%, 100% { transform: translateY(0); animation-timing-function: cubic-bezier(0.8, 0, 1, 1); } 50% { transform: translateY(-10px); animation-timing-function: cubic-bezier(0, 0, 0.2, 1); } }
+.animate-bounce-slow { animation: bounce-slow 3s infinite; }
+
+@keyframes candle-flicker { 0%, 100% { opacity: 0.8; transform: scaleY(1); } 25% { opacity: 0.6; transform: scaleY(0.97); } 50% { opacity: 0.9; transform: scaleY(1.03); } 75% { opacity: 0.7; transform: scaleY(0.98); } }
+.animate-candle { animation: candle-flicker 3s ease-in-out infinite; }
+
+/* ─── Rain Effect ──────────────────────────────────────────────────────────── */
+@keyframes rain-drop {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 0.6; }
+  100% { transform: translateY(100vh) translateX(-8px); opacity: 0; }
+}
+.animate-rain-drop { animation: rain-drop linear infinite; }
+
+/* ─── Confetti Fall ────────────────────────────────────────────────────────── */
+@keyframes confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  25% {
+    transform: translateY(25vh) rotate(90deg) scale(1.05);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translateY(50vh) rotate(180deg) scale(0.95);
+    opacity: 0.7;
+  }
+  75% {
+    transform: translateY(75vh) rotate(270deg) scale(1.02);
+    opacity: 0.4;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg) scale(0.8);
+    opacity: 0;
+  }
+}
+.animate-confetti-fall { animation: confetti-fall ease-out forwards; }
+
+/* ─── Lightning Flash ──────────────────────────────────────────────────────── */
+@keyframes lightning-flash {
+  0% {
+    opacity: 0;
+  }
+  2% {
+    opacity: 0.85;
+  }
+  6% {
+    opacity: 0.2;
+  }
+  10% {
+    opacity: 0.7;
+  }
+  14% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.animate-lightning-flash {
+  animation: lightning-flash 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Lightning bolt glow */
+@keyframes lightning-fork {
+  0%, 100% {
+    opacity: 0;
+    filter: drop-shadow(0 0 0px rgba(200, 210, 255, 0));
+  }
+  3% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px rgba(200, 210, 255, 0.6));
+  }
+  12% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 4px rgba(200, 210, 255, 0.3));
+  }
+  20% {
+    opacity: 0;
+    filter: drop-shadow(0 0 0px rgba(200, 210, 255, 0));
+  }
+}
+.animate-lightning-fork {
+  animation: lightning-fork 0.5s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Reduced motion for rain & confetti & lightning */
+@media (prefers-reduced-motion: reduce) {
+  .animate-rain-drop,
+  .animate-confetti-fall,
+  .animate-lightning-flash,
+  .animate-lightning-fork {
+    animation: none !important;
+    display: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   11. PHOTOBOOTH FILTERS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.filter-vintage { filter: sepia(0.35) contrast(0.95) saturate(1.1) brightness(1.02); }
+.filter-kodak { filter: contrast(1.1) saturate(1.3) brightness(1.05) sepia(0.05); }
+.filter-disposable { filter: contrast(1.05) saturate(1.05) brightness(0.98) hue-rotate(-5deg); }
+.filter-vhs { filter: contrast(1.2) brightness(1.1) saturate(0.85) sepia(0.1); }
+.filter-soft-blur { filter: blur(0.3px) saturate(0.95) contrast(0.95); }
+.filter-warm-tone { filter: sepia(0.15) saturate(1.2) hue-rotate(5deg); }
+
+.bg-sakura-photo { background-image: radial-gradient(#fff5f5 20%, #fbb6b6 80%); }
+.bg-retro-photo { background-image: linear-gradient(45deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%); }
+.bg-pixel-photo { background-image: conic-gradient(from 180deg at 50% 50%, #4f46e5 0deg, #ec4899 120deg, #3b82f6 240deg, #4f46e5 360deg); }
+.bg-cafe-photo { background-image: linear-gradient(to right, #eeddbb 0%, #cca980 100%); }
+.bg-night-photo { background-image: radial-gradient(circle, #1e3a8a 0%, #030712 100%); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   12. FOCUS RING & ACCESSIBILITY
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:focus-visible {
+  outline: 2px solid var(--wood-oak, #C4956A);
+  outline-offset: 2px;
+  border-radius: inherit;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--wood-oak, #C4956A);
+  outline-offset: 2px;
+  border-radius: inherit;
+  transition: outline-offset 150ms ease;
+}
+
+/* Dock nav buttons — wider focus ring */
+#dock-nav-btn-home:focus-visible,
+#dock-nav-btn-memories:focus-visible,
+#dock-nav-btn-together:focus-visible,
+#dock-nav-btn-play:focus-visible,
+#dock-nav-btn-adventure:focus-visible,
+#dock-nav-btn-settings:focus-visible {
+  outline: 3px solid var(--wood-oak);
+  outline-offset: 3px;
+  border-radius: var(--radius-lg);
+}
+
+/* Remove focus ring on click (mouse users), keep for keyboard */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   13. DARK MODE OVERRIDES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dark {
+  color-scheme: dark;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.6), 0 4px 6px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.7), 0 8px 10px rgba(0, 0, 0, 0.4);
+
+  --color-primary:         #E89D88;  /* Gorgeous Soft Retro Terracotta Peach */
+  --color-on-primary:      #1C130E;  /* Deep Cocoa Coffee */
+  --color-secondary:       #A89584;  /* Warm Chalky Earth */
+  --color-accent:          #E89D88;  /* Soft Retro Terracotta Peach */
+  --color-background:      #1C130E;  /* Deep Rich Cocoa-Espresso */
+  --color-foreground:      #FAF2EC;  /* Warm Cream-White Accent */
+  --color-muted:           #2A1F19;  /* Chalky Deep Espresso-Stone */
+  --color-border:          rgba(255, 255, 255, 0.08);
+  --color-ring:            #E89D88;
+
+  --text-primary:          #FAF2EC;  /* Warm Cream-White Accent */
+  --text-main:             #FAF2EC;  /* Alias */
+  --text-secondary:        #CEBFB5;  /* Warm Cream Gray */
+  --text-muted:            #9E8C82;
+  --text-inverse:          #1C130E;
+
+  --bg-app:                #1C130E;
+  --bg-gradient:           linear-gradient(180deg, #1C130E 0%, #261B16 100%);
+  --card-bg:               rgba(34, 25, 20, 0.98);
+  --card-bg-solid:         #221914;
+  --border-color:          rgba(255, 255, 255, 0.08);
+
+  /* ─── Wood & Fabric Dark Overrides ──────────────────────────────────── */
+  --wood-walnut:           #2A1F19;
+  --wood-oak:              #4E3A2E;
+  --wood-pine:             #33251E;
+  --wood-dark:             #120B08;
+  --fabric-linen:          #2A1F19;
+  --fabric-cream:          #221914;
+  --fabric-natural:        #33251E;
+  
+  /* ─── Shadcn/ui Dark Mode Tokens ─────────────────────────────────────── */
+  --background:  #1C130E;
+  --foreground:  #FAF2EC;
+  --card:        #221914;
+  --card-foreground: #FAF2EC;
+  --popover:     #221914;
+  --popover-foreground: #FAF2EC;
+  --primary-foreground: #1C130E;
+  --secondary:   #2A1F19;
+  --secondary-foreground: #FAF2EC;
+  --muted:       #2A1F19;
+  --muted-foreground: #CEBFB5;
+  --accent:      #2A1F19;
+  --accent-foreground: #FAF2EC;
+  --destructive: #B23B3B;
+  --border:      rgba(255,255,255,0.08);
+  --input:       rgba(255,255,255,0.15);
+  --ring:        #E89D88;
+  --chart-1:     #E89D88;
+  --chart-2:     #A89584;
+  --chart-3:     #7D8B75;
+  --chart-4:     #EBB242;
+  --chart-5:     #D69485;
+  --sidebar:     #221914;
+  --sidebar-foreground: #FAF2EC;
+  --sidebar-primary: #E89D88;
+  --sidebar-primary-foreground: #1C130E;
+  --sidebar-accent: #2A1F19;
+  --sidebar-accent-foreground: #FAF2EC;
+  --sidebar-border: rgba(255,255,255,0.08);
+  --sidebar-ring: #E89D88;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   14. DIGITAL SCRAPBOOK SYSTEM — Paper, Tape, Polaroid, Sticker
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Scrapbook Page ──────────────────────────────────────────────────── */
+.scrapbook-page {
+  position: relative;
+  background-color: var(--card-bg-solid);
+  border-radius: var(--radius-2xl, 24px);
+  padding: 1.5rem;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
+  transition: box-shadow 300ms ease;
+}
+
+.dark .scrapbook-page {
+  background-color: var(--card-bg-solid);
+  border-color: var(--border-color);
+}
+
+/* ─── Washi Tape Divider ──────────────────────────────────────────────── */
+.washi-tape {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  margin: 1.5rem 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.washi-tape__strip {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%) rotate(-0.5deg);
+  height: 16px;
+  border-radius: 2px;
+  opacity: 0.35;
+  transition: opacity 300ms ease;
+}
+
+.washi-tape__strip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 6px,
+    rgba(255,255,255,0.25) 6px,
+    rgba(255,255,255,0.25) 8px
+  );
+  border-radius: inherit;
+}
+
+.washi-tape--rose .washi-tape__strip { background: color-mix(in srgb, var(--color-accent-rose) 40%, transparent); }
+.washi-tape--gold .washi-tape__strip { background: color-mix(in srgb, var(--color-accent-gold) 40%, transparent); }
+.washi-tape--moss .washi-tape__strip { background: color-mix(in srgb, var(--color-accent-moss) 40%, transparent); }
+.washi-tape--lavender .washi-tape__strip { background: color-mix(in srgb, var(--color-accent-lavender) 40%, transparent); }
+.washi-tape--coral .washi-tape__strip { background: color-mix(in srgb, var(--color-accent-coral) 40%, transparent); }
+.washi-tape--primary .washi-tape__strip { background: color-mix(in srgb, var(--color-primary) 30%, transparent); }
+
+.dark .washi-tape__strip { opacity: 0.5; }
+
+/* ─── Polaroid Frame ──────────────────────────────────────────────────── */
+.polaroid-frame {
+  position: relative;
+  display: inline-block;
+  background: white;
+  padding: 12px 12px 48px 12px; /* Tebal di bawah */
+  border-radius: 2px;
+  box-shadow:
+    0 4px 10px rgba(45, 42, 38, 0.08),
+    0 1px 3px rgba(45, 42, 38, 0.04);
+  transition: all 400ms cubic-bezier(0.25, 0.8, 0.25, 1);
+  transform: rotate(var(--polaroid-rotation, -1.5deg)) translateY(0);
+}
+
+.polaroid-frame:hover {
+  box-shadow:
+    0 12px 24px rgba(45, 42, 38, 0.15),
+    0 4px 8px rgba(45, 42, 38, 0.08);
+  transform: rotate(0deg) translateY(-8px) scale(1.02); /* Straighten + Lift 8px */
+}
+
+.polaroid-frame::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(0, 0, 0, 0.04) 30%,
+    rgba(0, 0, 0, 0.04) 70%,
+    transparent 100%
+  );
+}
+
+.dark .polaroid-frame {
+  background: #252542;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.dark .polaroid-frame:hover {
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.5),
+    0 6px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ─── Empty Journal Page ──────────────────────────────────────────────── */
+.empty-journal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+}
+
+.empty-journal::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 31px,
+    color-mix(in srgb, var(--border-color) 20%, transparent) 31px,
+    color-mix(in srgb, var(--border-color) 20%, transparent) 32px
+  );
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.empty-journal__icon {
+  font-size: 2rem;
+  margin-bottom: 0.75rem;
+  opacity: 0.5;
+}
+
+.empty-journal__message {
+  font-family: var(--font-handwrite, 'Caveat', cursive);
+  font-size: 1.125rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 280px;
+}
+
+.dark .empty-journal::before {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 31px,
+    rgba(255,255,255,0.04) 31px,
+    rgba(255,255,255,0.04) 32px
+  );
+}
+
+/* ─── Sticker Button ──────────────────────────────────────────────────── */
+.sticker-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-sans, 'Outfit', sans-serif);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  padding: 8px 18px;
+  border-radius: 999px;
+  border: 2.5px solid var(--text-main, #2C1A1D);
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+  user-select: none;
+  min-height: 36px;
+}
+
+.sticker-btn:hover {
+  transform: scale(1.08) rotate(-1deg);
+}
+
+.sticker-btn:active {
+  transform: scale(0.95) rotate(0deg);
+}
+
+.sticker-btn:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+.sticker-btn--rose {
+  background: color-mix(in srgb, var(--color-accent-rose) 85%, white);
+  color: white;
+  border-color: var(--color-accent-rose);
+}
+
+.sticker-btn--gold {
+  background: color-mix(in srgb, var(--color-accent-gold) 85%, white);
+  color: white;
+  border-color: var(--color-accent-gold);
+}
+
+.sticker-btn--moss {
+  background: color-mix(in srgb, var(--color-accent-moss) 85%, white);
+  color: white;
+  border-color: var(--color-accent-moss);
+}
+
+.sticker-btn--lavender {
+  background: color-mix(in srgb, var(--color-accent-lavender) 85%, white);
+  color: white;
+  border-color: var(--color-accent-lavender);
+}
+
+.sticker-btn--coral {
+  background: color-mix(in srgb, var(--color-accent-coral) 85%, white);
+  color: white;
+  border-color: var(--color-accent-coral);
+}
+
+.sticker-btn--primary {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-color: var(--color-primary);
+}
+
+.sticker-btn--sm {
+  padding: 4px 12px;
+  font-size: 0.6875rem;
+  border-width: 2px;
+  min-height: 28px;
+}
+
+.sticker-btn--lg {
+  padding: 12px 24px;
+  font-size: 0.9375rem;
+  border-width: 3px;
+  min-height: 44px;
+}
+
+/* ─── Scrapbook Journal Entry ─────────────────────────────────────────── */
+.journal-entry {
+  position: relative;
+  padding: 1.25rem 1rem;
+  border-left: 3px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  transition: border-color 200ms ease;
+}
+
+.journal-entry:hover {
+  border-left-color: var(--color-primary);
+}
+
+.journal-entry::before {
+  content: '';
+  position: absolute;
+  left: -1.5px;
+  top: 0;
+  width: 0;
+  height: 100%;
+  border-left: 2px dotted color-mix(in srgb, var(--border-color) 40%, transparent);
+  pointer-events: none;
+}
+
+/* ─── Reduced Motion for Infinite Animations ──────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse,
+  .animate-pulse-slow,
+  .pulse-glow,
+  .animate-heartbeat,
+  .animate-float,
+  .animate-bounce-slow,
+  .animate-spin-slow,
+  .animate-leaf-sway,
+  .animate-candle,
+  .aurora-bg,
+  .fairy-bulb,
+  .treehouse-lantern::after,
+  .radio-amber-glow,
+  .radio-equalizer span,
+  .eq-wave,
+  .radio-glow-circle {
+    animation: none !important;
+  }
+  .aurora-bg {
+    background-image: none;
+  }
+  .fairy-bulb {
+    box-shadow: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ─── Scrapbook Mount Animations — Subtle, one-time, under 300ms ────── */
+
+@keyframes tape-peel {
+  0% { transform: translateY(-50%) rotate(-0.5deg) scaleX(1); }
+  50% { transform: translateY(-50%) rotate(-2deg) scaleX(0.98); }
+  100% { transform: translateY(-50%) rotate(-0.5deg) scaleX(1); }
+}
+
+.washi-tape:hover .washi-tape__strip {
+  animation: tape-peel 2s ease-in-out infinite;
+}
+
+@keyframes polaroid-develop {
+  0% { filter: brightness(1.5) saturate(0.3); opacity: 0.6; }
+  100% { filter: brightness(1) saturate(1); opacity: 1; }
+}
+
+.polaroid-developing {
+  animation: polaroid-develop 1.2s ease-out forwards;
+}
+
+/* ─── Scrapbook Mount Animations — Subtle, one-time, under 300ms ────── */
+
+/* Paper opening: scrapbook pages unfurl on mount */
+.scrapbook-page {
+  animation: paper-open 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center top;
+}
+
+@keyframes paper-open {
+  0% {
+    opacity: 0;
+    transform: scale(0.985) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Tape slide-in: washi tape glides in from left with slight peel */
+.washi-tape__strip {
+  animation: tape-appear 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes tape-appear {
+  0% {
+    transform: translateY(-50%) rotate(-0.5deg) scaleX(0.92);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(-50%) rotate(-0.5deg) scaleX(1);
+    opacity: 0.35;
+  }
+}
+
+.dark .washi-tape__strip {
+  animation: tape-appear-dark 0.25s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes tape-appear-dark {
+  0% {
+    transform: translateY(-50%) rotate(-0.5deg) scaleX(0.92);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(-50%) rotate(-0.5deg) scaleX(1);
+    opacity: 0.5;
+  }
+}
+
+/* Sticker pop: buttons emerge with a tiny bounce */
+.sticker-btn {
+  animation: sticker-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes sticker-pop {
+  0% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Journal page: empty pages have a subtle presence */
+.empty-journal {
+  animation: journal-appear 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes journal-appear {
+  0% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .scrapbook-page,
+  .washi-tape__strip,
+  .sticker-btn,
+  .empty-journal {
+    animation: none !important;
+  }
+}
+
+/* ─── Dark Mode Overrides for Scrapbook ────────────────────────────────── */
+.dark .sticker-btn--rose { background: color-mix(in srgb, var(--color-accent-rose) 60%, #1A1530); }
+.dark .sticker-btn--gold { background: color-mix(in srgb, var(--color-accent-gold) 60%, #1A1530); }
+.dark .sticker-btn--moss { background: color-mix(in srgb, var(--color-accent-moss) 60%, #1A1530); }
+.dark .sticker-btn--lavender { background: color-mix(in srgb, var(--color-accent-lavender) 60%, #1A1530); }
+.dark .sticker-btn--coral { background: color-mix(in srgb, var(--color-accent-coral) 60%, #1A1530); }
+.dark .sticker-btn--primary { background: color-mix(in srgb, var(--color-primary) 70%, #1A1530); }
+
+/* ─── Dark Mode Utility Overrides ─────────────────────────────────────────── */
+.dark .bg-white,
+.dark .bg-white\/5,
+.dark .bg-white\/10,
+.dark .bg-white\/20,
+.dark .bg-white\/30,
+.dark .bg-white\/40,
+.dark .bg-white\/50,
+.dark .bg-white\/60,
+.dark .bg-white\/65,
+.dark .bg-white\/70,
+.dark .bg-white\/75,
+.dark .bg-white\/80,
+.dark .bg-white\/85,
+.dark .bg-white\/90,
+.dark .bg-white\/95 { background-color: var(--card-bg) !important; }
+
+.dark .bg-black\/5,
+.dark .bg-black\/10,
+.dark .bg-black\/15 { background-color: var(--color-muted) !important; }
+.dark .bg-black\/20 { background-color: var(--color-muted) !important; }
+.dark .bg-black\/30 { background-color: rgba(0,0,0,0.2) !important; }
+.dark .bg-black\/35 { background-color: rgba(0,0,0,0.25) !important; }
+.dark .bg-black\/40 { background-color: rgba(0,0,0,0.35) !important; }
+.dark .bg-black\/50 { background-color: rgba(0,0,0,0.45) !important; }
+.dark .bg-black\/60 { background-color: rgba(0,0,0,0.55) !important; }
+.dark .bg-black\/70 { background-color: rgba(0,0,0,0.65) !important; }
+.dark .bg-black\/85 { background-color: rgba(0,0,0,0.85) !important; }
+
+.dark .glass-panel {
+  background: rgba(var(--primary-rgb), 0.08) !important;
+  backdrop-filter: blur(16px) saturate(1.5) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.dark input, .dark textarea, .dark select {
+  background-color: var(--color-muted) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-color) !important;
+}
+
+.dark input::placeholder, .dark textarea::placeholder {
+  color: var(--text-secondary) !important;
+  opacity: 1;
+}
+
+.dark .text-neutral-900,
+.dark .text-neutral-800,
+.dark .text-neutral-700 { color: var(--text-primary) !important; }
+.dark .text-neutral-600,
+.dark .text-neutral-500,
+.dark .text-neutral-400 { color: var(--text-secondary) !important; }
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 { color: var(--text-primary) !important; }
+.dark .text-gray-600,
+.dark .text-gray-500,
+.dark .text-gray-400 { color: var(--text-secondary) !important; }
+
+.dark .text-stone-900,
+.dark .text-stone-800,
+.dark .text-stone-700,
+.dark .text-stone-600 { color: var(--text-primary) !important; }
+.dark .text-stone-500,
+.dark .text-stone-400 { color: var(--text-secondary) !important; }
+
+.dark .border-b { border-color: var(--border-color) !important; }
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300 { border-color: var(--border-color) !important; }
+.dark .border-stone-100,
+.dark .border-stone-200,
+.dark .border-stone-300 { border-color: var(--border-color) !important; }
+
+.dark .hover\:text-gray-700:hover,
+.dark .hover\:text-gray-600:hover,
+.dark .hover\:text-gray-900:hover { color: var(--text-primary) !important; }
+
+.dark .hover\:bg-white:hover,
+.dark .hover\:bg-white\/5:hover,
+.dark .hover\:bg-white\/10:hover,
+.dark .hover\:bg-white\/40:hover,
+.dark .hover\:bg-white\/50:hover,
+.dark .hover\:bg-white\/60:hover,
+.dark .hover\:bg-white\/95:hover { background-color: color-mix(in srgb, var(--card-bg) 85%, var(--border-color) 15%) !important; }
+
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-gray-200:hover { background-color: var(--color-muted) !important; }
+
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-gray-200 { background-color: var(--color-muted) !important; }
+.dark .bg-stone-50,
+.dark .bg-stone-100 { background-color: var(--color-muted) !important; }
+.dark .bg-neutral-50,
+.dark .bg-neutral-100 { background-color: var(--color-muted) !important; }
+
+.dark .divide-x > * + *,
+.dark .divide-y > * + * { border-color: var(--border-color) !important; }
+
+/* Dark mode sticky notes */
+.dark .bg-yellow-50, .dark .bg-yellow-100 { background-color: rgba(180, 140, 60, 0.15) !important; border-color: rgba(253, 224, 71, 0.2) !important; }
+.dark .text-yellow-800, .dark .text-yellow-900 { color: #FCD34D !important; }
+.dark .bg-pink-50, .dark .bg-pink-100 { background-color: rgba(244, 114, 182, 0.12) !important; border-color: rgba(244, 114, 182, 0.2) !important; }
+.dark .text-pink-800, .dark .text-pink-900 { color: #F9A8D4 !important; }
+.dark .bg-green-50, .dark .bg-green-100 { background-color: rgba(74, 222, 128, 0.1) !important; border-color: rgba(74, 222, 128, 0.18) !important; }
+.dark .text-green-800, .dark .text-green-900 { color: #86EFAC !important; }
+.dark .bg-blue-50, .dark .bg-blue-100 { background-color: rgba(96, 165, 250, 0.1) !important; border-color: rgba(96, 165, 250, 0.18) !important; }
+.dark .text-blue-800, .dark .text-blue-900 { color: #93C5FD !important; }
+.dark .bg-purple-50, .dark .bg-purple-100 { background-color: rgba(192, 132, 252, 0.12) !important; border-color: rgba(192, 132, 252, 0.2) !important; }
+.dark .text-purple-800, .dark .text-purple-900 { color: #D8B4FE !important; }
+.dark .bg-amber-50, .dark .bg-amber-100 { background-color: rgba(251, 191, 36, 0.12) !important; border-color: rgba(251, 191, 36, 0.2) !important; }
+.dark .text-amber-800, .dark .text-amber-900 { color: #FCD34D !important; }
+.dark .bg-rose-50, .dark .bg-rose-100 { background-color: rgba(244, 63, 94, 0.1) !important; border-color: rgba(244, 63, 94, 0.18) !important; }
+.dark .text-rose-800, .dark .text-rose-900 { color: #FDA4AF !important; }
+.dark .bg-emerald-50, .dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.1) !important; border-color: rgba(16, 185, 129, 0.18) !important; }
+.dark .text-emerald-700, .dark .text-emerald-800 { color: #6EE7B7 !important; }
+.dark .bg-red-50, .dark .bg-red-100 { background-color: rgba(248, 113, 113, 0.12) !important; border-color: rgba(248, 113, 113, 0.2) !important; }
+.dark .text-red-500, .dark .text-red-600 { color: #F87171 !important; }
+
+/* ─── Content Visibility: defer offscreen rendering for reduced layout shift ─── */
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}
+
+/* Denser sections get a smaller intrinsic estimate */
+.content-visibility-auto--sm {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 200px;
+}
+
+/* Tall sections get a larger intrinsic estimate */
+.content-visibility-auto--lg {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
+
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: 'Geist Variable', sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* Custom Modern Scrapbook Desktop Backdrop */
+#app-root-wrapper {
+  position: relative;
+  background-color: var(--bg-app) !important;
+  background-image: var(--bg-gradient) !important;
+  background-attachment: fixed !important;
+}
+
+.dark #app-root-wrapper {
+  background-color: var(--bg-app) !important;
+  background-image: var(--bg-gradient) !important;
+  background-attachment: fixed !important;
+}
+
+/* ─── Vintage Photo Filters ─── */
+.filter-vintage {
+  filter: sepia(0.55) contrast(1.1) brightness(0.92) saturate(0.85);
+}
+.filter-kodak {
+  filter: contrast(1.15) saturate(1.25) brightness(1.04) sepia(0.12);
+}
+.filter-disposable {
+  filter: contrast(1.08) saturate(1.15) brightness(1.08) hue-rotate(-8deg);
+}
+.filter-vhs {
+  filter: contrast(1.22) saturate(0.85) brightness(1.02) sepia(0.05);
+}
+.filter-soft-blur {
+  filter: contrast(0.94) brightness(1.05) saturate(1.08) blur(0.4px);
+}
+.filter-warm-tone {
+  filter: sepia(0.22) contrast(1.02) saturate(1.1) brightness(1.03);
+}
+.filter-grainy-bw {
+  filter: grayscale(1) contrast(1.35) brightness(0.9);
+}
+.filter-light-leak {
+  filter: sepia(0.25) contrast(1.12) brightness(1.08) saturate(1.1);
+  position: relative;
+}
+.filter-light-leak::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(251, 146, 60, 0.4) 0%, rgba(244, 63, 94, 0.25) 40%, transparent 80%);
+  pointer-events: none;
+  mix-blend-mode: screen;
+}
+
+/* ✍️ Custom Handwriting & Gel Pen Accents */
+.font-handwrite-curly {
+  font-family: "Reenie Beanie", cursive !important;
+}
+
+.font-gel-blue {
+  font-family: "Caveat", cursive !important;
+  color: #1e3a8a !important; /* Rich gel pen blue */
+  text-shadow: 0.5px 0.5px 1px rgba(30, 58, 138, 0.15);
+}
+
+.dark .font-gel-blue {
+  color: #93c5fd !important;
+  text-shadow: 0.5px 0.5px 1px rgba(147, 197, 253, 0.2);
+}
+
+.font-gel-black {
+  font-family: "Caveat", cursive !important;
+  color: #1c1917 !important; /* Charcoal warm black */
+  text-shadow: 0.5px 0.5px 1px rgba(28, 25, 23, 0.15);
+}
+
+.dark .font-gel-black {
+  color: #f5f5f4 !important;
+  text-shadow: 0.5px 0.5px 1px rgba(245, 245, 244, 0.2);
+}
+
+.font-gel-curly-blue {
+  font-family: "Reenie Beanie", cursive !important;
+  font-size: 1.45rem !important;
+  line-height: 1.1 !important;
+  color: #2563eb !important; /* Slightly brighter blue pen */
+  transform: rotate(-1.5deg);
+  display: inline-block;
+}
+
+.dark .font-gel-curly-blue {
+  color: #60a5fa !important;
+}
+
+.font-gel-curly-black {
+  font-family: "Reenie Beanie", cursive !important;
+  font-size: 1.45rem !important;
+  line-height: 1.1 !important;
+  color: #292524 !important;
+  transform: rotate(1deg);
+  display: inline-block;
+}
+
+.dark .font-gel-curly-black {
+  color: #e7e5e4 !important;
+}
+
+/* 🎨 Highlighter & Marker Accents */
+.marker-highlight-yellow {
+  background: linear-gradient(104deg, rgba(253, 224, 71, 0) 0.5%, rgba(253, 224, 71, 0.42) 2.5%, rgba(253, 224, 71, 0.48) 95%, rgba(253, 224, 71, 0) 98.5%);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.marker-highlight-pink {
+  background: linear-gradient(104deg, rgba(244, 114, 182, 0) 0.5%, rgba(244, 114, 182, 0.32) 2.5%, rgba(244, 114, 182, 0.38) 95%, rgba(244, 114, 182, 0) 98.5%);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.marker-highlight-mint {
+  background: linear-gradient(104deg, rgba(110, 231, 183, 0) 0.5%, rgba(110, 231, 183, 0.28) 2.5%, rgba(110, 231, 183, 0.34) 95%, rgba(110, 231, 183, 0) 98.5%);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+/* Scribble strikethrough for correcting letters/notes */
+.scribble-strike {
+  position: relative;
+  display: inline-block;
+}
+
+.scribble-strike::after {
+  content: "";
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 48%;
+  height: 2px;
+  background-color: rgba(239, 68, 68, 0.6);
+  transform: rotate(-1.5deg);
+  border-radius: 4px;
+}
+
+/* 🕯️ Candlelight Ambiance Overlay */
+@keyframes candlelight-glow {
+  0%, 100% {
+    box-shadow: inset 0 0 50px rgba(245, 158, 11, 0.08), 0 0 20px rgba(245, 158, 11, 0.04);
+    background-color: rgba(245, 158, 11, 0.035);
+  }
+  25% {
+    box-shadow: inset 0 0 65px rgba(245, 158, 11, 0.12), 0 0 25px rgba(245, 158, 11, 0.06);
+    background-color: rgba(245, 158, 11, 0.05);
+  }
+  50% {
+    box-shadow: inset 0 0 45px rgba(245, 158, 11, 0.07), 0 0 15px rgba(245, 158, 11, 0.03);
+    background-color: rgba(245, 158, 11, 0.025);
+  }
+  75% {
+    box-shadow: inset 0 0 60px rgba(245, 158, 11, 0.11), 0 0 22px rgba(245, 158, 11, 0.055);
+    background-color: rgba(245, 158, 11, 0.045);
+  }
+}
+
+.ambient-candlelight {
+  position: relative;
+}
+
+.ambient-candlelight::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  mix-blend-mode: color-burn;
+  opacity: 0.8;
+  animation: candlelight-glow 4s infinite alternate ease-in-out;
+  border-radius: inherit;
+}
+
+/* 🌅 Golden Hour Ambiance Overlay */
+@keyframes golden-hour-shift {
+  0%, 100% {
+    background-color: rgba(249, 115, 22, 0.1);
+    box-shadow: inset 0 0 60px rgba(245, 158, 11, 0.08);
+  }
+  50% {
+    background-color: rgba(249, 115, 22, 0.14);
+    box-shadow: inset 0 0 80px rgba(245, 158, 11, 0.12);
+  }
+}
+
+.ambient-goldenhour {
+  position: relative;
+}
+
+.ambient-goldenhour::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  mix-blend-mode: soft-light;
+  opacity: 0.9;
+  animation: golden-hour-shift 7s infinite alternate ease-in-out;
+  border-radius: inherit;
+}
+
+/* 🔤 Custom Font Themes */
+.font-theme-scrapbook {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+  --font-serif: "Playfair Display", serif !important;
+  --font-display: "Playfair Display", serif !important;
+}
+
+.font-theme-modern {
+  --font-sans: "Geist Variable", "Inter", sans-serif !important;
+  --font-serif: "Geist Variable", "Inter", sans-serif !important;
+  --font-display: "Geist Variable", "Inter", sans-serif !important;
+}
+
+.font-theme-professional {
+  --font-sans: "Inter", system-ui, sans-serif !important;
+  --font-serif: "Inter", system-ui, sans-serif !important;
+  --font-display: "Inter", system-ui, sans-serif !important;
+}
+

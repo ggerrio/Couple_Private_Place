@@ -1,0 +1,12 @@
+# Konfigurasi build dasar untuk Netlify
+[build]
+  # Perintah untuk membangun proyek Vite Anda
+  command = "npm run build"
+  # Direktori output hasil build
+  publish = "dist"
+
+# Aturan redirect untuk Single-Page Application (SPA)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

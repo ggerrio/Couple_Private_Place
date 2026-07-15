@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔥 Thermal Print Design Audit v2 — Couple Private Place</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Caveat:wght@400;600;700&display=swap');
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Outfit', sans-serif;
+  background: #FAF6F0;
+  color: #2C1A1D;
+  line-height: 1.6;
+  padding: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+h1 { font-family: 'Caveat', cursive; font-size: 3rem; text-align: center; color: #B35E6B; margin-bottom: 0.5rem; }
+.subtitle { text-align: center; color: #7A5C48; font-size: 0.9rem; margin-bottom: 2rem; }
+.audit-meta { text-align: center; font-size: 0.8rem; color: #7A5C48; margin-bottom: 2.5rem; font-family: monospace; }
+.section { margin: 2rem 0; }
+.section-title { font-size: 1.4rem; font-weight: 700; color: #2C1A1D; border-bottom: 3px solid #B35E6B; padding-bottom: 0.5rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+.score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+.score-card { background: #FFF8F0; border: 1px solid #E2D4C0; border-radius: 16px; padding: 1.5rem; box-shadow: 0 2px 8px rgba(92,58,30,0.06), 0 1px 2px rgba(92,58,30,0.04); }
+.score-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+.score-val { font-size: 1.8rem; font-weight: 800; color: #B35E6B; }
+.score-label { font-weight: 600; font-size: 0.95rem; }
+.score-desc { font-size: 0.85rem; color: #7A5C48; }
+.before-after { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; background: #F4EFE6; border-radius: 12px; padding: 1rem; margin: 0.75rem 0; }
+.ba-col h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem; }
+.ba-col ul { list-style: none; font-size: 0.85rem; }
+.ba-col li::before { content: '• '; }
+.before-col { color: #A83244; }
+.after-col { color: #5B8C5A; }
+.checklist { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem; }
+.check-item { background: #FFF8F0; border: 1px solid #E2D4C0; border-radius: 12px; padding: 1rem; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 0.75rem; cursor: default; }
+.check-item .emoji { font-size: 1.3rem; }
+.check-item .status { font-weight: 700; }
+.status-done { color: #5B8C5A; }
+.status-partial { color: #D4A76A; }
+.status-pending { color: #A83244; }
+.keep-fix { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.kf-col h3 { font-size: 1rem; margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 2px solid; }
+.kf-col ul { list-style: none; font-size: 0.85rem; }
+.kf-col li { padding: 0.5rem 0; border-bottom: 1px solid #F4EFE6; display: flex; gap: 0.5rem; align-items: flex-start; }
+.kf-col li .tag { font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 999px; font-weight: 700; white-space: nowrap; }
+.scores-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 1rem 0; }
+.scores-table th, .scores-table td { padding: 0.7rem 1rem; text-align: left; border-bottom: 1px solid #E2D4C0; }
+.scores-table th { background: #F4EFE6; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.scores-table td:last-child { text-align: right; font-weight: 700; }
+.scores-table tr:last-child td { border-bottom: none; }
+.bar { height: 8px; background: #F4EFE6; border-radius: 999px; overflow: hidden; margin-top: 0.3rem; }
+.bar-fill { height: 100%; border-radius: 999px; transition: width 1s ease; }
+.tip { font-family: 'Caveat', cursive; font-size: 1.1rem; color: #7A5C48; text-align: center; padding: 1rem; background: #FFF8F0; border: 1px dashed #E2D4C0; border-radius: 12px; margin: 1.5rem 0; }
+@media (max-width: 700px) { .keep-fix, .before-after { grid-template-columns: 1fr; } body { padding: 1rem; } }
+</style>
+</head>
+<body>
+
+<h1>🔥 Thermal Print Design Audit v2</h1>
+<p class="subtitle">Couple Private Place — 5-Dimension Visual Critique (Post-Refactor)</p>
+<p class="audit-meta">Generated: July 11, 2026 · Examining treehouse-warm design system + modular architecture</p>
+
+<!-- ═══ SCORE OVERVIEW ═══ -->
+<div class="section">
+  <div class="section-title"><span>📊</span> Score Overview — Post-Refactor</div>
+
+  <table class="scores-table">
+    <thead>
+      <tr><th>Dimension</th><th>Score (v1)</th><th>Score (v2)</th><th>Δ</th><th>Key Improvement</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🧠 Philosophical Consistency</td>
+        <td>7.8</td>
+        <td><strong>8.5</strong></td>
+        <td style="color:#5B8C5A;">+0.7</td>
+        <td>Warm wood tones now consistent across all views via CSS variables</td>
+      </tr>
+      <tr>
+        <td>👁 Visual Hierarchy</td>
+        <td>6.5</td>
+        <td><strong>7.8</strong></td>
+        <td style="color:#5B8C5A;">+1.3</td>
+        <td>Shadow depth layers on cards + consistent rounded-3xl + section breathing room</td>
+      </tr>
+      <tr>
+        <td>🔬 Detail Execution</td>
+        <td>7.2</td>
+        <td><strong>8.2</strong></td>
+        <td style="color:#5B8C5A;">+1.0</td>
+        <td>Shimmer skeletons + 5-color accent palette + organized CSS architecture</td>
+      </tr>
+      <tr>
+        <td>⚡ Functionality</td>
+        <td>8.5</td>
+        <td><strong>8.8</strong></td>
+        <td style="color:#5B8C5A;">+0.3</td>
+        <td>Sonner toast everywhere, alert() eliminated, consistent error states</td>
+      </tr>
+      <tr>
+        <td>💡 Innovation</td>
+        <td>6.0</td>
+        <td><strong>6.8</strong></td>
+        <td style="color:#5B8C5A;">+0.8</td>
+        <td>New accent palette system + depth layer pseudo-elements + skeleton variants</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:1rem; text-align:right; font-size:0.85rem; font-weight:700; color:#B35E6B;">
+    Overall: 6.8 → <span style="font-size:1.2rem;">8.0</span> / 10 🎉
+  </div>
+</div>
+
+<!-- ═══ IMPROVEMENT TIMELINE ═══ -->
+<div class="section">
+  <div class="section-title"><span>📈</span> Improvement Log</div>
+  <div style="display:grid; gap:0.75rem;">
+    <div class="check-item">
+      <span class="emoji">✅</span>
+      <div><span class="status status-done">Replaced #9400FF mono → Warm 5-color palette</span><br><span style="color:#7A5C48;font-size:0.8rem;">CSS variables: --color-accent-rose, -gold, -moss, -lavender, -coral + utility classes</span></div>
+    </div>
+    <div class="check-item">
+      <span class="emoji">✅</span>
+      <div><span class="status status-done">Added breathing room between sections</span><br><span style="color:#7A5C48;font-size:0.8rem;">--space-section: clamp(2.5rem, 5vw, 4rem) + .section-breath class applied to HomeView</span></div>
+    </div>
+    <div class="check-item">
+      <span class="emoji">✅</span>
+      <div><span class="status status-done">Nav bar shadow + card depth layer</span><br><span style="color:#7A5C48;font-size:0.8rem;">--shadow-card + ::after radial-gradient depth effect on tree-card/tree-panel/dock-runner</span></div>
+    </div>
+    <div class="check-item">
+      <span class="emoji">✅</span>
+      <div><span class="status status-done">Skeleton loading nuanced with shimmer</span><br><span style="color:#7A5C48;font-size:0.8rem;">skeleton-shimmer class + SkeletonImage/SkeletonButton/SkeletonCircular variants</span></div>
+    </div>
+    <div class="check-item">
+      <span class="emoji">✅</span>
+      <div><span class="status status-done">Consistent border-radius across all components</span><br><span style="color:#7A5C48;font-size:0.8rem;">9 files: rounded-[32px] → rounded-3xl, rounded-[24px] → rounded-2xl</span></div>
+    </div>
+    <div class="check-item">
+      <span class="emoji">✅</span>
+      <div><span class="status status-done">Sonner toast + accessibility (min 12px font, WCAG AA contrast)</span><br><span style="color:#7A5C48;font-size:0.8rem;">All alert() → toast(), focus-visible rings, min font-size enforcement</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ KEEP vs FIX ═══ -->
+<div class="section">
+  <div class="section-title"><span>🎯</span> Keep vs Fix (Post-Refactor)</div>
+  <div class="keep-fix">
+    <div class="kf-col">
+      <h3 style="border-color:#5B8C5A;color:#5B8C5A;">🟢 Keep</h3>
+      <ul>
+        <li><span class="tag" style="background:#5B8C5A20;color:#5B8C5A;border:1px solid #5B8C5A40;">ARCHITECTURE</span> Modular 5-25 file split per view — HomeView 2,688→110 lines</li>
+        <li><span class="tag" style="background:#5B8C5A20;color:#5B8C5A;border:1px solid #5B8C5A40;">VISUAL</span> Warm wood-tone design system with CSS variables + 7 themes</li>
+        <li><span class="tag" style="background:#5B8C5A20;color:#5B8C5A;border:1px solid #5B8C5A40;">UX</span> Depth layer ::after pseudo-elements on cards (subtle floating effect)</li>
+        <li><span class="tag" style="background:#5B8C5A20;color:#5B8C5A;border:1px solid #5B8C5A40;">ANIMATION</span> Shimmer skeleton with stable hydration-safe widths</li>
+        <li><span class="tag" style="background:#5B8C5A20;color:#5B8C5A;border:1px solid #5B8C5A40;">ACCESSIBILITY</span> Focus-visible rings, WCAG AA text contrast, min 12px font</li>
+      </ul>
+    </div>
+    <div class="kf-col">
+      <h3 style="border-color:#D4A76A;color:#D4A76A;">🟡 Fix</h3>
+      <ul>
+        <li><span class="tag" style="background:#D4A76A20;color:#D4A76A;border:1px solid #D4A76A40;">⚠️</span> Some components still use hardcoded colors in SVGs and canvas elements</li>
+        <li><span class="tag" style="background:#D4A76A20;color:#D4A76A;border:1px solid #D4A76A40;">💡</span> 5 accent colors not fully applied — only BondMissions XP badges + PlayView stats use them</li>
+        <li><span class="tag" style="background:#D4A76A20;color:#D4A76A;border:1px solid #D4A76A40;">💡</span> section-breath applied to HomeView but not yet to MemoriesView/AdventureView sub-components</li>
+        <li><span class="tag" style="background:#D4A76A20;color:#D4A76A;border:1px solid #D4A76A40;">💡</span> Some dark mode theme variants have inconsistent shadow definitions</li>
+        <li><span class="tag" style="background:#D4A76A20;color:#D4A76A;border:1px solid #D4A76A40;">⚠️</span> Scene-section ::after wood-plank divider may clip if inside overflow:hidden container</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ QUICK WINS ═══ -->
+<div class="section">
+  <div class="section-title"><span>⚡</span> Quick Wins (5 Minutes Each)</div>
+  <div style="display:grid; gap:0.75rem;">
+    <div class="check-item">
+      <span class="emoji">⚡1</span>
+      <div><strong>Apply accent colors to remaining badges</strong> — XP badges in RelationshipStreak, game stats in PlayView, mood selector highlights, and StickyNotes color indicators</div>
+    </div>
+    <div class="check-item">
+      <span class="emoji">⚡2</span>
+      <div><strong>Extend section-breath to MemoriesView + AdventureView</strong> — wrap tab content divs with `section-breath` for consistent section spacing</div>
+    </div>
+    <div class="check-item">
+      <span class="emoji">⚡3</span>
+      <div><strong>Add micro-interaction to depth layer</strong> — Add `bottom` and `background` to the ::after transition on tree-card hover for smoother animation</div>
+    </div>
+    <div class="check-item">
+      <span class="emoji">⚡4</span>
+      <div><strong>Replace remaining `text-gray-*` with CSS variables</strong> — Components like StorySection and PhotoboothSection still use hardcoded Tailwind gray classes instead of `var(--text-muted)`</div>
+    </div>
+    <div class="check-item">
+      <span class="emoji">⚡5</span>
+      <div><strong>Add skeleton-shimmer to loading states in MemoriesView</strong> — StorySection and PhotoboothSection loading states still use basic Loader2 spinner pattern</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DIMENSION DETAILS ═══ -->
+<div class="section">
+  <div class="section-title"><span>🔍</span> Dimension Deep Dive</div>
+
+  <div class="score-card" style="border-left:4px solid #D4828A;">
+    <div class="score-header"><span class="score-label">🧠 Philosophical Consistency</span><span class="score-val">8.5/10</span></div>
+    <div class="bar"><div class="bar-fill" style="width:85%;background:#5B8C5A;"></div></div>
+    <p class="score-desc" style="margin-top:0.75rem;">Treehouse metaphor is now consistently applied through CSS variable naming (--wood-walnut, --fabric-cream), scene-chapter labels, and dock-runner wood texture. The warm palette (rosewood #B35E6B as primary) replaces the old #9400FF purple. Minor inconsistency: the VirtualPiano and some canvas-heavy components still use neutral tones that don't fully match the treehouse aesthetic.</p>
+  </div>
+
+  <div class="score-card" style="border-left:4px solid #D4A76A;">
+    <div class="score-header"><span class="score-label">👁 Visual Hierarchy</span><span class="score-val">7.8/10</span></div>
+    <div class="bar"><div class="bar-fill" style="width:78%;background:#D4A76A;"></div></div>
+    <p class="score-desc" style="margin-top:0.75rem;">Shadow depth layers (--shadow-card + ::after pseudo-element) now give cards a floating elevation effect. Consistent rounded-3xl (22px) radius across all cards improves visual harmony. Section-breath spacing provides adequate breathing room. Type scale is well-defined with 12px minimum enforced. Still some room for improvement in the nav bar: the dock-runner class provides wood texture but the active tab bubble could use stronger contrast.</p>
+  </div>
+
+  <div class="score-card" style="border-left:4px solid #7BA07A;">
+    <div class="score-header"><span class="score-label">🔬 Detail Execution</span><span class="score-val">8.2/10</span></div>
+    <div class="bar"><div class="bar-fill" style="width:82%;background:#7BA07A;"></div></div>
+    <p class="score-desc" style="margin-top:0.75rem;">Shimmer skeleton is a significant upgrade — the `.skeleton-shimmer` CSS class provides smooth gradient animation. New variants (SkeletonImage, SkeletonButton, SkeletonCircular) cover common use cases. The 5-color accent palette gives designers intentional choices. CSS architecture is well-organized with numbered sections. Minor polish items: the depth layer transition could be smoother with bottom included, and some hardcoded Tailwind gray classes remain.</p>
+  </div>
+
+  <div class="score-card" style="border-left:4px solid #B8A8D8;">
+    <div class="score-header"><span class="score-label">⚡ Functionality</span><span class="score-val">8.8/10</span></div>
+    <div class="bar"><div class="bar-fill" style="width:88%;background:#4A7C59;"></div></div>
+    <p class="score-desc" style="margin-top:0.75rem;">Zero TypeScript errors across the entire codebase. Sonner toast replaces all alert() calls. Focus-visible rings are consistently applied. The refactoring into modular sub-components (25+ files instead of 4 monolithic views) makes the codebase maintainable. All existing features preserved: Firestore sync, camera streams, YouTube player, piano, sketch canvas, photobooth. No regressions detected.</p>
+  </div>
+
+  <div class="score-card" style="border-left:4px solid #E89888;">
+    <div class="score-header"><span class="score-label">💡 Innovation</span><span class="score-val">6.8/10</span></div>
+    <div class="bar"><div class="bar-fill" style="width:68%;background:#E89888;"></div></div>
+    <p class="score-desc" style="margin-top:0.75rem;">The ::after depth layer pseudo-element technique is a creative CSS solution for card elevation without extra markup. The 5-color accent palette system provides intentional design choices beyond a single primary color. Skeleton shimmer with stable width hydration is a thoughtful touch. However, the overall layout still follows conventional card-based patterns. Innovation would increase with more unique spatial layouts, custom scroll-triggered animations, or unconventional navigation patterns.</p>
+  </div>
+</div>
+
+<!-- ═══ FINAL TIP ═══ -->
+<div class="tip">
+  "The treehouse metaphor is now visually coherent from foyer to attic. 
+  The 3 biggest wins: shadow depth layers, shimmer skeletons, and consistent spacing. 
+  Next iteration should focus on applying the accent colors more broadly and adding 
+  scroll-triggered narrative animations for the 'storytelling' feel."
+</div>
+
+</body>
+</html>
