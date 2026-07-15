@@ -5,6 +5,10 @@
   # Direktori output hasil build
   publish = "dist"
 
+# Node.js version (harus match dengan .nvmrc)
+[build.environment]
+  NODE_VERSION = "22"
+
 # Aturan redirect untuk Single-Page Application (SPA)
 [[redirects]]
   from = "/*"
