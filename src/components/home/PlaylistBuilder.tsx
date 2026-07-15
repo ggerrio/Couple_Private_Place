@@ -10,7 +10,7 @@ import { Plus, Music, Trash2, Play, Search, X } from "lucide-react";
 import { getDb } from "../../firebaseClient";
 import { toast } from "sonner";
 import { Skeleton } from "../extras/Skeleton";
-import { extractVideoId, fetchVideoMeta } from "./MusicPlayerUtils";
+import { extractVideoId, fetchVideoMeta, fetchVideoDuration } from "./MusicPlayerUtils";
 
 interface QueueItem {
   id: string;
@@ -86,13 +86,14 @@ export default function PlaylistBuilder() {
     }
   }, []);
 
-  const playNow = useCallback((item: QueueItem) => {
+  const playNow = useCallback(async (item: QueueItem) => {
+    const videoDurationMs = await fetchVideoDuration(item.videoId);
     syncSongToPartner({
       title: item.title,
       artist: item.artist,
       album: "",
       artwork: item.artwork,
-      durationMs: 0,
+      durationMs: videoDurationMs || 0,
       progressMs: 0,
       isPlaying: true,
       videoId: item.videoId,

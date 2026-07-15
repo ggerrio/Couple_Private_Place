@@ -335,13 +335,19 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const unsubSong = onSnapshot(doc(db, "settings", "shared_song"), (d: any) => {
         if (d.exists()) {
           const s = d.data();
-          setCurrentSong((prev) => ({
-            ...prev,
-            title: s.title ?? prev.title, artist: s.artist ?? prev.artist,
-            album: s.album ?? prev.album, artwork: s.artwork ?? prev.artwork,
-            durationMs: s.duration_ms ?? prev.durationMs, videoId: s.video_id ?? prev.videoId,
-            isPlaying: s.is_playing ?? prev.isPlaying,
-          }));
+          setCurrentSong((prev) => {
+            const newVideoId = s.video_id ?? prev.videoId;
+            const isNewSong = newVideoId && newVideoId !== prev.videoId;
+            return {
+              ...prev,
+              title: s.title ?? prev.title, artist: s.artist ?? prev.artist,
+              album: s.album ?? prev.album, artwork: s.artwork ?? prev.artwork,
+              durationMs: s.duration_ms ?? prev.durationMs,
+              videoId: newVideoId,
+              isPlaying: s.is_playing ?? prev.isPlaying,
+              progressMs: isNewSong ? 0 : prev.progressMs,
+            };
+          });
         }
       }, (err: any) => { console.error("[shared song listener]", err); });
       cleanups.push(unsubSong);
