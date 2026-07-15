@@ -71,7 +71,38 @@ function songAmbientColor(title: string, artist: string): string {
   return palette[Math.abs(hash) % palette.length];
 }
 
+// ── Global unhandled promise rejection handler ──────────────────────────
+// Prevents AbortErrors from motion animation interruptions and
+// browser-extension-blocked fetch calls from bubbling up as "Uncaught"
+// errors that can interfere with React's navigation/render cycle.
+function setupGlobalErrorHandler() {
+  const handler = (event: PromiseRejectionEvent) => {
+    if (
+      event.reason instanceof DOMException &&
+      event.reason.name === "AbortError"
+    ) {
+      event.preventDefault();
+      return;
+    }
+    // Also catch generic fetch failures caused by browser extensions
+    if (
+      event.reason instanceof TypeError &&
+      event.reason.message === "Failed to fetch"
+    ) {
+      event.preventDefault();
+      return;
+    }
+    // Log other unhandled rejections for debugging (but don't suppress)
+    console.warn("[App] Unhandled promise rejection:", event.reason?.name, event.reason?.message);
+  };
+  window.addEventListener("unhandledrejection", handler);
+  return () => window.removeEventListener("unhandledrejection", handler);
+}
+
 function AppContent() {
+  // ── Global error handler for promise rejections ──────────────────────
+  useEffect(setupGlobalErrorHandler, []);
+
   const { session, currentUser, userA, userB, darkMode, toggleDarkMode, activeSurprise, setActiveSurprise, isOnboarding, currentSong, setSongPlayState, anniversaryDate, birthdayA, birthdayB, fontTheme, colorTheme } = useCouple();
   const [activeTab, setActiveTab] = useState<TabId>("home");
   const mainContainerRef = useRef<HTMLDivElement>(null);
@@ -322,8 +353,8 @@ function AppContent() {
 
   return (
     <div
-      className={`${darkMode ? " dark" : ""} font-theme-${fontTheme || "scrapbook"} color-theme-${colorTheme || "cozy-wood"} min-h-screen flex flex-col font-sans transition-all duration-500 text-[var(--text-main)] pb-32 overflow-x-hidden w-full relative`}
-      style={{ backgroundColor: "var(--bg-app)" }}
+      className={`${darkMode ? " dark" : ""} font-theme-${fontTheme || "scrapbook"} color-theme-${colorTheme || "cozy-wood"} min-h-screen flex flex-col font-sans transition-all duration-500 text-[var(--text-main)] pb-28 overflow-x-hidden w-full relative`}
+      style={{ background: 'var(--bg-texture), var(--bg-gradient)' }}
       id="app-root-wrapper"
     >
 
@@ -333,7 +364,7 @@ function AppContent() {
       <WeatherBadge />
       <WeatherNotificationController />
       {/* ── Compact Couple Profile Header ── */}
-      <header className="w-full max-w-6xl mx-auto px-4 py-2 md:py-3 flex items-center justify-between gap-x-4 z-40 relative">
+      <header className="w-full max-w-6xl mx-auto px-4 py-4 md:py-5 flex items-center justify-between gap-x-4 z-40 relative">
         {/* Left side: Logo & Title next to it */}
         <div className="flex items-center gap-2">
           <img src={gnLogo} alt="Logo" className="w-16 h-16 md:w-24 md:h-24 flex-shrink-0 object-contain" />
@@ -408,7 +439,7 @@ function AppContent() {
 
       {/* ── Treehouse Rooms Canvas ── */}
       <ErrorBoundary viewName="Treehouse Rooms">
-        <main ref={mainContainerRef} className="flex-1 w-full max-w-6xl mx-auto px-4 pb-32 z-10 relative -mt-3 md:-mt-6" style={{ perspective: "1500px", transformStyle: "preserve-3d" }}>
+        <main ref={mainContainerRef} className="flex-1 w-full max-w-6xl mx-auto px-4 pb-36 z-10 relative mt-2" style={{ perspective: "1500px", transformStyle: "preserve-3d" }}>
           {/* Real Scrapbook interactive stickers layer */}
           <ScrapbookStickers activeTab={activeTab} containerRef={mainContainerRef} />
 
@@ -481,7 +512,7 @@ function AppContent() {
             animate={{ y: 0, x: "-50%", opacity: 1 }}
             exit={{ y: 80, x: "-50%", opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-4 sm:bottom-6 left-1/2 w-[calc(100%-24px)] max-w-md sm:max-w-lg md:max-w-xl z-50"
+            className="fixed bottom-6 sm:bottom-8 left-1/2 w-[calc(100%-24px)] max-w-md sm:max-w-lg md:max-w-xl z-50"
           >
             <div role="tablist" aria-label="Treehouse rooms" className="dock-runner px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl flex items-center justify-between gap-0.5 sm:gap-1.5 w-full">
               {NAV_ITEMS.map(({ id, label, icon: Icon }, idx) => {
@@ -595,7 +626,7 @@ function AppContent() {
         onClick={handleToggleDarkMode}
         title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
         aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-        className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer shadow-md border"
+        className="fixed bottom-24 right-4 sm:bottom-6 sm:right-6 z-50 w-11 h-11 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 cursor-pointer shadow-md border"
         style={{
           backgroundColor: darkMode ? 'rgba(196, 149, 106, 0.25)' : 'rgba(92, 58, 30, 0.12)',
           borderColor: darkMode ? 'rgba(196, 149, 106, 0.4)' : 'rgba(92, 58, 30, 0.2)'
