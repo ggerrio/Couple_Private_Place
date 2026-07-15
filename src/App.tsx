@@ -484,33 +484,18 @@ function AppContent() {
             )}
           </AnimatePresence>
 
-          <Suspense fallback={
-            <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
-              <div className="w-10 h-10 rounded-full border-2 border-[var(--primary)]/30 border-t-[var(--primary)] animate-spin" />
-              <p className="text-xs text-[var(--text-muted)] font-handwrite animate-pulse-slow">Unfolding a new page...</p>
-            </div>
-          }>
-            <AnimatePresence>
+          <div className="relative w-full">
+            <Suspense fallback={
+              <div className="w-full flex flex-col items-center justify-center py-20 space-y-4">
+                <div className="w-10 h-10 rounded-full border-2 border-[var(--primary)]/30 border-t-[var(--primary)] animate-spin" />
+                <p className="text-xs text-[var(--text-muted)] font-handwrite animate-pulse-slow">Unfolding a new page...</p>
+              </div>
+            }>
               <motion.div
                 key={activeTab}
-                variants={{
-                  enter: {
-                    opacity: 0,
-                    y: 10,
-                  },
-                  center: {
-                    opacity: 1,
-                    y: 0,
-                  },
-                  exit: {
-                    opacity: 0,
-                    y: -10,
-                  },
-                }}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.22, ease: "easeInOut" }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
                 className="w-full"
               >
                 {activeTab === "home" && <ErrorBoundary viewName="The Foyer"><HomeView /></ErrorBoundary>}
@@ -520,8 +505,8 @@ function AppContent() {
                 {activeTab === "adventure" && <ErrorBoundary viewName="Secret Garden"><AdventureView /></ErrorBoundary>}
                 {activeTab === "settings" && <ErrorBoundary viewName="Workshop"><SettingsView /></ErrorBoundary>}
               </motion.div>
-            </AnimatePresence>
-          </Suspense>
+            </Suspense>
+          </div>
         </main>
       </ErrorBoundary>
 
