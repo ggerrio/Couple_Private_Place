@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { cn } from "@/src/lib/utils";
+import { cn } from "@/lib/utils";
 
 export interface EmptyJournalPageProps {
   /** Emoji or small icon element displayed above message */

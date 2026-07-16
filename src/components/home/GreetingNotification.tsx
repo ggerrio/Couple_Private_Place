@@ -218,15 +218,15 @@ export default function GreetingNotification({ weatherCode, city, temp, isVisibl
 
         {/* Paper Container with Warm Scrapbook style */}
         <div 
-          className="relative overflow-visible bg-[#FDFBF7] p-5 shadow-[0_8px_30px_rgb(78,59,36,0.15)] rounded-[16px] max-sm:rounded-b-none max-sm:rounded-t-3xl border-2 border-[#4E3B24]/15 text-[#4E3B24] font-sans"
+          className="relative overflow-visible bg-[#FDFBF7] dark:bg-[#1E1E38] p-5 shadow-[0_8px_30px_rgb(78,59,36,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-[16px] max-sm:rounded-b-none max-sm:rounded-t-3xl border-2 border-[#4E3B24]/15 dark:border-white/10 text-[#4E3B24] dark:text-[#FAF6F0] font-sans"
         >
           {/* Mobile bottom sheet drag handle */}
-          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#4E3B24]/15 sm:hidden" />
+          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#4E3B24]/15 dark:bg-white/20 sm:hidden" />
 
           {/* Close button */}
           <button 
             onClick={onClose}
-            className="absolute top-3.5 right-3.5 p-1 rounded-full hover:bg-[#4E3B24]/5 text-[#4E3B24]/60 hover:text-[#4E3B24] transition-colors"
+            className="absolute top-3.5 right-3.5 p-1 rounded-full hover:bg-[#4E3B24]/5 dark:hover:bg-white/5 text-[#4E3B24]/60 dark:text-white/40 hover:text-[#4E3B24] dark:hover:text-white transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -240,7 +240,7 @@ export default function GreetingNotification({ weatherCode, city, temp, isVisibl
 
             {/* Typography Content */}
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-[#bc6c25]">
+              <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-[#bc6c25] dark:text-[#FBBF24]">
                 <MapPin className="w-3 h-3" />
                 <span>{city} • {temp}°C</span>
               </div>
@@ -257,7 +257,7 @@ export default function GreetingNotification({ weatherCode, city, temp, isVisibl
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.25 }}
-                    className="mt-2 text-xs font-serif italic leading-relaxed text-[#4E3B24]/80 overflow-hidden"
+                    className="mt-2 text-xs font-serif italic leading-relaxed text-[#4E3B24]/80 dark:text-white/70 overflow-hidden"
                   >
                     {greetingData.subtext}
                   </motion.p>
@@ -267,7 +267,7 @@ export default function GreetingNotification({ weatherCode, city, temp, isVisibl
               {/* Mobile-only toggle */}
               <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-[#bc6c25] hover:underline sm:hidden"
+                className="mt-1.5 flex items-center gap-1 text-[10px] font-bold text-[#bc6c25] dark:text-[#FBBF24] hover:underline sm:hidden"
               >
                 {isExpanded ? (
                   <>

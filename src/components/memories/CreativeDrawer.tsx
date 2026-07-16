@@ -155,7 +155,7 @@ export function CreativeDrawer({
   return (
     <div 
       id="creative-drawer"
-      className="absolute bottom-6 left-1/2 -translate-x-1/2 max-w-3xl w-[calc(100%-2rem)] z-[150] bg-white/95 dark:bg-stone-900/95 border border-[var(--border-color)] dark:border-white/5 shadow-2xl rounded-2xl p-4 transition-all duration-300 backdrop-blur-md"
+      className="w-full z-[150] bg-white/95 dark:bg-stone-900/95 border border-[var(--border-color)] dark:border-white/5 shadow-2xl rounded-2xl p-4 transition-all duration-300 backdrop-blur-md"
     >
       {/* Drawer Header & Collapse trigger */}
       <div className="flex items-center justify-between border-b border-stone-200/50 dark:border-stone-800 pb-2 mb-3">

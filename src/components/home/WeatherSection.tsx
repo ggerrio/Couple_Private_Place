@@ -164,9 +164,9 @@ function WeatherPanel({ profile, isPartner = false }: WeatherPanelProps) {
 
   const accentVar = "var(--primary)";
 
-  // Live ticking clock
+  // Live ticking clock — every 30s is enough for weather display, saves 97% CPU
   useEffect(() => {
-    const id = setInterval(() => setTime(new Date()), 1000);
+    const id = setInterval(() => setTime(new Date()), 30000);
     return () => clearInterval(id);
   }, []);
 
@@ -347,7 +347,7 @@ function WeatherPanel({ profile, isPartner = false }: WeatherPanelProps) {
           </div>
           <div className="flex flex-col items-end gap-1.5">
             <div
-              className="bg-white/40 border border-white/50 px-2.5 py-1 rounded-xl shadow-xs text-right backdrop-blur-xs flex items-center gap-1.5 font-mono text-[10px] font-bold text-[var(--text-main)]"
+              className="bg-white/50 dark:bg-stone-900/50 border border-white/60 dark:border-white/10 px-2.5 py-1 rounded-xl shadow-xs text-right backdrop-blur-sm flex items-center gap-1.5 font-mono text-[10px] font-bold text-[var(--text-main)]"
             >
               <Clock className="w-3 h-3" style={{ color: accentVar }} />
               <span>{getLocalTime()}</span>

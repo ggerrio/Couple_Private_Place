@@ -4,6 +4,7 @@
  */
 import React, { useState, useEffect } from "react";
 import { useCouple } from "../../context/CoupleContext";
+
 import { motion } from "motion/react";
 import { Heart, Sparkles } from "lucide-react";
 
@@ -52,9 +53,9 @@ export function AnniversaryCountdown() {
     const yrs = next.getFullYear() - start.getFullYear();
     setAnniversaryYears(yrs);
 
-    const tick = () => setTimeLeft(calcTimeLeft(next));
-    tick();
-    const id = setInterval(tick, 1000);
+    setTimeLeft(calcTimeLeft(next));
+    // Update every 10s instead of 1s — saves 90% CPU, still accurate enough for countdown
+    const id = setInterval(() => setTimeLeft(calcTimeLeft(next)), 10000);
     return () => clearInterval(id);
   }, [anniversaryDate]);
 
@@ -65,12 +66,7 @@ export function AnniversaryCountdown() {
   const pad = (n: number) => String(n).padStart(2, "0");
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.55, delay: 0.03 }}
-      id="anniversary-countdown-card"
-    >
+    <div id="anniversary-countdown-card">
       <div className="relative overflow-hidden">
         {/* Decorative floating hearts */}
         <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
@@ -132,7 +128,7 @@ export function AnniversaryCountdown() {
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 

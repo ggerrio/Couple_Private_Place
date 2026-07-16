@@ -431,7 +431,7 @@ export default function LettersPanel() {
               }}
             >
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setOpenedLetterId(null)} className="absolute inset-0 bg-black/60 backdrop-blur-xs z-0" />
+                onClick={() => setOpenedLetterId(null)} className="absolute inset-0 bg-black/60 backdrop-blur-sm z-0" />
               <motion.div
                 initial={{ y: 40, opacity: 0, scale: 0.96 }}
                 animate={{ y: 0, opacity: 1, scale: 1 }}

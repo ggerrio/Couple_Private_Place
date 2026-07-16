@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useCouple } from "../../context/CoupleContext";
+import { OptimizedImage } from "../common/OptimizedImage";
 import { motion } from "motion/react";
 import { Calendar, Gift, Edit2, Sparkles, RefreshCw, Heart } from "lucide-react";
 import { triggerHaptic } from "../../lib/haptics";
@@ -178,7 +179,7 @@ export function MilestonesSection() {
             <div className="space-y-3">
               <div className="flex items-center justify-between bg-white/40 p-3 rounded-xl border border-[var(--border-color)]">
                 <div className="flex items-center gap-2.5">
-                  <img src={userA.avatar} alt={userA.name} className="w-8 h-8 rounded-full border border-[var(--border-color)] object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                  <OptimizedImage src={userA.avatar} alt={userA.name} className="w-8 h-8 rounded-full border border-[var(--border-color)] object-cover" referrerPolicy="no-referrer" loading="lazy" resizeWidth={64} resizeHeight={64} />
                   <div>
                     <p className="text-xs md:text-sm font-bold text-[var(--text-main)] truncate max-w-[100px]">{userA.name.split(" ")[0]}</p>
                     <p className="text-xs md:text-sm text-[var(--text-muted)] mt-0.5">{formatBirthdayDisplay(birthdayA)}</p>
@@ -191,7 +192,7 @@ export function MilestonesSection() {
               </div>
               <div className="flex items-center justify-between bg-white/40 p-3 rounded-xl border border-[var(--border-color)]">
                 <div className="flex items-center gap-2.5">
-                  <img src={userB.avatar} alt={userB.name} className="w-8 h-8 rounded-full border border-[var(--border-color)] object-cover" referrerPolicy="no-referrer" loading="lazy" />
+                  <OptimizedImage src={userB.avatar} alt={userB.name} className="w-8 h-8 rounded-full border border-[var(--border-color)] object-cover" referrerPolicy="no-referrer" loading="lazy" resizeWidth={64} resizeHeight={64} />
                   <div>
                     <p className="text-xs md:text-sm font-bold text-[var(--text-main)] truncate max-w-[100px]">{userB.name.split(" ")[0]}</p>
                     <p className="text-xs md:text-sm text-[var(--text-muted)] mt-0.5">{formatBirthdayDisplay(birthdayB)}</p>

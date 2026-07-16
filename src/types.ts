@@ -17,6 +17,7 @@ export interface Profile {
   emoji?: string;
   timezoneOffset?: number;
   timezoneName?: string;
+  lastActive?: number;
 }
 
 export interface Comment {
@@ -163,6 +164,9 @@ export interface PhotoboothRoom {
   filter: string;
   caption?: string;
   stripPreset?: string;
+  customFrameColor?: string;
+  customTextColor?: string;
+  customAccentColor?: string;
   state: "waiting" | "countdown" | "captured" | "editing" | "done";
   round: number;
   totalRounds: number;

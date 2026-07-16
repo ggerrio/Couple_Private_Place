@@ -58,14 +58,14 @@ export default function ForecastNotification({
 }: ForecastNotificationProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Auto-dismiss after 15 seconds regardless of expand/collapse state
   React.useEffect(() => {
-    if (isVisible && !isExpanded) {
-      const timer = setTimeout(() => {
-        onClose();
-      }, 15000);
-      return () => clearTimeout(timer);
-    }
-  }, [isVisible, isExpanded, onClose]);
+    if (!isVisible) return;
+    const timer = setTimeout(() => {
+      onClose();
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, [isVisible, onClose]);
 
   // Hand-drawn weather SVGs for forecast items
   const renderWeatherIcon = (code: number, sizeClass = "w-8 h-8") => {
@@ -145,20 +145,20 @@ export default function ForecastNotification({
 
         {/* Paper Container with Warm Scrapbook style */}
         <div 
-          className="relative overflow-visible bg-[#FDFBF7] p-5 shadow-[0_8px_30px_rgb(78,59,36,0.15)] rounded-[16px] max-sm:rounded-b-none max-sm:rounded-t-3xl border-2 border-[#4E3B24]/15 text-[#4E3B24] font-sans"
+          className="relative overflow-visible bg-[#FDFBF7] dark:bg-[#1E1E38] p-5 shadow-[0_8px_30px_rgb(78,59,36,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-[16px] max-sm:rounded-b-none max-sm:rounded-t-3xl border-2 border-[#4E3B24]/15 dark:border-white/10 text-[#4E3B24] dark:text-[#FAF6F0] font-sans"
         >
           {/* Mobile bottom sheet drag handle */}
-          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#4E3B24]/15 sm:hidden" />
+          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#4E3B24]/15 dark:bg-white/20 sm:hidden" />
 
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-dashed border-[#4E3B24]/15 pb-2 mb-3">
-            <div className="flex items-center gap-1.5 text-xs font-bold font-serif text-[#2D5A27]">
+          <div className="flex items-center justify-between border-b border-dashed border-[#4E3B24]/15 dark:border-white/10 pb-2 mb-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold font-serif text-[#2D5A27] dark:text-[#6EE7B7]">
               <Calendar className="w-4 h-4" />
               <span>3-Day Forecast</span>
             </div>
             <button 
               onClick={onClose}
-              className="p-1 rounded-full hover:bg-[#4E3B24]/5 text-[#4E3B24]/60 hover:text-[#4E3B24] transition-colors"
+              className="p-1 rounded-full hover:bg-[#4E3B24]/5 dark:hover:bg-white/5 text-[#4E3B24]/60 dark:text-white/40 hover:text-[#4E3B24] dark:hover:text-white transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -180,19 +180,19 @@ export default function ForecastNotification({
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: idx * 0.1, type: "spring", stiffness: 150 }}
-                  className="flex flex-col items-center bg-[#FEFDFB] border border-[#4E3B24]/10 rounded-xl p-2.5 text-center shadow-sm hover:-translate-y-0.5 transition-transform"
+                  className="flex flex-col items-center bg-[#FEFDFB] dark:bg-[#1A1A2E] border border-[#4E3B24]/10 dark:border-white/10 rounded-xl p-2.5 text-center shadow-sm hover:-translate-y-0.5 transition-transform"
                 >
-                  <span className="text-[10px] font-bold text-[#4E3B24]/60 uppercase">{dayLabel}</span>
+                  <span className="text-[10px] font-bold text-[#4E3B24]/60 dark:text-white/50 uppercase">{dayLabel}</span>
                   <div className="my-1.5 flex items-center justify-center">
                     {renderWeatherIcon(item.weatherCode, "w-10 h-10")}
                   </div>
-                  <span className="text-[10px] font-bold text-[#2D5A27] truncate w-full" title={cond.textId}>
+                  <span className="text-[10px] font-bold text-[#2D5A27] dark:text-[#6EE7B7] truncate w-full" title={cond.textId}>
                     {cond.textId.split(" / ")[0] || cond.textId}
                   </span>
                   <div className="mt-1 flex items-baseline gap-1 font-mono text-xs font-bold">
-                    <span className="text-[#e11d48]">{Math.round(item.tempMax)}°</span>
-                    <span className="text-[#4E3B24]/30">/</span>
-                    <span className="text-[#0284C7]">{Math.round(item.tempMin)}°</span>
+                    <span className="text-[#e11d48] dark:text-[#FB7185]">{Math.round(item.tempMax)}°</span>
+                    <span className="text-[#4E3B24]/30 dark:text-white/20">/</span>
+                    <span className="text-[#0284C7] dark:text-[#38BDF8]">{Math.round(item.tempMin)}°</span>
                   </div>
                 </motion.div>
               );
@@ -202,7 +202,7 @@ export default function ForecastNotification({
           {/* Expand/Collapse Trigger */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className="mt-3.5 w-full flex items-center justify-center gap-1 text-[10px] font-bold text-[#2D5A27] py-1 bg-[#4E3B24]/5 hover:bg-[#4E3B24]/10 rounded-lg transition-colors"
+            className="mt-3.5 w-full flex items-center justify-center gap-1 text-[10px] font-bold text-[#2D5A27] dark:text-[#6EE7B7] py-1 bg-[#4E3B24]/5 dark:bg-white/5 hover:bg-[#4E3B24]/10 dark:hover:bg-white/10 rounded-lg transition-colors"
           >
             <Clock className="w-3.5 h-3.5" />
             <span>{isExpanded ? "Hide Hourly Forecast" : "View Hourly Forecast"}</span>
@@ -217,19 +217,19 @@ export default function ForecastNotification({
                 animate={{ height: "auto", opacity: 1, marginTop: 12 }}
                 exit={{ height: 0, opacity: 0, marginTop: 0 }}
                 transition={{ duration: 0.3 }}
-                className="overflow-hidden border-t border-dashed border-[#4E3B24]/15 pt-3"
+                className="overflow-hidden border-t border-dashed border-[#4E3B24]/15 dark:border-white/10 pt-3"
               >
                 <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#4E3B24]/20 select-none">
                   {hourlyForecast.map((hour, idx) => (
                     <div 
                       key={idx} 
-                      className="flex-shrink-0 flex flex-col items-center bg-[#FEFDFB] border border-[#4E3B24]/10 rounded-lg p-2 min-w-[55px] text-center"
+                      className="flex-shrink-0 flex flex-col items-center bg-[#FEFDFB] dark:bg-[#1A1A2E] border border-[#4E3B24]/10 dark:border-white/10 rounded-lg p-2 min-w-[55px] text-center"
                     >
-                      <span className="text-[9px] font-bold text-[#4E3B24]/50">{formatTimeLabel(hour.time)}</span>
+                      <span className="text-[9px] font-bold text-[#4E3B24]/50 dark:text-white/40">{formatTimeLabel(hour.time)}</span>
                       <div className="my-1">
                         {renderWeatherIcon(hour.weatherCode, "w-6 h-6")}
                       </div>
-                      <span className="font-mono text-[10px] font-black text-[#4E3B24]">{Math.round(hour.temp)}°C</span>
+                      <span className="font-mono text-[10px] font-black text-[#4E3B24] dark:text-[#FAF6F0]">{Math.round(hour.temp)}°C</span>
                     </div>
                   ))}
                 </div>

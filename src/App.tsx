@@ -19,15 +19,18 @@ const AdventureView = React.lazy(() => import("./components/AdventureView"));
 const SettingsView = React.lazy(() => import("./components/SettingsView"));
 
 import { Toaster } from "./components/ui/sonner";
+import { toast } from "sonner";
 import LoginView from "./components/LoginView";
 import OnboardingView from "./components/OnboardingView";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
+import { OptimizedImage } from "./components/common/OptimizedImage";
 import { motion, AnimatePresence } from "motion/react";
-import { Home, Camera, Mail, Gamepad2, Sprout, Settings, Sparkles, X, Sun, Moon, Heart } from "lucide-react";
+import { Home, Camera, Mail, Gamepad2, Sprout, Settings, Sparkles, X, Sun, Moon, Heart, Smile } from "lucide-react";
 import { NightAmbient, ConfettiEffect, useConfetti, WeatherBadge, WeatherNotificationController } from "./components/emotional";
 import { ScrapbookStickers } from "./components/scrapbook";
 
 import gnLogo from "../logo/ger_n_nic_small.webp";
+import { triggerHaptic } from "./lib/haptics";
 
 import { getDb } from "./firebaseClient";
 import Lenis from "lenis";
@@ -108,15 +111,83 @@ function setupGlobalErrorHandler() {
   return () => window.removeEventListener("unhandledrejection", handler);
 }
 
-function AppContent() {
+function formatLastSeen(lastActive: number | undefined, isOnline: boolean): string {
+  if (isOnline) return "Active now";
+  if (!lastActive) return "Last seen: offline";
+  const diff = Date.now() - lastActive;
+  if (diff < 0) return "Active now";
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return "Last seen: just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `Last seen: ${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Last seen: ${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "Last seen: yesterday";
+  if (days < 7) return `Last seen: ${days}d ago`;
+  return `Last seen: ${new Date(lastActive).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
+}
+
+function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: (tab: TabId) => void }) {
   // ── Global error handler for promise rejections ──────────────────────
   useEffect(setupGlobalErrorHandler, []);
 
-  const { session, currentUser, userA, userB, darkMode, toggleDarkMode, activeSurprise, setActiveSurprise, isOnboarding, currentSong, setSongPlayState, anniversaryDate, birthdayA, birthdayB, fontTheme, colorTheme } = useCouple();
-  const [activeTab, setActiveTab] = useState<TabId>("home");
+  const { 
+    session, currentUser, userA, userB, darkMode, toggleDarkMode, 
+    activeSurprise, setActiveSurprise, isOnboarding, currentSong, 
+    setSongPlayState, anniversaryDate, birthdayA, birthdayB, 
+    fontTheme, colorTheme, updateProfile, addMoodHistoryEntry, addActivity 
+  } = useCouple();
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isOnlineA = useMemo(() => {
+    if (!userA.lastActive) return false;
+    return now - userA.lastActive < 45000;
+  }, [userA.lastActive, now]);
+
+  const isOnlineB = useMemo(() => {
+    if (!userB.lastActive) return false;
+    return now - userB.lastActive < 45000;
+  }, [userB.lastActive, now]);
+
+  // Periodic online presence heartbeat
+  useEffect(() => {
+    if (!session || !currentUser || (currentUser !== "user_a" && currentUser !== "user_b")) return;
+    
+    // Initial heartbeat
+    updateProfile(currentUser, { lastActive: Date.now() });
+
+    const interval = setInterval(() => {
+      updateProfile(currentUser, { lastActive: Date.now() });
+    }, 15000); // every 15 seconds
+
+    return () => clearInterval(interval);
+  }, [session, currentUser, updateProfile]);
+
+  const setActiveTab = onTabChange;
   const activeTabRef = useRef(activeTab);
   // Sync the ref whenever activeTab state changes
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+
+  const [moodPickerAnchor, setMoodPickerAnchor] = useState<"user_a" | "user_b" | null>(null);
+
+  const MOOD_PRESETS = useMemo(() => [
+    { emoji: "😊", text: "Happy", status: "Feeling happy & bright 😊" },
+    { emoji: "🥰", text: "Loved", status: "Full of love 🥰" },
+    { emoji: "🍵", text: "Cozy", status: "Sipping matcha & cozy 🍵" },
+    { emoji: "🥱", text: "Sleepy", status: "Getting sleepy 🥱" },
+    { emoji: "💻", text: "Focus", status: "Deep in focus coding 💻" },
+    { emoji: "🥳", text: "Hyped", status: "Super excited! 🥳" },
+    { emoji: "🥺", text: "Needy", status: "Needs warm hugs 🥺" },
+    { emoji: "🍿", text: "Chill", status: "Watching a movie 🍿" },
+    { emoji: "📚", text: "Studying", status: "Hitting the books 📚" },
+    { emoji: "☕", text: "Coffee", status: "Coffee mode on ☕" },
+  ], []);
 
   const mainContainerRef = useRef<HTMLDivElement>(null);
 
@@ -388,7 +459,7 @@ function AppContent() {
       <header className="w-full max-w-6xl mx-auto px-4 py-4 md:py-5 flex items-center justify-between gap-x-4 z-40 relative">
         {/* Left side: Logo & Title next to it */}
         <div className="flex items-center gap-2">
-          <img src={gnLogo} alt="Logo" className="w-16 h-16 md:w-24 md:h-24 flex-shrink-0 object-contain" />
+          <OptimizedImage src={gnLogo} alt="Logo" className="w-16 h-16 md:w-24 md:h-24 flex-shrink-0 object-contain" resizeWidth={120} />
           <div>
             <h1 className="text-xs md:text-sm font-bold font-display tracking-wide text-[var(--text-main)] leading-none">
               Our Little Universe
@@ -400,25 +471,65 @@ function AppContent() {
         </div>
 
         {/* Right side: Both profiles side-by-side (even smaller) */}
-        <div className="flex items-center gap-2 bg-white/40 border border-white/50 px-2 py-1 rounded-xl shadow-xs backdrop-blur-xs">
+        <div className="relative flex items-center gap-2 bg-white/50 dark:bg-stone-900/50 border border-white/60 dark:border-white/10 px-2.5 py-1 rounded-xl shadow-sm backdrop-blur-md transition-all duration-300">
           {/* User A Profile */}
-          <div className="flex items-center gap-1 max-w-[100px] sm:max-w-none">
-            <div className="relative">
-              <img
+          <div 
+            className={`flex items-center gap-1 max-w-[100px] sm:max-w-none p-0.5 rounded-lg transition-all ${
+              currentUser === "user_a" 
+                ? "cursor-pointer hover:bg-white/60 active:scale-95" 
+                : "cursor-not-allowed opacity-90"
+            }`}
+            onClick={() => {
+              if (currentUser === "user_a") {
+                triggerHaptic("light");
+                setMoodPickerAnchor(moodPickerAnchor === "user_a" ? null : "user_a");
+              } else {
+                triggerHaptic("medium");
+                toast.info(`This is ${userA.name.split(" ")[0]}'s slot. Only they can update their status! 💙`);
+              }
+            }}
+          >
+            <div className="relative group/avatar">
+              <OptimizedImage
                 src={userA.avatar}
                 alt={userA.name}
                 className={`w-7 h-7 rounded-full object-cover border-2 ${userA.gender === "pria" ? "border-sky-400 shadow-[0_0_4px_rgba(56,189,248,0.12)]" : "border-rose-400 shadow-[0_0_4px_rgba(244,63,94,0.12)]"
                   }`}
                 referrerPolicy="no-referrer"
                 loading="lazy"
+                resizeWidth={56}
+                resizeHeight={56}
               />
+              {/* Online/Offline status dot lamp */}
+              <div className="absolute -top-1 -left-1 group/status cursor-pointer z-20" tabIndex={0}>
+                <span 
+                  className={`block w-2.5 h-2.5 rounded-full border border-white transition-all duration-300 ${
+                    isOnlineA ? "bg-green-500 shadow-[0_0_4px_#22c55e] animate-pulse" : "bg-red-500 shadow-[0_0_4px_#ef4444]"
+                  }`} 
+                />
+                
+                {/* Subtle 'Last seen' timestamp popup */}
+                <div className="absolute top-3.5 left-0 pointer-events-none opacity-0 group-hover/status:opacity-100 group-focus/status:opacity-100 group-active/status:opacity-100 transition-all duration-300 transform -translate-y-1 group-hover/status:translate-y-0 bg-zinc-900/95 dark:bg-zinc-800/95 text-white text-[9px] font-medium py-1 px-2 rounded-lg shadow-lg whitespace-nowrap z-50 border border-white/10 flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isOnlineA ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+                    <span className="font-bold text-[9px]">{isOnlineA ? "Online" : "Offline"}</span>
+                  </div>
+                  <span className="text-zinc-300 font-mono text-[8.5px]">{formatLastSeen(userA.lastActive, isOnlineA)}</span>
+                </div>
+              </div>
               <span className="absolute -bottom-1 -right-1 text-[8px] bg-white rounded-full p-0.5 shadow-xs leading-none">
                 {userA.emoji || "💖"}
               </span>
+              {currentUser === "user_a" && (
+                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                  <Smile className="w-3 h-3 text-white" />
+                </div>
+              )}
             </div>
             <div className="text-left hidden sm:block pl-1">
-              <p className="text-[10px] font-bold text-[var(--text-main)] leading-none truncate max-w-[60px]">
+              <p className="text-[10px] font-bold text-[var(--text-main)] leading-none truncate max-w-[60px] flex items-center gap-0.5">
                 {userA.name.split(" ")[0]}
+                {currentUser === "user_a" && <Smile className="w-2.5 h-2.5 text-[var(--primary)] opacity-60" />}
               </p>
               <p className="text-[8px] text-[var(--text-muted)] font-medium mt-0.5 truncate max-w-[70px]" title={userA.status}>
                 {userA.status || "Offline"}
@@ -432,29 +543,158 @@ function AppContent() {
           </div>
 
           {/* User B Profile */}
-          <div className="flex items-center gap-1 max-w-[100px] sm:max-w-none">
-            <div className="relative">
-              <img
+          <div 
+            className={`flex items-center gap-1 max-w-[100px] sm:max-w-none p-0.5 rounded-lg transition-all ${
+              currentUser === "user_b" 
+                ? "cursor-pointer hover:bg-white/60 active:scale-95" 
+                : "cursor-not-allowed opacity-90"
+            }`}
+            onClick={() => {
+              if (currentUser === "user_b") {
+                triggerHaptic("light");
+                setMoodPickerAnchor(moodPickerAnchor === "user_b" ? null : "user_b");
+              } else {
+                triggerHaptic("medium");
+                toast.info(`This is ${userB.name.split(" ")[0]}'s slot. Only they can update their status! 🌸`);
+              }
+            }}
+          >
+            <div className="relative group/avatar">
+              <OptimizedImage
                 src={userB.avatar}
                 alt={userB.name}
                 className={`w-7 h-7 rounded-full object-cover border-2 ${userB.gender === "wanita" ? "border-rose-400 shadow-[0_0_4px_rgba(244,63,94,0.12)]" : "border-sky-400 shadow-[0_0_4px_rgba(56,189,248,0.12)]"
                   }`}
                 referrerPolicy="no-referrer"
                 loading="lazy"
+                resizeWidth={56}
+                resizeHeight={56}
               />
+              {/* Online/Offline status dot lamp */}
+              <div className="absolute -top-1 -left-1 group/status cursor-pointer z-20" tabIndex={0}>
+                <span 
+                  className={`block w-2.5 h-2.5 rounded-full border border-white transition-all duration-300 ${
+                    isOnlineB ? "bg-green-500 shadow-[0_0_4px_#22c55e] animate-pulse" : "bg-red-500 shadow-[0_0_4px_#ef4444]"
+                  }`} 
+                />
+                
+                {/* Subtle 'Last seen' timestamp popup */}
+                <div className="absolute top-3.5 left-0 pointer-events-none opacity-0 group-hover/status:opacity-100 group-focus/status:opacity-100 group-active/status:opacity-100 transition-all duration-300 transform -translate-y-1 group-hover/status:translate-y-0 bg-zinc-900/95 dark:bg-zinc-800/95 text-white text-[9px] font-medium py-1 px-2 rounded-lg shadow-lg whitespace-nowrap z-50 border border-white/10 flex flex-col gap-0.5">
+                  <div className="flex items-center gap-1">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isOnlineB ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
+                    <span className="font-bold text-[9px]">{isOnlineB ? "Online" : "Offline"}</span>
+                  </div>
+                  <span className="text-zinc-300 font-mono text-[8.5px]">{formatLastSeen(userB.lastActive, isOnlineB)}</span>
+                </div>
+              </div>
               <span className="absolute -bottom-1 -right-1 text-[8px] bg-white rounded-full p-0.5 shadow-xs leading-none">
                 {userB.emoji || "✨"}
               </span>
+              {currentUser === "user_b" && (
+                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover/avatar:opacity-100 transition-opacity">
+                  <Smile className="w-3 h-3 text-white" />
+                </div>
+              )}
             </div>
             <div className="text-left hidden sm:block pl-1">
-              <p className="text-[10px] font-bold text-[var(--text-main)] leading-none truncate max-w-[60px]">
+              <p className="text-[10px] font-bold text-[var(--text-main)] leading-none truncate max-w-[60px] flex items-center gap-0.5">
                 {userB.name.split(" ")[0]}
+                {currentUser === "user_b" && <Smile className="w-2.5 h-2.5 text-[var(--primary)] opacity-60" />}
               </p>
               <p className="text-[8px] text-[var(--text-muted)] font-medium mt-0.5 truncate max-w-[70px]" title={userB.status}>
                 {userB.status || "Offline"}
               </p>
             </div>
           </div>
+
+          {/* Floating Mood Picker Popover */}
+          <AnimatePresence>
+            {moodPickerAnchor && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="absolute right-0 top-11 z-50 w-72 bg-[var(--fabric-cream)] border-2 border-[var(--wood-oak)] rounded-3xl p-4 shadow-xl text-left"
+              >
+                <div className="flex items-center justify-between border-b border-[var(--wood-oak)]/15 pb-2 mb-3">
+                  <span className="text-xs uppercase font-black tracking-wider text-[var(--primary)] flex items-center gap-1 font-serif">
+                    <Smile className="w-3.5 h-3.5" /> Set Your Current Vibe
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMoodPickerAnchor(null);
+                    }}
+                    className="p-1 hover:bg-black/5 rounded-full transition-colors cursor-pointer text-[var(--text-muted)]"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-5 gap-2">
+                  {MOOD_PRESETS.map((p) => {
+                    const activeProfile = currentUser === "user_a" ? userA : userB;
+                    const isCurrent = activeProfile.emoji === p.emoji;
+                    return (
+                      <button
+                        key={p.text}
+                        title={p.status}
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          triggerHaptic("success");
+                          await updateProfile(currentUser, { emoji: p.emoji, status: p.status, mood: p.text.toLowerCase() });
+                          addMoodHistoryEntry(p.text, p.status);
+                          addActivity(`updated vibe to: ${p.emoji} ${p.text}`);
+                          setMoodPickerAnchor(null);
+                          toast.success(`Updated your vibe to ${p.emoji} ${p.text}!`);
+                        }}
+                        className={`h-11 rounded-xl flex items-center justify-center text-xl transition-all duration-150 cursor-pointer ${
+                          isCurrent 
+                            ? "bg-[var(--primary)]/20 border-2 border-[var(--primary)] scale-105" 
+                            : "bg-white/45 border border-[var(--wood-oak)]/10 hover:bg-white/90 hover:scale-102"
+                        }`}
+                      >
+                        {p.emoji}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div className="mt-3 pt-2.5 border-t border-[var(--wood-oak)]/10 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <span className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider font-bold">Or Write Custom Status:</span>
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      const input = (e.currentTarget.elements.namedItem("customStatus") as HTMLInputElement).value.trim();
+                      if (!input) return;
+                      triggerHaptic("success");
+                      const activeProfile = currentUser === "user_a" ? userA : userB;
+                      await updateProfile(currentUser, { status: input });
+                      addMoodHistoryEntry(activeProfile.mood || "cozy", input);
+                      addActivity(`updated status to: "${input}"`);
+                      setMoodPickerAnchor(null);
+                      toast.success("Custom status updated!");
+                    }}
+                    className="flex gap-1.5"
+                  >
+                    <input
+                      name="customStatus"
+                      placeholder="Doing homework, driving..."
+                      maxLength={50}
+                      className="flex-1 text-[11px] px-3 py-1.5 bg-white/50 border border-[var(--wood-oak)]/15 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)] font-medium"
+                    />
+                    <button
+                      type="submit"
+                      className="px-2.5 py-1 bg-[var(--primary)] hover:opacity-95 text-white font-bold text-[10px] rounded-xl transition-all cursor-pointer shadow-3xs"
+                    >
+                      Set
+                    </button>
+                  </form>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 
@@ -520,7 +760,7 @@ function AppContent() {
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
             className="fixed bottom-6 sm:bottom-8 left-1/2 w-[calc(100%-24px)] max-w-md sm:max-w-lg md:max-w-xl z-50"
           >
-            <div role="tablist" aria-label="Treehouse rooms" className="dock-runner px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl flex items-center justify-between gap-0.5 sm:gap-1.5 w-full">
+            <div role="tablist" aria-label="Treehouse rooms" className="dock-runner backdrop-blur-xl bg-white/45 dark:bg-stone-900/55 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl flex items-center justify-between gap-0.5 sm:gap-1.5 w-full">
               {NAV_ITEMS.map(({ id, label, icon: Icon }, idx) => {
                 const active = activeTab === id;
                 const meta = ROOM_METADATA[id];
@@ -643,15 +883,17 @@ function AppContent() {
           : <Moon className="w-5 h-5" style={{ color: "var(--text-muted)" }} />
         }
       </button>
+
+      <Toaster theme={darkMode ? "dark" : "light"} />
     </div>
   );
 }
 
 export default function App() {
+  const [activeTab, setActiveTab] = useState<TabId>("home");
   return (
-    <CoupleProvider>
-      <AppContent />
-      <Toaster />
+    <CoupleProvider activeTab={activeTab}>
+      <AppContent activeTab={activeTab} onTabChange={setActiveTab} />
     </CoupleProvider>
   );
 }

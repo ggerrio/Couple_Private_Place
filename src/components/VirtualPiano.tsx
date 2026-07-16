@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import * as Tone from "tone";
-import { getRTDB, isFirebaseConfigured } from "../firebaseClient";
+import { getRTDB, isFirebaseConfigured, getDb } from "../firebaseClient";
 import {
   Music,
   Volume2,
@@ -185,47 +185,27 @@ const SHEET_PRESETS: SheetPreset[] = [
   }
 ];
 
-function setVisualKeyState(note: string, active: boolean, isBlack: boolean) {
-  const el = document.getElementById(`key-${note}`);
-  if (!el) return;
-  if (active) {
-    el.classList.add("text-stone-900", "font-bold", "translate-y-1.5", "border-b-[2px]", "border-b-stone-300/50", "border-t-4", "border-t-[#CBB084]");
-    el.style.backgroundColor = "#E6C594";
-    if (isBlack) {
-      el.style.backgroundImage = "radial-gradient(circle at center bottom, #F3DAB0 0%, #E6C594 65%, #AE9263 100%)";
-      el.style.boxShadow = "inset 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(230, 197, 148, 0.5)";
-    } else {
-      el.style.backgroundImage = "radial-gradient(circle at center bottom, #F5DFB8 0%, #E6C594 70%, #CBB084 100%)";
-      el.style.boxShadow = "inset 0 6px 16px rgba(74, 58, 58, 0.35), 0 0 12px rgba(230, 197, 148, 0.4)";
-    }
-    const ripple = el.querySelector(".ripple-container");
-    if (ripple) {
-      ripple.classList.remove("hidden");
-      // Clean up previous dynamic ripples to prevent bloating
-      const existing = ripple.querySelectorAll(".dynamic-ripple");
-      existing.forEach((child) => child.remove());
+// rAF-batched visual state buffer — ganti setVisualKeyState langsung
+const visualBufferRef = { current: new Map<string, boolean>() };
+let visualRAFScheduled: number | null = null;
 
-      // Create a fresh new ripple element and append it
-      const rippleSpan = document.createElement("span");
-      rippleSpan.className = `absolute rounded-full animate-key-ripple pointer-events-none dynamic-ripple ${
-        isBlack
-          ? "w-16 h-16 bg-gradient-to-r from-amber-200/50 via-white/60 to-amber-100/50"
-          : "w-32 h-32 bg-gradient-to-r from-amber-200/40 via-white/50 to-amber-100/40"
-      }`;
-      ripple.appendChild(rippleSpan);
-    }
-  } else {
-    el.classList.remove("text-stone-900", "font-bold", "translate-y-1.5", "border-b-[2px]", "border-b-stone-300/50", "border-t-4", "border-t-[#CBB084]");
-    el.style.backgroundColor = "";
-    el.style.backgroundImage = "";
-    el.style.boxShadow = "";
-    const ripple = el.querySelector(".ripple-container");
-    if (ripple) {
-      ripple.classList.add("hidden");
-      // Clean up dynamic ripples on release
-      const existing = ripple.querySelectorAll(".dynamic-ripple");
-      existing.forEach((child) => child.remove());
-    }
+function setVisualKeyState(note: string, active: boolean, _isBlack?: boolean) {
+  visualBufferRef.current.set(note, active);
+  if (visualRAFScheduled === null) {
+    visualRAFScheduled = requestAnimationFrame(() => {
+      visualRAFScheduled = null;
+      const buffer = visualBufferRef.current;
+      visualBufferRef.current = new Map();
+      buffer.forEach((isActive, n) => {
+        const el = document.getElementById(`key-${n}`);
+        if (!el) return;
+        if (isActive) {
+          el.classList.add(n.includes("#") ? "key-pressed-black" : "key-pressed");
+        } else {
+          el.classList.remove("key-pressed", "key-pressed-black");
+        }
+      });
+    });
   }
 }
 
@@ -254,17 +234,13 @@ export const WhitePianoKey = React.memo(({
       onMouseDown={() => playNote(note)}
       onMouseUp={() => stopNote(note)}
       onMouseLeave={() => stopNote(note)}
-      className={`relative select-none outline-none rounded-b-xl flex flex-col justify-end items-center pb-4 text-center transition-[transform,background-color,box-shadow] duration-77 ease-out cursor-pointer group shadow-[0_4px_4px_rgba(0,0,0,0.1)] ${
+      className={`key-ripple relative select-none outline-none rounded-b-xl flex flex-col justify-end items-center pb-4 text-center transition-transform duration-77 ease-out cursor-pointer group shadow-[0_4px_4px_rgba(0,0,0,0.1)] ${
         darkMode
           ? "bg-gradient-to-b from-neutral-800 via-neutral-700 to-neutral-800 hover:to-neutral-750 text-neutral-400 hover:text-neutral-250 border-r border-r-neutral-800/40 border-b-[6px] border-b-neutral-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
           : "bg-gradient-to-b from-stone-100 via-white to-stone-50 hover:to-stone-100 text-stone-400 hover:text-stone-700 border-r border-r-stone-300/60 border-b-[6px] border-b-stone-200/80 shadow-[_inset_0_2px_0_rgba(255,255,255,0.8)]"
       } ${isMaximized ? "h-[55vh] sm:h-[60vh]" : "h-52 md:h-72"}`}
       style={{ width: "calc(100% / 36)" }}
     >
-      <span className="ripple-container hidden absolute inset-0 pointer-events-none overflow-hidden rounded-b-xl flex items-center justify-center">
-        <span className="absolute w-32 h-32 bg-gradient-to-r from-amber-200/40 via-white/50 to-amber-100/40 rounded-full animate-key-ripple" />
-      </span>
-
       {showKeys && (
         <span className={`text-[10px] uppercase font-sans tracking-tighter select-none block font-bold transition-opacity duration-150 relative z-10 opacity-40 group-hover:opacity-80 ${
           darkMode ? "text-neutral-300" : "text-stone-600"
@@ -313,7 +289,7 @@ export const BlackPianoKey = React.memo(({
       onMouseDown={() => playNote(note)}
       onMouseUp={() => stopNote(note)}
       onMouseLeave={() => stopNote(note)}
-      className={`absolute top-0 select-none outline-none rounded-b-md flex flex-col justify-end items-center pb-3 text-center pointer-events-auto transition-[transform,background-color,box-shadow] duration-77 ease-out cursor-pointer group shadow-[0_6px_10px_rgba(0,0,0,0.55)] border-t border-x ${
+      className={`key-ripple absolute top-0 select-none outline-none rounded-b-md flex flex-col justify-end items-center pb-3 text-center pointer-events-auto transition-transform duration-77 ease-out cursor-pointer group shadow-[0_6px_10px_rgba(0,0,0,0.55)] border-t border-x ${
         darkMode
           ? "bg-gradient-to-b from-neutral-900 via-neutral-950 to-black hover:from-neutral-800 text-neutral-400 hover:text-white border-t-neutral-800 border-x-neutral-900"
           : "bg-gradient-to-b from-stone-900 via-stone-950 to-black hover:from-stone-800 text-stone-200 hover:text-white border-t-stone-800 border-x-stone-900"
@@ -323,10 +299,6 @@ export const BlackPianoKey = React.memo(({
         left: `calc(${leftOffset}% - ${blackKeyWidthPercent / 2}%)`,
       }}
     >
-      <span className="ripple-container hidden absolute inset-0 pointer-events-none overflow-hidden rounded-b-md flex items-center justify-center">
-        <span className="absolute w-16 h-16 bg-gradient-to-r from-amber-200/50 via-white/60 to-amber-100/50 rounded-full animate-key-ripple" />
-      </span>
-
       {showKeys && (
         <span className="text-[9px] uppercase font-sans tracking-tighter select-none block font-bold transition-opacity duration-150 relative z-10 opacity-90 text-stone-200 group-hover:opacity-100 group-hover:text-white">
           {charKey}
@@ -358,6 +330,59 @@ export default function VirtualPiano() {
   const pendingEventsRef = useRef<{ n: string; a: number; u: string; t: any }[]>([]);
   const throttleTimeoutRef = useRef<any | null>(null);
   const loadTimeRef = useRef<number>(Date.now());
+
+  const noteBatchRef = useRef<{ note: string; time?: number }[]>([]);
+  const rAFScheduledRef = useRef<number | null>(null);
+  const lastPlayTimesRef = useRef<Record<string, number>>({});
+  const firestoreDebounceRef = useRef<NodeJS.Timeout | null>(null);
+  const autoClearRef = useRef<(() => Promise<void>) | null>(null);
+
+  // ── Remote event handling (throttled + batched via rAF) ──
+  const remoteBatchRef = useRef<{ n: string; a: number }[]>([]);
+  const remoteRAFScheduledRef = useRef<number | null>(null);
+  const remoteLastProcessRef = useRef<number>(0);
+  const REMOTE_THROTTLE_MS = 30;
+
+  // Ref untuk clearSyncDatabase agar bisa dipanggil dari useEffect tanpa dependency cycle
+  autoClearRef.current = async () => {
+    if (!rtdbRef.current || !dbFuncsRef.current) return;
+    const { ref: r, update } = dbFuncsRef.current;
+    try {
+      await update(r(rtdbRef.current), { "rooms/couple_piano_session/events": null });
+      loadTimeRef.current = Date.now();
+      console.log("🔄 Piano auto-clear: RTDB events purged (30-min cycle)");
+    } catch (err) {
+      // Silent fail — no data to clear is not an error
+      if (err instanceof Error && !err.message.includes("PERMISSION_DENIED")) {
+        console.warn("Auto-clear RTDB non-permission issue:", err);
+      }
+    }
+  };
+
+  // Auto-clear RTDB events setiap 30 menit
+  useEffect(() => {
+    const THIRTY_MIN_MS = 30 * 60 * 1000;
+    const lastClear = localStorage.getItem("piano_last_clear");
+    const now = Date.now();
+
+    const doClear = () => {
+      if (autoClearRef.current) {
+        autoClearRef.current();
+        localStorage.setItem("piano_last_clear", String(Date.now()));
+      }
+    };
+
+    // Jika belum pernah clear atau sudah lewat 30 menit sejak clear terakhir
+    if (!lastClear || now - parseInt(lastClear, 10) > THIRTY_MIN_MS) {
+      // Tunggu 3 detik setelah mount agar RTDB sempat terkoneksi
+      const timer = setTimeout(doClear, 3000);
+      return () => clearTimeout(timer);
+    }
+
+    // Schedule auto-clear periodik setiap 30 menit
+    const interval = setInterval(doClear, THIRTY_MIN_MS);
+    return () => clearInterval(interval);
+  }, [rtdbReady]);
 
   // Initialize lazy RTDB
   useEffect(() => {
@@ -391,6 +416,78 @@ export default function VirtualPiano() {
       }
     });
     return () => { if (typeof unsub === 'function') unsub(); };
+  }, [rtdbReady]);
+
+  // ── RTDB listener for remote events (partner's keystrokes) with throttle + rAF batch ──
+  useEffect(() => {
+    if (!isFirebaseConfigured || !rtdbReady || !rtdbRef.current || !dbFuncsRef.current) return;
+    if (!localUserIdRef.current) return;
+
+    const { ref, onChildAdded } = dbFuncsRef.current;
+    const eventsRef = ref(rtdbRef.current, "rooms/couple_piano_session/events");
+
+    // Process a batch of remote events — called inside rAF callback
+    const processRemoteBatch = (batch: { n: string; a: number }[]) => {
+      for (const event of batch) {
+        if (event.a === 1) {
+          // Remote key down
+          remotelyPressedRef.current.add(event.n);
+          triggerLocalNotePlay(event.n);
+          triggerHarmonyGlow(event.n);
+        } else if (event.a === 0) {
+          // Remote key up
+          remotelyPressedRef.current.delete(event.n);
+          stopNote(event.n);
+        }
+      }
+    };
+
+    const unsub = onChildAdded(eventsRef, (snapshot: any) => {
+      const val = snapshot.val();
+      if (!val) return;
+
+      // Only process events from other users (skip own keystrokes)
+      if (val.u === localUserIdRef.current) return;
+
+      // Ignore events from before current session load (e.g. before last clearSyncDatabase)
+      if (typeof val.t === 'number' && val.t < loadTimeRef.current) return;
+
+      // Add to remote batch for throttled + batched processing
+      remoteBatchRef.current.push({ n: val.n, a: val.a });
+
+      // Schedule rAF batch processing with throttle
+      if (remoteRAFScheduledRef.current === null) {
+        remoteRAFScheduledRef.current = requestAnimationFrame(() => {
+          remoteRAFScheduledRef.current = null;
+
+          // Throttle: ensure minimum interval between remote batch processes
+          const elapsed = performance.now() - remoteLastProcessRef.current;
+          if (elapsed < REMOTE_THROTTLE_MS) {
+            // Re-schedule for later if too soon (max 1 batch per ~30ms)
+            remoteRAFScheduledRef.current = requestAnimationFrame(() => {
+              remoteRAFScheduledRef.current = null;
+              remoteLastProcessRef.current = performance.now();
+              const batch = remoteBatchRef.current.splice(0);
+              processRemoteBatch(batch);
+            });
+            return;
+          }
+
+          remoteLastProcessRef.current = performance.now();
+          const batch = remoteBatchRef.current.splice(0);
+          processRemoteBatch(batch);
+        });
+      }
+    });
+
+    return () => {
+      if (typeof unsub === 'function') unsub();
+      // Cleanup any pending rAF
+      if (remoteRAFScheduledRef.current !== null) {
+        cancelAnimationFrame(remoteRAFScheduledRef.current);
+        remoteRAFScheduledRef.current = null;
+      }
+    };
   }, [rtdbReady]);
 
   useEffect(() => {
@@ -476,11 +573,47 @@ export default function VirtualPiano() {
     return saved ? parseInt(saved, 10) : 80;
   });
 
+  const volumeRef = useRef(80);
+  const volumeDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    volumeRef.current = volume;
+  }, [volume]);
+
+  const syncSettingsToFirestore = async (newInst: string, newVol: number, debounce = false) => {
+    if (!isFirebaseConfigured) return;
+    const updateFunc = async () => {
+      try {
+        const db = await getDb();
+        const { doc, setDoc } = await import("firebase/firestore");
+        await setDoc(doc(db, "settings", "audio_settings"), {
+          instrument: newInst,
+          volume: newVol,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (err) {
+        console.warn("Failed to sync settings to Firestore:", err);
+      }
+    };
+
+    if (debounce) {
+      if (firestoreDebounceRef.current) clearTimeout(firestoreDebounceRef.current);
+      firestoreDebounceRef.current = setTimeout(updateFunc, 200);
+    } else {
+      await updateFunc();
+    }
+  };
+
+  const handleSetVolume = (vol: number) => {
+    setVolume(vol);
+    syncSettingsToFirestore(instrumentRef.current, vol, true);
+  };
+
   useEffect(() => {
     const handleSetPianoVolume = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (typeof detail === "number") {
-        setVolume(detail);
+        handleSetVolume(detail);
       }
     };
     window.addEventListener("setPianoVolume", handleSetPianoVolume);
@@ -493,6 +626,11 @@ export default function VirtualPiano() {
   const [showNotes, setShowNotes] = useState(true);
   const [showKeys, setShowKeys] = useState(true);
   const [instrument, setInstrument] = useState<"piano" | "musicbox" | "pad">("piano");
+
+  const handleSetInstrument = (inst: "piano" | "musicbox" | "pad") => {
+    setInstrument(inst);
+    syncSettingsToFirestore(inst, volumeRef.current, false);
+  };
   const [sustainPressedFromSpacebar, setSustainPressedFromSpacebar] = useState(false);
   const [sustainLocked, setSustainLocked] = useState(false);
   const [sustainActive, setSustainActive] = useState(false);
@@ -618,6 +756,9 @@ export default function VirtualPiano() {
     instrumentRef.current = instrument;
   }, [instrument]);
 
+  // Adaptive reverb: reduce quality when many voices active
+  const activeVoiceCountRef = useRef(0);
+
   useEffect(() => {
     // Configure Tone.js global context for ultra-low interactive latency
     try {
@@ -629,11 +770,12 @@ export default function VirtualPiano() {
       console.warn("Could not set interactive latency hint on Tone.js context", err);
     }
 
-    const gainNode = new Tone.Gain(volume / 100).toDestination();
+    const limiter = new Tone.Limiter(-1.5).toDestination();
+    const gainNode = new Tone.Gain(volume / 100).connect(limiter);
 
     const reverb = new Tone.Reverb({
-      decay: 3.0,
-      wet: 0.35,
+      decay: 2.0,
+      wet: 0.25,
     }).connect(gainNode);
 
     const synth = new Tone.PolySynth(Tone.Synth, {
@@ -682,6 +824,7 @@ export default function VirtualPiano() {
       synth.dispose();
       reverb.dispose();
       gainNode.dispose();
+      limiter.dispose();
     };
   }, []);
 
@@ -712,23 +855,7 @@ export default function VirtualPiano() {
     }
   }, [instrument]);
 
-  const playNote = React.useCallback((note: string, time?: number, isRemote = false) => {
-    if (!engineStartedRef.current) return;
-
-    if (isRemote) {
-      remotelyPressedRef.current.add(note);
-    } else {
-      physicallyPressedRef.current.add(note);
-      if (isFirebaseConfigured && rtdbRef.current && localUserIdRef.current) {
-        pushLocalEvent(note, 1);
-      }
-    }
-
-    const bothPlaying = physicallyPressedRef.current.has(note) && remotelyPressedRef.current.has(note);
-    if (bothPlaying) {
-      triggerHarmonyGlow(note);
-    }
-
+  const triggerLocalNotePlay = (note: string, time?: number) => {
     const oldTransposed = triggeredTranspositionsRef.current[note];
     if (oldTransposed) {
       if (instrumentRef.current === "piano" && samplerRef.current && isLoadedRef.current) {
@@ -742,7 +869,9 @@ export default function VirtualPiano() {
     triggeredTranspositionsRef.current[note] = transposed;
 
     activeVoicesRef.current = activeVoicesRef.current.filter((v) => v.note !== note);
-    if (activeVoicesRef.current.length >= 32) {
+    // Adaptive voice limit: dynamically reduce when overloaded
+    const VOICE_LIMIT = activeVoicesRef.current.length > 12 ? 10 : 14;
+    if (activeVoicesRef.current.length >= VOICE_LIMIT) {
       const oldestVoice = activeVoicesRef.current.shift();
       if (oldestVoice) {
         if (instrumentRef.current === "piano" && samplerRef.current && isLoadedRef.current) {
@@ -772,22 +901,52 @@ export default function VirtualPiano() {
     activeVoicesRef.current.push({ note, transposed });
     lastNoteRef.current = transposed;
 
+    // Adaptive reverb: reduce wetness when many voices active
+    activeVoiceCountRef.current = activeVoicesRef.current.length;
+    if (reverbRef.current && activeVoiceCountRef.current > 8) {
+      const targetWet = activeVoiceCountRef.current > 12 ? 0.10 : 0.15;
+      if (reverbRef.current.wet && reverbRef.current.wet.value !== targetWet) {
+        reverbRef.current.wet.rampTo(targetWet, 0.1);
+      }
+    } else if (reverbRef.current && reverbRef.current.wet) {
+      reverbRef.current.wet.rampTo(0.25, 0.3);
+    }
+
     activeNotesRef.current[note] = true;
     const isBlack = note.includes("#");
     setVisualKeyState(note, true, isBlack);
-  }, [pushLocalEvent]);
+  };
 
-  const stopNote = React.useCallback((note: string, time?: number, isRemote = false) => {
+  const playNote = React.useCallback((note: string, time?: number) => {
     if (!engineStartedRef.current) return;
 
-    if (isRemote) {
-      remotelyPressedRef.current.delete(note);
-    } else {
-      physicallyPressedRef.current.delete(note);
-      if (isFirebaseConfigured && rtdbRef.current && localUserIdRef.current) {
-        pushLocalEvent(note, 0);
-      }
+    // Minimal throttle (8ms) only for keyboard auto-repeat, not for actual multi-key chords
+    const now = performance.now();
+    const lastTime = lastPlayTimesRef.current[note] || 0;
+    if (now - lastTime < 8) return;
+    lastPlayTimesRef.current[note] = now;
+
+    physicallyPressedRef.current.add(note);
+
+    // Batch multiple notes via requestAnimationFrame — proses SEMUA note dalam 1 frame
+    noteBatchRef.current.push({ note, time });
+
+    if (rAFScheduledRef.current === null) {
+      rAFScheduledRef.current = requestAnimationFrame(() => {
+        rAFScheduledRef.current = null;
+        const batch = noteBatchRef.current.splice(0);
+        // Process all notes in batch immediately (no 20ms queue!)
+        for (const item of batch) {
+          triggerLocalNotePlay(item.note, item.time);
+        }
+      });
     }
+  }, []);
+
+  const stopNote = React.useCallback((note: string, time?: number) => {
+    if (!engineStartedRef.current) return;
+
+    physicallyPressedRef.current.delete(note);
 
     if (recordingStartTimeRef.current !== null) {
       const timestamp = performance.now() - recordingStartTimeRef.current;
@@ -812,7 +971,13 @@ export default function VirtualPiano() {
     }
 
     activeVoicesRef.current = activeVoicesRef.current.filter((v) => v.note !== note);
-  }, [pushLocalEvent]);
+
+    // Restore reverb when voices drop
+    activeVoiceCountRef.current = activeVoicesRef.current.length;
+    if (reverbRef.current?.wet && activeVoiceCountRef.current <= 6) {
+      reverbRef.current.wet.rampTo(0.25, 0.3);
+    }
+  }, []);
 
   const playRecording = React.useCallback(() => {
     if (recordedEvents.length === 0) return;
@@ -988,7 +1153,7 @@ export default function VirtualPiano() {
 
       const notesToRelease: string[] = [];
       Object.keys(activeNotesRef.current).forEach((note) => {
-        if (activeNotesRef.current[note] && !physicallyPressedRef.current.has(note) && !activeAutoplayNotesRef.current.includes(note)) {
+        if (activeNotesRef.current[note] && !physicallyPressedRef.current.has(note) && !remotelyPressedRef.current.has(note) && !activeAutoplayNotesRef.current.includes(note)) {
           const isBlack = note.includes("#");
           setVisualKeyState(note, false, isBlack);
           activeNotesRef.current[note] = false;
@@ -998,6 +1163,12 @@ export default function VirtualPiano() {
 
       if (notesToRelease.length > 0) {
         activeVoicesRef.current = activeVoicesRef.current.filter((v) => !notesToRelease.includes(v.note));
+        activeVoiceCountRef.current = activeVoicesRef.current.length;
+
+        // Restore reverb after sustain release
+        if (reverbRef.current?.wet && activeVoiceCountRef.current <= 6) {
+          reverbRef.current.wet.rampTo(0.25, 0.3);
+        }
 
         const transposedReleases = notesToRelease.map((note) => {
           const trans = triggeredTranspositionsRef.current[note] || transposeNote(note, transposeRef.current);
@@ -1064,12 +1235,14 @@ export default function VirtualPiano() {
       }
       if (e.key === "ArrowLeft") {
         e.preventDefault(); e.stopPropagation();
-        setVolume((v) => Math.max(0, v - 5));
+        const nextVol = Math.max(0, volumeRef.current - 5);
+        handleSetVolume(nextVol);
         return;
       }
       if (e.key === "ArrowRight") {
         e.preventDefault(); e.stopPropagation();
-        setVolume((v) => Math.min(100, v + 5));
+        const nextVol = Math.min(100, volumeRef.current + 5);
+        handleSetVolume(nextVol);
         return;
       }
 
@@ -1170,46 +1343,53 @@ export default function VirtualPiano() {
     };
   }, [playNote, stopNote]);
 
-  // Firebase Realtime Stream setup
+  // Cleanup note buffering on unmount
   useEffect(() => {
-    if (!isFirebaseConfigured || !rtdbReady || !rtdbRef.current || !dbFuncsRef.current) return;
-    const { ref, onChildAdded, off, limitToLast, query } = dbFuncsRef.current;
-
-    loadTimeRef.current = Date.now();
-    const eventsRef = ref(rtdbRef.current, "rooms/couple_piano_session/events");
-    const q = (query && limitToLast) ? query(eventsRef, limitToLast(20)) : eventsRef;
-
-    const listener = onChildAdded(
-      q,
-      (snapshot: any) => {
-        const event = snapshot.val();
-        if (!event || event.u === localUserIdRef.current) return;
-
-        // Ignore historical events older than 6 seconds to prevent lag/overflow when first joining
-        const eventTime = event.t || Date.now();
-        if (eventTime < loadTimeRef.current - 6000) return;
-
-        const applyEvent = () => {
-          if (event.a === 1) playNote(event.n, undefined, true);
-          else stopNote(event.n, undefined, true);
-        };
-
-        startPianoEngine().then(() => {
-          if (engineStartedRef.current) applyEvent();
-        });
-      },
-      (error: any) => {
-        console.error("[RTDB] onChildAdded DITOLAK / gagal:", error.message);
-        setRtdbError(`Gagal membaca data piano: ${error.message}`);
-      }
-    );
-
     return () => {
-      if (typeof off === 'function' && eventsRef) {
-        off(eventsRef, "child_added", listener);
+      if (rAFScheduledRef.current !== null) {
+        cancelAnimationFrame(rAFScheduledRef.current);
       }
     };
-  }, [playNote, stopNote, rtdbReady]);
+  }, []);
+
+  // Real-time Firestore audio settings observer
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+
+    let unsub: (() => void) | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const db = await getDb();
+        const { doc, onSnapshot } = await import("firebase/firestore");
+
+        if (cancelled) return;
+
+        unsub = onSnapshot(doc(db, "settings", "audio_settings"), (d) => {
+          if (d.exists()) {
+            const data = d.data();
+            // Sync settings immediately to local piano component
+            if (data.instrument && data.instrument !== instrumentRef.current) {
+              setInstrument(data.instrument);
+            }
+            if (typeof data.volume === "number" && data.volume !== volumeRef.current) {
+              setVolume(data.volume);
+            }
+          }
+        }, (err) => {
+          console.error("Firestore settings observer error:", err);
+        });
+      } catch (err) {
+        console.error("Failed to initialize Firestore audio settings observer:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (unsub) unsub();
+    };
+  }, []);
 
   const startPianoEngine = async () => {
     try {
@@ -1591,7 +1771,7 @@ export default function VirtualPiano() {
                   {(["piano", "musicbox", "pad"] as const).map((inst) => (
                     <button
                       key={inst}
-                      onClick={() => setInstrument(inst)}
+                      onClick={() => handleSetInstrument(inst)}
                       className={`w-full py-2.5 px-4 rounded-xl text-left text-xs font-bold transition-all cursor-pointer select-none outline-none border ${instrument === inst
                         ? "bg-[#E6C594] text-stone-900 !text-stone-900 border-[#E6C594] shadow-inner"
                         : darkMode
@@ -1658,7 +1838,7 @@ export default function VirtualPiano() {
                       min="0"
                       max="100"
                       value={volume}
-                      onChange={(e) => setVolume(Number(e.target.value))}
+                      onChange={(e) => handleSetVolume(Number(e.target.value))}
                       className={`w-full accent-[#E6C594] h-1.5 rounded-lg cursor-pointer ${
                         darkMode ? "bg-neutral-800" : "bg-stone-100"
                       }`}
@@ -1926,30 +2106,24 @@ export default function VirtualPiano() {
 
       {/* --- Couple Duo Configuration Modal --- */}
       {showConfigModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 select-none">
-          <div className={`rounded-3xl p-6 max-w-md w-full border shadow-2xl transition-colors duration-300 ${
-            darkMode ? "bg-neutral-900 border-neutral-800 text-neutral-100" : "bg-white border-pink-100/50 text-stone-800"
-          }`}>
-            <h3 className={`text-xl font-serif font-semibold flex items-center gap-2 ${darkMode ? "text-amber-100" : "text-[#4a3a3a]"}`}>
+        <div className="fixed inset-0 glass-modal-backdrop flex items-center justify-center p-4 z-50 select-none">
+          <div className="glass-modal-content rounded-3xl p-6 max-w-md w-full shadow-2xl relative">
+            <h3 className="text-xl font-serif font-semibold flex items-center gap-2 text-[var(--text-main)]">
                <Wifi className="w-5 h-5 text-emerald-500 animate-pulse" /> Couple Session Configuration
              </h3>
-             <p className={`text-xs mt-2 leading-relaxed ${darkMode ? "text-neutral-400" : "text-[#7a6a6a]"}`}>
+             <p className="text-xs mt-2 leading-relaxed text-[var(--text-secondary)]">
                Connect with your partner in real time using Firebase Realtime Database. Realtime Database sockets transmit notes with minimal latency and minimal data footprint.
              </p>
  
              <div className="mt-5 space-y-4">
-               <div className={`p-3 rounded-2xl border ${
-                 darkMode ? "bg-neutral-800 border-neutral-800" : "bg-stone-50 border-stone-200/50"
-               }`}>
-                 <span className={`text-[10px] uppercase font-bold tracking-wider block mb-1 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Session Socket Room Path</span>
+               <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent dark:border-white/5">
+                 <span className="text-[10px] uppercase font-bold tracking-wider block mb-1 text-[var(--text-muted)]">Session Socket Room Path</span>
                  <span className={`text-xs font-mono font-bold select-all ${darkMode ? "text-neutral-200" : "text-stone-800"}`}>/rooms/couple_piano_session/events</span>
                </div>
-              <div className={`p-3 rounded-2xl border ${
-                darkMode ? "bg-neutral-800 border-neutral-800" : "bg-stone-50 border-stone-200/50"
-              }`}>
-                <span className={`text-[10px] uppercase font-bold tracking-wider block mb-1 ${darkMode ? "text-neutral-400" : "text-[#8a7a7a]"}`}>Local User identifier</span>
-                <span className={`text-xs font-mono font-bold ${darkMode ? "text-neutral-200" : "text-stone-800"}`}>{localUserIdRef.current || "Loading ID..."}</span>
-              </div>
+               <div className="p-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-transparent dark:border-white/5">
+                 <span className="text-[10px] uppercase font-bold tracking-wider block mb-1 text-[var(--text-muted)]">Local User identifier</span>
+                 <span className="text-xs font-mono font-bold text-[var(--text-main)]">{localUserIdRef.current || "Loading ID..."}</span>
+               </div>
             </div>
 
             <div className="mt-6 flex flex-wrap gap-2 justify-end">

@@ -4,11 +4,11 @@ import { Toaster as Sonner } from "sonner"
 
 type ToasterProps = React.ComponentProps<typeof Sonner>
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const Toaster = ({ theme: propsTheme, ...props }: ToasterProps) => {
   // Detect dark mode from the DOM — works with the existing .dark class + theme-* system
-  const theme = typeof document !== "undefined" && document.documentElement.classList.contains("dark")
+  const theme = propsTheme || (typeof document !== "undefined" && document.documentElement.classList.contains("dark")
     ? "dark"
-    : "light"
+    : "light")
 
   return (
     <Sonner
@@ -17,7 +17,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-card group-[.toaster]:text-foreground group-[.toaster]:border-border group-[.toaster]:shadow-lg",
+            "group toast glass-overlay-panel group-[.toaster]:text-[var(--text-main)] group-[.toaster]:shadow-lg",
           description: "group-[.toast]:text-muted-foreground",
           actionButton:
             "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",

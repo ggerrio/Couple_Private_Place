@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import type { Memory, Journal } from "../../types";
 import { cn } from "../../lib/utils";
 import { Skeleton, SkeletonImage } from "../extras/Skeleton";
+import LazyImage from "../common/LazyImage";
 import { WashiTapeDivider, EmptyJournalPage, StickerButton } from "../scrapbook";
 import { triggerHaptic } from "../../lib/haptics";
 import ScrapbookCanvas from "./ScrapbookCanvas";
@@ -223,13 +224,14 @@ const HoverExpandRow = ({
             }}
             onHoverStart={() => setActiveImage(index)}
           >
-            {/* Background Image */}
-            <img
+            {/* Background Image — Lazy loaded via IntersectionObserver */}
+            <LazyImage
               src={imgSrc}
-              className="w-full h-full object-cover select-none"
+              className="absolute inset-0 w-full h-full object-cover select-none"
               alt={item.raw.title}
               referrerPolicy="no-referrer"
-              loading="lazy"
+              rootMargin={150}
+              showSkeleton
             />
 
             {/* Gradient Overlay for active item */}
@@ -337,6 +339,10 @@ export default function StorySection() {
   const [selectedMoodFilter, setSelectedMoodFilter] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"timeline" | "book" | "desk">("timeline");
 
+  const [dateFilterType, setDateFilterType] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
   const filteredMergedList = useMemo(() => {
     let list = mergedList;
     if (searchQuery) {
@@ -351,8 +357,45 @@ export default function StorySection() {
     if (selectedTag) list = list.filter((item) => item.type === "journal" && item.raw.tags.includes(selectedTag));
     if (selectedWeather) list = list.filter((item) => item.type === "journal" && item.raw.weather === selectedWeather);
     if (selectedMoodFilter) list = list.filter((item) => item.type === "journal" && item.raw.mood === selectedMoodFilter);
+
+    // Date-based filter
+    if (dateFilterType !== "all") {
+      const now = new Date();
+      list = list.filter((item) => {
+        const itemDate = new Date(item.date);
+        if (isNaN(itemDate.getTime())) return true;
+
+        if (dateFilterType === "7days") {
+          const diff = now.getTime() - itemDate.getTime();
+          return diff >= 0 && diff <= 7 * 24 * 60 * 60 * 1000;
+        }
+        if (dateFilterType === "30days") {
+          const diff = now.getTime() - itemDate.getTime();
+          return diff >= 0 && diff <= 30 * 24 * 60 * 60 * 1000;
+        }
+        if (dateFilterType === "thismonth") {
+          return itemDate.getMonth() === now.getMonth() && itemDate.getFullYear() === now.getFullYear();
+        }
+        if (dateFilterType === "thisyear") {
+          return itemDate.getFullYear() === now.getFullYear();
+        }
+        if (dateFilterType === "custom") {
+          if (startDate) {
+            const start = new Date(startDate);
+            start.setHours(0, 0, 0, 0);
+            if (itemDate < start) return false;
+          }
+          if (endDate) {
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999);
+            if (itemDate > end) return false;
+          }
+        }
+        return true;
+      });
+    }
     return list;
-  }, [mergedList, searchQuery, selectedTag, selectedWeather, selectedMoodFilter]);
+  }, [mergedList, searchQuery, selectedTag, selectedWeather, selectedMoodFilter, dateFilterType, startDate, endDate]);
 
   const thisDayItem = useMemo(() => {
     const today = new Date();
@@ -626,7 +669,7 @@ export default function StorySection() {
 
       {/* Add Milestone Form */}
       {showAddMilestone && (
-        <div className="mt-6"><motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} onSubmit={handleCreateMilestone}
+        <div className="mt-6"><form onSubmit={handleCreateMilestone}
           className="p-6 space-y-4 max-w-2xl mx-auto rounded-3xl border border-[var(--border-color)]" style={{ backgroundColor: "var(--fabric-cream)" }}
         >
           <h4 className="text-xs uppercase font-bold tracking-wider text-[var(--primary)] flex items-center gap-1.5">
@@ -674,12 +717,12 @@ export default function StorySection() {
           >
             Log Milestone to Our Library
           </button>
-        </motion.form></div>
+        </form></div>
       )}
 
       {/* Add Journal Form */}
       {showAddJournal && (
-        <div className="mt-6"><motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+        <div className="mt-6"><div
           className="p-6 space-y-4 max-w-2xl mx-auto rounded-3xl border border-[var(--border-color)]" style={{ backgroundColor: "var(--fabric-cream)" }}>
           <h4 className="text-xs uppercase font-bold tracking-wider text-[var(--primary)] flex items-center gap-1.5"><BookOpen className="w-4 h-4" /> New Diary Entry</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -725,7 +768,7 @@ export default function StorySection() {
           >
             Save to Our Diary
           </button>
-        </motion.div></div>
+        </div></div>
       )}
 
       {viewMode === "desk" ? (
@@ -747,28 +790,62 @@ export default function StorySection() {
           <WashiTapeDivider color="rose" label="Browse" />
 
           {/* Search & Filters */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative flex-1 min-w-[180px] max-w-xs">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search scrapbook memories..."
-                className="w-full pl-8 pr-3 py-2 bg-black/5 text-xs rounded-xl outline-none focus:bg-white focus:border-[var(--primary)] text-[var(--text-main)]" />
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <div className="relative flex-1 min-w-[180px] max-w-xs">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
+                <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search scrapbook memories..."
+                  className="w-full pl-8 pr-3 py-2 bg-black/5 dark:bg-stone-900/50 border border-transparent dark:border-white/10 text-xs rounded-xl outline-none focus:bg-white dark:focus:bg-stone-800 focus:border-[var(--primary)] text-[var(--text-main)]" />
+              </div>
+              <select value={dateFilterType} onChange={(e) => setDateFilterType(e.target.value)}
+                className="bg-black/5 dark:bg-stone-900/50 border border-transparent dark:border-white/10 text-xs px-3 py-2 rounded-xl outline-none cursor-pointer text-[var(--text-main)] font-medium">
+                <option value="all" className="dark:bg-stone-900">📅 All Dates</option>
+                <option value="7days" className="dark:bg-stone-900">📅 Last 7 Days</option>
+                <option value="30days" className="dark:bg-stone-900">📅 Last 30 Days</option>
+                <option value="thismonth" className="dark:bg-stone-900">📅 This Month</option>
+                <option value="thisyear" className="dark:bg-stone-900">📅 This Year</option>
+                <option value="custom" className="dark:bg-stone-900">📅 Custom Range</option>
+              </select>
+              <select value={selectedTag || ""} onChange={(e) => setSelectedTag(e.target.value || null)}
+                className="bg-black/5 dark:bg-stone-900/50 border border-transparent dark:border-white/10 text-xs px-3 py-2 rounded-xl outline-none cursor-pointer text-[var(--text-main)]">
+                <option value="" className="dark:bg-stone-900">All Tags</option>
+                {allTags.map((t) => <option key={t} value={t} className="dark:bg-stone-900">#{t}</option>)}
+              </select>
+              <select value={selectedWeather || ""} onChange={(e) => setSelectedWeather(e.target.value || null)}
+                className="bg-black/5 dark:bg-stone-900/50 border border-transparent dark:border-white/10 text-xs px-3 py-2 rounded-xl outline-none cursor-pointer text-[var(--text-main)]">
+                <option value="" className="dark:bg-stone-900">All Weather</option>
+                {WEATHER_OPTIONS.map((w) => <option key={w} value={w} className="dark:bg-stone-900">{WEATHER_ICONS[w]} {w}</option>)}
+              </select>
+              <select value={selectedMoodFilter || ""} onChange={(e) => setSelectedMoodFilter(e.target.value || null)}
+                className="bg-black/5 dark:bg-stone-900/50 border border-transparent dark:border-white/10 text-xs px-3 py-2 rounded-xl outline-none cursor-pointer text-[var(--text-main)]">
+                <option value="" className="dark:bg-stone-900">All Moods</option>
+                {MOOD_OPTIONS.map((m) => <option key={m} value={m} className="dark:bg-stone-900">{MOOD_ICONS[m]} {m}</option>)}
+              </select>
             </div>
-            <select value={selectedTag || ""} onChange={(e) => setSelectedTag(e.target.value || null)}
-              className="bg-black/5 text-xs px-3 py-2 rounded-xl outline-none cursor-pointer text-[var(--text-main)]">
-              <option value="">All Tags</option>
-              {allTags.map((t) => <option key={t} value={t}>#{t}</option>)}
-            </select>
-            <select value={selectedWeather || ""} onChange={(e) => setSelectedWeather(e.target.value || null)}
-              className="bg-black/5 text-xs px-3 py-2 rounded-xl outline-none cursor-pointer text-[var(--text-main)]">
-              <option value="">All Weather</option>
-              {WEATHER_OPTIONS.map((w) => <option key={w} value={w}>{WEATHER_ICONS[w]} {w}</option>)}
-            </select>
-            <select value={selectedMoodFilter || ""} onChange={(e) => setSelectedMoodFilter(e.target.value || null)}
-              className="bg-black/5 text-xs px-3 py-2 rounded-xl outline-none cursor-pointer text-[var(--text-main)]">
-              <option value="">All Moods</option>
-              {MOOD_OPTIONS.map((m) => <option key={m} value={m}>{MOOD_ICONS[m]} {m}</option>)}
-            </select>
+
+            {dateFilterType === "custom" && (
+              <div className="flex flex-wrap items-center gap-3 p-3 bg-black/5 dark:bg-stone-900/50 rounded-2xl border border-[var(--border-color)]/30 dark:border-white/10 max-w-lg">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">From:</span>
+                  <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                    className="bg-white dark:bg-zinc-800 text-xs px-2.5 py-1.5 rounded-xl border border-black/5 dark:border-white/10 outline-none text-[var(--text-main)] cursor-pointer shadow-3xs" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">To:</span>
+                  <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                    className="bg-white dark:bg-zinc-800 text-xs px-2.5 py-1.5 rounded-xl border border-black/5 dark:border-white/10 outline-none text-[var(--text-main)] cursor-pointer shadow-3xs" />
+                </div>
+                {(startDate || endDate) && (
+                  <button 
+                    onClick={() => { setStartDate(""); setEndDate(""); }}
+                    className="text-[10px] text-red-500 hover:text-red-600 hover:underline font-bold ml-auto cursor-pointer"
+                  >
+                    Clear range
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <WashiTapeDivider color="gold" label="This Day in Our Story" />
@@ -787,7 +864,7 @@ export default function StorySection() {
                 <h3 className="text-sm font-bold text-[var(--text-main)] font-serif leading-tight">{thisDayItem.raw.title}</h3>
                 {thisDayItem.raw.imageUrl && (
                   <div className="w-full aspect-[2/1] rounded-xl overflow-hidden border border-[var(--wood-oak)]/10">
-                    <img loading="lazy" src={thisDayItem.raw.imageUrl} alt={thisDayItem.raw.title} className="w-full h-full object-cover" />
+                    <LazyImage src={thisDayItem.raw.imageUrl} alt={thisDayItem.raw.title} className="w-full h-full object-cover" showSkeleton rootMargin={100} />
                   </div>
                 )}
                 <p className="text-xs text-[var(--text-muted)] leading-relaxed line-clamp-3">{thisDayItem.raw.description}</p>
@@ -864,7 +941,7 @@ export default function StorySection() {
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                onClick={() => setSelectedMemoryForModal(null)} className="absolute inset-0 bg-black/60 backdrop-blur-xs z-0" />
+                onClick={() => setSelectedMemoryForModal(null)} className="absolute inset-0 glass-modal-backdrop z-0" />
               <motion.div initial={{ opacity: 0, scale: 0.95, y: 15 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 15 }}
                 className={cn(
                   "bg-[var(--fabric-cream)] rounded-3xl shadow-2xl border border-[var(--wood-oak)]/30 w-full z-10 flex flex-col max-h-[95vh] md:max-h-[92vh] relative text-left transition-all duration-300 overflow-y-auto md:overflow-hidden",
@@ -891,7 +968,7 @@ export default function StorySection() {
                           <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-20 h-5 bg-[repeating-linear-gradient(45deg,transparent,transparent_4px,#E8B4B8_4px,#E8B4B8_8px)] opacity-40 rounded-sm transform rotate-1 z-10" />
                           
                           <div className="w-full aspect-square bg-black/5 overflow-hidden border border-neutral-900/10 relative">
-                            <img loading="lazy" src={currentMem.imageUrl} alt={currentMem.title} className={`w-full h-full object-cover transition-all duration-500 ${filterObj?.class || ""}`} referrerPolicy="no-referrer" />
+                            <LazyImage src={currentMem.imageUrl} alt={currentMem.title} className={`w-full h-full object-cover transition-all duration-500 ${filterObj?.class || ""}`} referrerPolicy="no-referrer" showSkeleton rootMargin={100} />
                             {currentMem.filterClass === "light-leak" && (
                               <div className="absolute inset-0 bg-gradient-to-tr from-amber-400/20 via-rose-500/20 to-transparent pointer-events-none mix-blend-screen" />
                             )}
@@ -1147,7 +1224,7 @@ export default function StorySection() {
         {selectedJournal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setSelectedJournal(null)} className="absolute inset-0 bg-black/60 backdrop-blur-xs z-0" />
+              onClick={() => setSelectedJournal(null)} className="absolute inset-0 glass-modal-backdrop z-0" />
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               className={cn(
                 "bg-[var(--fabric-cream)] rounded-3xl shadow-2xl border border-[var(--wood-oak)]/30 w-full z-10 flex flex-col max-h-[95vh] md:max-h-[92vh] relative text-left transition-all duration-300 overflow-y-auto md:overflow-hidden",
@@ -1288,7 +1365,7 @@ export default function StorySection() {
         {editingJournal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setEditingJournal(null)} className="absolute inset-0 bg-black/60 backdrop-blur-xs z-0" />
+              onClick={() => setEditingJournal(null)} className="absolute inset-0 glass-modal-backdrop z-0" />
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
               className="bg-[var(--fabric-cream)] rounded-3xl shadow-2xl border border-[var(--wood-oak)]/30 w-full max-w-lg z-10 p-6 space-y-4 text-left">
               <div className="flex justify-between items-center pb-2 border-b border-[var(--wood-oak)]/15">

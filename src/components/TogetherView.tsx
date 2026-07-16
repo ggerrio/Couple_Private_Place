@@ -12,7 +12,7 @@ import WatchPanel from "./together/WatchPanel";
 import SharedCalendar from "./home/SharedCalendar";
 import { ScrapbookPage, WashiTapeDivider } from "./scrapbook";
 
-const TogetherView = React.memo(function TogetherView() {
+export default function TogetherView() {
   const [activeTab, setActiveTab] = useState<"letters" | "status" | "watch" | "calendar">("letters");
 
   const tabConfig = [
@@ -69,6 +69,4 @@ const TogetherView = React.memo(function TogetherView() {
       </AnimatePresence>
     </div>
   );
-});
-
-export default TogetherView;
+}

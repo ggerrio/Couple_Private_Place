@@ -7,11 +7,14 @@ export function useCamera() {
   const [isActive, setIsActive] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const streamRef = useRef<MediaStream | null>(null);
 
   const startCamera = useCallback(async () => {
+    if (isLoading || isActive) return;
+    setIsLoading(true);
+    setError(null);
     try {
-      setError(null);
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 360 }, height: { ideal: 360 } },
         audio: false,
@@ -20,11 +23,24 @@ export function useCamera() {
       setStream(mediaStream);
       setIsActive(true);
     } catch (err: any) {
-      const msg = err?.message || "Camera access denied";
-      setError(msg);
-      setIsActive(false);
+      console.warn("First camera attempt failed, trying fallback constraints:", err);
+      try {
+        const mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        streamRef.current = mediaStream;
+        setStream(mediaStream);
+        setIsActive(true);
+      } catch (fallbackErr: any) {
+        const msg = fallbackErr?.message || err?.message || "Camera access denied";
+        setError(msg);
+        setIsActive(false);
+      }
+    } finally {
+      setIsLoading(false);
     }
-  }, []);
+  }, [isLoading, isActive]);
 
   const stopCamera = useCallback(() => {
     if (streamRef.current) {
@@ -34,7 +50,8 @@ export function useCamera() {
     setStream(null);
     setIsActive(false);
     setError(null);
+    setIsLoading(false);
   }, []);
 
-  return { startCamera, stopCamera, isActive, stream, error };
+  return { startCamera, stopCamera, isActive, stream, error, isLoading };
 }

@@ -5,7 +5,25 @@ import { getDb } from "../../firebaseClient";
 import { Sparkles, Trash2, Sticker, X, HelpCircle, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import { triggerHaptic } from "../../lib/haptics";
-import { cn } from "@/src/lib/utils";
+import { cn } from "@/lib/utils";
+
+// ─── LocalStorage fallback helpers ──────────────────────────────────────
+const STICKERS_LOCAL_KEY = "scrapbook_stickers_local";
+
+function loadLocalStickers(pageId: string): StickerInstance[] {
+  try {
+    const raw = localStorage.getItem(STICKERS_LOCAL_KEY);
+    if (!raw) return [];
+    const all: StickerInstance[] = JSON.parse(raw);
+    return all.filter((s) => s.pageId === pageId);
+  } catch { return []; }
+}
+
+function setLocalStickers(stickers: StickerInstance[]) {
+  try {
+    localStorage.setItem(STICKERS_LOCAL_KEY, JSON.stringify(stickers));
+  } catch { /* ignore */ }
+}
 
 export interface StickerInstance {
   id: string;
@@ -82,9 +100,16 @@ export function ScrapbookStickers({ activeTab, containerRef }: ScrapbookStickers
   const [customLabel, setCustomLabel] = useState("");
   const [isAddingCustom, setIsAddingCustom] = useState(false);
 
-  // Sync Stickers from Firestore Real-time
+  // Sync Stickers from Firestore with localStorage fallback
   useEffect(() => {
     let unsub: (() => void) | null = null;
+    
+    // Load from localStorage first for instant display
+    const localStickers = loadLocalStickers(activeTab);
+    if (localStickers.length > 0) {
+      setStickers(localStickers);
+    }
+
     (async () => {
       try {
         const db = await getDb();
@@ -94,7 +119,7 @@ export function ScrapbookStickers({ activeTab, containerRef }: ScrapbookStickers
         unsub = onSnapshot(
           queryRef,
           (snap) => {
-            const list = snap.docs.map((d) => {
+            const list: StickerInstance[] = snap.docs.map((d) => {
               const data = d.data();
               return {
                 id: d.id,
@@ -110,14 +135,17 @@ export function ScrapbookStickers({ activeTab, containerRef }: ScrapbookStickers
                 timestamp: data.timestamp || Date.now(),
               };
             });
+            // Sync to localStorage + state
+            setLocalStickers(list);
             setStickers(list);
           },
           (err) => {
-            console.error("[scrapbook_stickers listener]", err);
+            console.warn("[scrapbook_stickers] Firestore unavailable, using local:", err);
+            // Already loaded from localStorage above
           }
         );
       } catch (err) {
-        console.error("Failed to load stickers database:", err);
+        console.warn("Failed to load stickers from Firestore, using local:", err);
       }
     })();
     return () => { if (unsub) unsub(); };
@@ -203,38 +231,54 @@ export function ScrapbookStickers({ activeTab, containerRef }: ScrapbookStickers
   // Click Sticker on the sheet to paste it
   const pasteSticker = useCallback(async (stickerType: StickerType) => {
     triggerHaptic("medium");
+    
+    // Generate sticker data locally first
+    const id = `sticker-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const rx = 25 + Math.random() * 50;
+    const ry = 25 + Math.random() * 50;
+    const rRotation = -20 + Math.random() * 40;
+
+    const newSticker: StickerInstance = {
+      id,
+      emoji: stickerType.emoji,
+      label: stickerType.label,
+      color: stickerType.color,
+      x: rx,
+      y: ry,
+      rotation: rRotation,
+      scale: 1,
+      pageId: activeTab,
+      pastedBy: activeProfile.name,
+      timestamp: Date.now(),
+    };
+
+    // Show on UI immediately via local state
+    setStickers((prev) => {
+      const updated = [...prev, newSticker];
+      setLocalStickers(updated);
+      return updated;
+    });
+    toast.success(`Pasted a cute ${stickerType.label} sticker! 🩹`);
+
+    // Then try Firestore (best effort)
     try {
       const db = await getDb();
-      const { collection, addDoc } = await import("firebase/firestore");
-
-      // Random position in the middle bounds to keep it visible
-      const rx = 25 + Math.random() * 50;
-      const ry = 25 + Math.random() * 50;
-      const rRotation = -20 + Math.random() * 40;
-
-      const newSticker = {
-        emoji: stickerType.emoji,
-        label: stickerType.label,
-        color: stickerType.color,
-        x: rx,
-        y: ry,
-        rotation: rRotation,
-        scale: 1,
-        pageId: activeTab,
-        pastedBy: activeProfile.name,
-        timestamp: Date.now(),
-      };
-
-      await addDoc(collection(db, "scrapbook_stickers"), newSticker);
-      toast.success(`Pasted a cute ${stickerType.label} sticker! 🩹`);
+      const { collection, doc, setDoc } = await import("firebase/firestore");
+      await setDoc(doc(collection(db, "scrapbook_stickers"), id), newSticker);
     } catch (err) {
-      console.error("[pasteSticker]", err);
-      toast.error("Could not paste sticker.");
+      console.warn("[pasteSticker] Firestore unavailable, local only:", err);
     }
   }, [activeTab, activeProfile.name]);
 
   // Update Sticker Position after dragging
   const updateStickerPosition = useCallback(async (id: string, x: number, y: number) => {
+    // Update local state immediately
+    setStickers((prev) => {
+      const updated = prev.map((s) => (s.id === id ? { ...s, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 } : s));
+      setLocalStickers(updated);
+      return updated;
+    });
+    // Then try Firestore
     try {
       const db = await getDb();
       const { doc, updateDoc } = await import("firebase/firestore");
@@ -243,36 +287,50 @@ export function ScrapbookStickers({ activeTab, containerRef }: ScrapbookStickers
         y: Math.round(y * 10) / 10,
       });
     } catch (err) {
-      console.error("[updateStickerPosition]", err);
+      console.warn("[updateStickerPosition] Firestore unavailable, local only:", err);
     }
   }, []);
 
   // Delete Sticker
   const peelSticker = useCallback(async (id: string, label: string) => {
     triggerHaptic("light");
+    // Remove from local state immediately
+    setStickers((prev) => {
+      const updated = prev.filter((s) => s.id !== id);
+      setLocalStickers(updated);
+      return updated;
+    });
+    setSelectedStickerId(null);
+    toast.info(`Peeled off the ${label} sticker 💨`);
+    // Then try Firestore
     try {
       const db = await getDb();
       const { doc, deleteDoc } = await import("firebase/firestore");
       await deleteDoc(doc(db, "scrapbook_stickers", id));
-      setSelectedStickerId(null);
-      toast.info(`Peeled off the ${label} sticker 💨`);
     } catch (err) {
-      console.error("[peelSticker]", err);
+      console.warn("[peelSticker] Firestore unavailable, local only:", err);
     }
   }, []);
 
   // Rotate Sticker slightly when clicked
   const rotateSticker = useCallback(async (id: string, currentRotation: number) => {
     triggerHaptic("light");
+    const nextRotation = (currentRotation + 30) % 360;
+    // Update local state immediately
+    setStickers((prev) => {
+      const updated = prev.map((s) => (s.id === id ? { ...s, rotation: nextRotation } : s));
+      setLocalStickers(updated);
+      return updated;
+    });
+    // Then try Firestore
     try {
       const db = await getDb();
       const { doc, updateDoc } = await import("firebase/firestore");
-      const nextRotation = (currentRotation + 30) % 360;
       await updateDoc(doc(db, "scrapbook_stickers", id), {
         rotation: nextRotation
       });
     } catch (err) {
-      console.error("[rotateSticker]", err);
+      console.warn("[rotateSticker] Firestore unavailable, local only:", err);
     }
   }, []);
 
@@ -280,126 +338,106 @@ export function ScrapbookStickers({ activeTab, containerRef }: ScrapbookStickers
     <>
       {/* RENDER STICKERS ON THE VIEWPORT RELATIVE TO THE CONTAINER */}
       <div className="absolute inset-0 pointer-events-none z-30 select-none overflow-hidden">
-        <AnimatePresence mode="popLayout">
-          {stickers.map((sticker) => {
-            const isSelected = selectedStickerId === sticker.id;
-            return (
+        {stickers.map((sticker) => {
+          const isSelected = selectedStickerId === sticker.id;
+          // Dynamic key includes position so Framer Motion resets internal transform on re-render
+          // Uses Math.round to avoid excessive re-mounts from tiny floating point changes
+          const stickerDragKey = `${sticker.id}-${Math.round(sticker.x)}-${Math.round(sticker.y)}`;
+          return (
+            <motion.div
+              key={stickerDragKey}
+              initial={false}
+              animate={{ opacity: 1, scale: 1, rotate: 0 }}
+              exit={{ opacity: 0, scale: 0, rotate: 20 }}
+              transition={{ type: "spring", stiffness: 220, damping: 20 }}
+              drag
+              dragMomentum={false}
+              dragElastic={0.05}
+              dragConstraints={containerRef || undefined}
+              onDragStart={() => {
+                setSelectedStickerId(sticker.id);
+                triggerHaptic("light");
+              }}
+              onDragEnd={(_e, info) => {
+                if (!containerRef.current) return;
+                const rect = containerRef.current.getBoundingClientRect();
+
+                // Use info.offset (delta from drag start) instead of info.point (absolute position)
+                const deltaPercentX = (info.offset.x / rect.width) * 100;
+                const deltaPercentY = (info.offset.y / rect.height) * 100;
+
+                updateStickerPosition(
+                  sticker.id, 
+                  Math.max(2, Math.min(98, sticker.x + deltaPercentX)), 
+                  Math.max(2, Math.min(98, sticker.y + deltaPercentY))
+                );
+              }}
+              className="absolute pointer-events-auto cursor-grab active:cursor-grabbing group"
+              style={{
+                left: `${sticker.x}%`,
+                top: `${sticker.y}%`,
+                transform: `translate(-50%, -50%) rotate(${getRandomRotation(sticker.id)})`,
+              }}
+            >
+              {/* Sticker wrapper with physical die-cut border style */}
               <motion.div
-                key={sticker.id}
-                initial={{ opacity: 0, scale: 0, rotate: -20 }}
-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
-                exit={{ opacity: 0, scale: 0, rotate: 20 }}
-                transition={{ type: "spring", stiffness: 220, damping: 20 }}
-                drag
-                dragMomentum={false}
-                dragElastic={0.05}
-                // Set bounds dynamically relative to containerRef
-                dragConstraints={containerRef || undefined}
-                onDragStart={() => {
-                  setSelectedStickerId(sticker.id);
+                animate={{
+                  rotate: sticker.rotation,
+                  scale: isSelected ? 1.15 : 1,
+                  boxShadow: isSelected 
+                    ? "0 10px 20px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.1)" 
+                    : "0 4px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05)"
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                className="relative px-3.5 py-2.5 bg-white dark:bg-zinc-800 rounded-full border-4 border-white dark:border-zinc-700 font-sans text-2xl flex items-center justify-center select-none shadow-[2px_2px_5px_rgba(0,0,0,0.1)]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedStickerId(isSelected ? null : sticker.id);
                   triggerHaptic("light");
                 }}
-                onDragEnd={(_e, info) => {
-                  if (!containerRef.current) return;
-                  const rect = containerRef.current.getBoundingClientRect();
-                  
-                  // Convert absolute viewport mouse release coordinates to percent of our target container
-                  const localX = info.point.x - rect.left;
-                  const localY = info.point.y - rect.top;
-
-                  const percentX = (localX / rect.width) * 100;
-                  const percentY = (localY / rect.height) * 100;
-
-                  updateStickerPosition(
-                    sticker.id, 
-                    Math.max(2, Math.min(98, percentX)), 
-                    Math.max(2, Math.min(98, percentY))
-                  );
-                }}
-                className="absolute pointer-events-auto cursor-grab active:cursor-grabbing group"
-                style={{
-                  left: `${sticker.x}%`,
-                  top: `${sticker.y}%`,
-                  transform: `translate(-50%, -50%) rotate(${getRandomRotation(sticker.id)})`,
-                }}
               >
-                {/* Sticker wrapper with physical die-cut border style */}
-                <motion.div
-                  animate={{
-                    rotate: sticker.rotation,
-                    scale: isSelected ? 1.15 : 1,
-                    boxShadow: isSelected 
-                      ? "0 10px 20px rgba(0,0,0,0.15), 0 3px 6px rgba(0,0,0,0.1)" 
-                      : "0 4px 8px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.05)"
-                  }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  className="relative px-3.5 py-2.5 bg-white dark:bg-zinc-800 rounded-full border-4 border-white dark:border-zinc-700 font-sans text-2xl flex items-center justify-center select-none shadow-[2px_2px_5px_rgba(0,0,0,0.1)]"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedStickerId(isSelected ? null : sticker.id);
-                    triggerHaptic("light");
-                  }}
-                >
-                  {/* Visual indicator of who pasted this sticker on hover */}
-                  <span className="relative z-10 pointer-events-none filter drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
-                    {sticker.emoji}
-                  </span>
-
-                  {/* White vinyl sticker border glow */}
-                  <div className="absolute inset-0 rounded-inherit border border-neutral-200/40 dark:border-white/10 pointer-events-none" />
-
-                  {/* Sticker Info Tag */}
-                  <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xs uppercase tracking-wider">
-                    {sticker.pastedBy}
-                  </div>
-                </motion.div>
-
-                {/* Action Bubbles for Selected Sticker (Peel / Rotate) */}
-                <AnimatePresence>
-                  {isSelected && (
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.8, y: 10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.8, y: 10 }}
-                      className="absolute -top-11 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-white dark:bg-zinc-900 px-2 py-1 rounded-full shadow-lg border border-neutral-100 dark:border-zinc-800 z-50 pointer-events-auto"
-                    >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          rotateSticker(sticker.id, sticker.rotation);
-                        }}
-                        title="Rotate sticker"
-                        className="w-6 h-6 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-zinc-800 dark:text-zinc-200 flex items-center justify-center cursor-pointer transition-colors"
-                      >
-                        <ArrowRightLeft className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          peelSticker(sticker.id, sticker.label);
-                        }}
-                        title="Peel off sticker"
-                        className="w-6 h-6 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 flex items-center justify-center cursor-pointer transition-colors"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedStickerId(null);
-                        }}
-                        title="Close actions"
-                        className="w-6 h-6 rounded-full bg-neutral-50 hover:bg-neutral-100 text-neutral-500 dark:bg-zinc-800 dark:text-zinc-400 flex items-center justify-center cursor-pointer transition-colors"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <span className="relative z-10 pointer-events-none filter drop-shadow-[0_1px_1px_rgba(0,0,0,0.1)]">
+                  {sticker.emoji}
+                </span>
+                <div className="absolute inset-0 rounded-inherit border border-neutral-200/40 dark:border-white/10 pointer-events-none" />
+                <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-neutral-900/90 text-white text-[8px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xs uppercase tracking-wider">
+                  {sticker.pastedBy}
+                </div>
               </motion.div>
-            );
-          })}
-        </AnimatePresence>
+
+              {/* Action Bubbles for Selected Sticker */}
+              <AnimatePresence>
+                {isSelected && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                    className="absolute -top-11 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-white dark:bg-zinc-900 px-2 py-1 rounded-full shadow-lg border border-neutral-100 dark:border-zinc-800 z-50 pointer-events-auto"
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); rotateSticker(sticker.id, sticker.rotation); }}
+                      className="w-6 h-6 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-700 dark:bg-zinc-800 dark:text-zinc-200 flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                      <ArrowRightLeft className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); peelSticker(sticker.id, sticker.label); }}
+                      className="w-6 h-6 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelectedStickerId(null); }}
+                      className="w-6 h-6 rounded-full bg-neutral-50 hover:bg-neutral-100 text-neutral-500 dark:bg-zinc-800 dark:text-zinc-400 flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
+          );
+        })}
       </div>
 
       {/* FLOAT FLOATING sticker sheet toggle button */}

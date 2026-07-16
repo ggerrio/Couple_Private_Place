@@ -97,17 +97,6 @@
   --tree-floor:            var(--fabric-linen);
   --tree-accent:           var(--wood-pine);
 
-  /* ─── Spacing Scale ─────────────────────────────────────────────────── */
-  --space-xs:  4px;
-  --space-sm:  8px;
-  --space-md:  16px;
-  --space-lg:  24px;
-  --space-xl:  32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
-  --space-4xl: 96px;
-  --space-section: clamp(2.5rem, 5vw, 4rem);
-
   /* ─── 5-Color Accent Palette ─────────────────────────────────────────── */
   --color-accent-rose:     #C06C54;  /* Vintage Terracotta */
   --color-accent-gold:     #EBB242;  /* Warm Ochre Mustard */
@@ -119,20 +108,9 @@
   --text-xs:   12px;
   --text-sm:   14px;
   --text-base: 16px;
-  --text-lg:   18px;
-  --text-xl:   20px;
-  --text-2xl:  24px;
-  --text-3xl:  30px;
-  --text-4xl:  36px;
-  --text-5xl:  48px;
-  --text-6xl:  60px;
 
   /* ─── Warm, Soft Shadows ────────────────────────────────────────────── */
-  --shadow-sm:   0 1px 3px rgba(43, 35, 36, 0.04);
   --shadow-md:   0 4px 12px rgba(43, 35, 36, 0.06), 0 1px 3px rgba(43, 35, 36, 0.04);
-  --shadow-lg:   0 10px 25px rgba(43, 35, 36, 0.08), 0 4px 6px rgba(43, 35, 36, 0.04);
-  --shadow-xl:   0 20px 40px rgba(43, 35, 36, 0.1), 0 8px 10px rgba(43, 35, 36, 0.05);
-  --shadow-card: 0 2px 8px rgba(43, 35, 36, 0.04), 0 1px 2px rgba(43, 35, 36, 0.03);
 
   /* ─── Border Radius ─────────────────────────────────────────────────── */
   --radius-sm:  8px;
@@ -471,15 +449,6 @@ h1, h2, h3, h4, h5, h6, .font-display {
 /* ═══════════════════════════════════════════════════════════════════════════
    4. COMPONENT STYLES
    ═══════════════════════════════════════════════════════════════════════════ */
-
-/* Legacy tree-card — kept for SkeletonCard compatibility */
-.tree-card {
-  background-color: var(--card-bg-solid);
-  border: 3px solid var(--text-main);
-  border-radius: 24px;
-  padding: var(--space-lg);
-  box-shadow: 6px 6px 0 0 var(--text-main);
-}
 
 /* ─── 5-Color Accent Utility Classes ────────────────────────────────── */
 .accent-rose     { color: var(--color-accent-rose); }
@@ -840,24 +809,24 @@ h1, h2, h3, h4, h5, h6, .font-display {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .dock-runner {
-  background: rgba(255, 255, 255, 0.45);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
   box-shadow: 
-    0 4px 30px rgba(0, 0, 0, 0.03),
-    0 1px 3px rgba(0, 0, 0, 0.02),
-    inset 0 1px 1px rgba(255, 255, 255, 0.8);
+    0 12px 40px -10px rgba(0, 0, 0, 0.08),
+    0 1px 4px rgba(0, 0, 0, 0.01),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95);
   position: relative;
 }
 
 .dark .dock-runner {
-  background: rgba(15, 12, 10, 0.55);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(18, 16, 14, 0.55) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 
-    0 4px 30px rgba(0, 0, 0, 0.2),
+    0 12px 40px -10px rgba(0, 0, 0, 0.45),
     inset 0 1px 1px rgba(255, 255, 255, 0.05);
 }
 
@@ -1284,10 +1253,7 @@ input:focus:not(:focus-visible) {
 
 .dark {
   color-scheme: dark;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 4px 10px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.6), 0 4px 6px rgba(0, 0, 0, 0.3);
-  --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.7), 0 8px 10px rgba(0, 0, 0, 0.4);
 
   --color-primary:         #E89D88;  /* Gorgeous Soft Retro Terracotta Peach */
   --color-on-primary:      #1C130E;  /* Deep Cocoa Coffee */
@@ -1365,6 +1331,45 @@ input:focus:not(:focus-visible) {
   --sidebar-accent-foreground: #FAF2EC;
   --sidebar-border: rgba(255,255,255,0.08);
   --sidebar-ring: #E89D88;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   13b. VIRTUAL PIANO KEY STATES
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.key-pressed {
+  background-color: #E6C594 !important;
+  background-image: radial-gradient(circle at center bottom, #F5DFB8 0%, #E6C594 70%, #CBB084 100%) !important;
+  box-shadow: inset 0 6px 16px rgba(74, 58, 58, 0.35), 0 0 12px rgba(230, 197, 148, 0.4) !important;
+}
+
+.key-pressed-black {
+  background-color: #E6C594 !important;
+  background-image: radial-gradient(circle at center bottom, #F3DAB0 0%, #E6C594 65%, #AE9263 100%) !important;
+  box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(230, 197, 148, 0.5) !important;
+}
+
+/* Ripple via CSS ::after pseudo-element */
+.key-ripple::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle at center, rgba(230, 197, 148, 0.4), transparent 70%);
+  transition: opacity 0.15s ease-out;
+  border-radius: inherit;
+}
+
+.key-ripple.key-pressed::after,
+.key-ripple.key-pressed-black::after {
+  opacity: 1;
+  animation: key-ripple-pulse 0.5s ease-out forwards;
+}
+
+@keyframes key-ripple-pulse {
+  0% { opacity: 0.5; transform: scale(0.95); }
+  100% { opacity: 0; transform: scale(1.1); }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2214,4 +2219,65 @@ input:focus:not(:focus-visible) {
   --font-serif: "Inter", system-ui, sans-serif !important;
   --font-display: "Inter", system-ui, sans-serif !important;
 }
+
+/* 🔮 Unified Glass-Blur Premium Panel for Modals & Notifications */
+.glass-overlay-panel {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 
+    0 12px 40px -10px rgba(0, 0, 0, 0.08),
+    0 1px 4px rgba(0, 0, 0, 0.01),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95) !important;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dark .glass-overlay-panel {
+  background-color: rgba(18, 16, 14, 0.55) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 
+    0 12px 40px -10px rgba(0, 0, 0, 0.45),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
+}
+
+/* 🌌 Dark-Mode Aware Glass Backdrop Wrapper for Modal Overlays */
+.glass-modal-backdrop {
+  background-color: rgba(15, 12, 10, 0.4) !important;
+  backdrop-filter: blur(8px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(120%) !important;
+  transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
+}
+
+.dark .glass-modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.65) !important;
+  backdrop-filter: blur(12px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+}
+
+/* 🖼️ Premium Glass Panel for Modal Content Windows */
+.glass-modal-content {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 
+    0 24px 60px -15px rgba(0, 0, 0, 0.12),
+    0 1px 4px rgba(0, 0, 0, 0.02),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95) !important;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dark .glass-modal-content {
+  background-color: rgba(28, 25, 23, 0.6) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 
+    0 24px 60px -15px rgba(0, 0, 0, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
+}
+
 

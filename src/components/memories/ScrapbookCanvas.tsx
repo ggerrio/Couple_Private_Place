@@ -54,6 +54,23 @@ interface ScrapbookCanvasProps {
   onSelectMemory: (memory: Memory) => void;
 }
 
+const LOCAL_ELEMENTS_KEY = "scrapbook_local_elements";
+
+// LocalStorage helpers as fallback when Firestore is unavailable
+function loadLocalElements(): BoardElement[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_ELEMENTS_KEY);
+    if (raw) return JSON.parse(raw) as BoardElement[];
+  } catch { /* ignore */ }
+  return [];
+}
+
+function saveLocalElements(elements: BoardElement[]) {
+  try {
+    localStorage.setItem(LOCAL_ELEMENTS_KEY, JSON.stringify(elements));
+  } catch { /* ignore */ }
+}
+
 export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps) {
   const { memories } = useCouple();
   const boardRef = useRef<HTMLDivElement>(null);
@@ -95,44 +112,73 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
     return memories.filter((m) => m.imageUrl && m.imageUrl.trim() !== "");
   }, [memories]);
 
-  // Firestore synchronization helper functions
+  // Firestore synchronization helper functions with localStorage fallback
+  const persistElements = (elements: BoardElement[]) => {
+    saveLocalElements(elements);
+  };
+
   const syncUpdateElement = async (id: string, updates: Partial<BoardElement>) => {
+    // Update local state immediately for responsiveness
+    setElements((prev) => {
+      const updated = prev.map((el) => (el.id === id ? { ...el, ...updates } : el));
+      persistElements(updated);
+      return updated;
+    });
+    // Then try Firestore (fire-and-forget)
     try {
       const db = await getDb();
       const { doc, updateDoc } = await import("firebase/firestore");
       await updateDoc(doc(db, "scrapbook_elements", id), updates);
     } catch (e) {
-      console.error(`Failed to update element ${id} in Firestore:`, e);
-      toast.error("Couldn't sync layout changes. 🔗");
+      console.warn(`Firestore sync failed for update ${id}, using local only:`, e);
     }
   };
 
   const syncAddElement = async (element: BoardElement) => {
+    // Add to local state immediately
+    setElements((prev) => {
+      const updated = [...prev, element];
+      persistElements(updated);
+      return updated;
+    });
+    // Then try Firestore
     try {
       const db = await getDb();
       const { doc, setDoc } = await import("firebase/firestore");
       await setDoc(doc(db, "scrapbook_elements", element.id), element);
     } catch (e) {
-      console.error(`Failed to add element ${element.id} to Firestore:`, e);
-      toast.error("Couldn't sync new item. 🔗");
+      console.warn(`Firestore sync failed for add ${element.id}, using local only:`, e);
     }
   };
 
   const syncDeleteElement = async (id: string) => {
+    // Remove from local state immediately
+    setElements((prev) => {
+      const updated = prev.filter((el) => el.id !== id);
+      persistElements(updated);
+      return updated;
+    });
+    // Then try Firestore
     try {
       const db = await getDb();
       const { doc, deleteDoc } = await import("firebase/firestore");
       await deleteDoc(doc(db, "scrapbook_elements", id));
     } catch (e) {
-      console.error(`Failed to delete element ${id} from Firestore:`, e);
-      toast.error("Couldn't sync deletion. 🔗");
+      console.warn(`Firestore sync failed for delete ${id}, using local only:`, e);
     }
   };
 
-  // Real-time Firestore sync
+  // Real-time Firestore sync with localStorage fallback
   useEffect(() => {
     let unsub: (() => void) | undefined;
     let cancelled = false;
+
+    // Try loading from localStorage first for instant display
+    const localElements = loadLocalElements();
+    if (localElements.length > 0) {
+      localElements.sort((a, b) => (a.zIndex || 10) - (b.zIndex || 10));
+      setElements(localElements);
+    }
 
     const setupSync = async () => {
       try {
@@ -165,16 +211,28 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
           items.sort((a, b) => (a.zIndex || 10) - (b.zIndex || 10));
 
           if (items.length === 0 && photoMemories.length > 0) {
+            // Fresh Firestore collection — initialize with defaults
             initializeDefaultBoardToFirestore();
           } else {
+            // Save to localStorage for offline fallback
+            saveLocalElements(items);
             setElements(items);
           }
-        }, (error) => {
-          console.error("Firestore Scrapbook Elements subscription failed:", error);
-          toast.error("Failed to sync scrapbook in real-time. 🔌");
+        }, async (error) => {
+          console.warn("Firestore sync unavailable, using local storage:", error);
+          // Firestore failed — try initializing from localStorage or defaults
+          const existing = loadLocalElements();
+          if (existing.length === 0 && photoMemories.length > 0 && !cancelled) {
+            // Initialize a default local-only board
+            const defaults = createDefaultBoard(photoMemories);
+            saveLocalElements(defaults);
+            setElements(defaults);
+          } else if (existing.length > 0) {
+            // Already loaded from localStorage at top
+          }
         });
       } catch (err) {
-        console.error("Error setting up Firestore sync:", err);
+        console.warn("Error setting up Firestore sync, using local only:", err);
       }
     };
 
@@ -186,12 +244,9 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
     };
   }, [photoMemories]);
 
-  // Populate board with scattered real memories in Firestore if empty
-  const initializeDefaultBoardToFirestore = async () => {
-    if (photoMemories.length === 0) return;
-
-    const initial: BoardElement[] = photoMemories.map((m, idx) => {
-      // Scatter elements nicely across the board
+  // Create default board layout from photo memories (local + Firestore)
+  const createDefaultBoard = (memories: Memory[]): BoardElement[] => {
+    const initial: BoardElement[] = memories.map((m, idx) => {
       const columns = 3;
       const row = Math.floor(idx / columns);
       const col = idx % columns;
@@ -206,12 +261,11 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
         x: Math.max(5, Math.min(85, baseX)),
         y: Math.max(5, Math.min(85, baseY)),
         scale: 1.0,
-        rotate: Math.round(Math.random() * 16 - 8), // rotation between -8deg and 8deg
+        rotate: Math.round(Math.random() * 16 - 8),
         zIndex: 10 + idx,
       };
     });
 
-    // Add a default welcoming sticky note
     initial.push({
       id: "welcome-note",
       type: "sticky",
@@ -224,6 +278,20 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
       zIndex: 50,
     });
 
+    return initial;
+  };
+
+  // Populate board with scattered real memories in Firestore + localStorage
+  const initializeDefaultBoardToFirestore = async () => {
+    if (photoMemories.length === 0) return;
+
+    const initial = createDefaultBoard(photoMemories);
+
+    // Save to localStorage immediately for instant display
+    saveLocalElements(initial);
+    setElements(initial);
+
+    // Try Firestore (best effort)
     try {
       const db = await getDb();
       const { doc, writeBatch } = await import("firebase/firestore");
@@ -236,7 +304,7 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
       await batch.commit();
       console.log("Successfully initialized default elements in Firestore");
     } catch (e) {
-      console.error("Failed to initialize default board in Firestore:", e);
+      console.warn("Firestore init skipped, using local only:", e);
     }
   };
 
@@ -350,26 +418,15 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
     const el = elements.find((e) => e.id === id);
     if (!el) return;
 
-    // Convert absolute viewport mouse release coordinates to percent of our target board container
-    const localX = info.point.x - boardBounds.left;
-    const localY = info.point.y - boardBounds.top;
+    // Use info.offset (delta from drag start) instead of info.point (absolute position)
+    // This ensures the element stays exactly where the user dropped it
+    const deltaPercentX = (info.offset.x / boardBounds.width) * 100;
+    const deltaPercentY = (info.offset.y / boardBounds.height) * 100;
 
-    const percentX = (localX / boardBounds.width) * 100;
-    const percentY = (localY / boardBounds.height) * 100;
+    const newX = Math.max(2, Math.min(95, el.x + deltaPercentX));
+    const newY = Math.max(2, Math.min(95, el.y + deltaPercentY));
 
-    const newX = Math.max(2, Math.min(95, percentX));
-    const newY = Math.max(2, Math.min(95, percentY));
-
-    // Update locally instantly for response feel
-    const updated = elements.map((item) => {
-      if (item.id === id) {
-        return { ...item, x: newX, y: newY };
-      }
-      return item;
-    });
-    setElements(updated);
-
-    // Sync to Firestore
+    // Sync to Firestore — syncUpdateElement handles local state update
     await syncUpdateElement(id, { x: newX, y: newY });
   };
 
@@ -551,7 +608,24 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
   const activeElement = elements.find((e) => e.id === selectedId);
 
   return (
-    <div className="relative space-y-4 text-left pb-36">
+    <div className="relative space-y-4 text-left">
+      {/* Creative Stationery Chest — now at the top, full width matching the canvas */}
+      <CreativeDrawer
+        onAddStickyNote={addStickyNote}
+        onAddWashiTape={(washiType) => handleAddCreativeItem({ type: "washi", props: { washiType } })}
+        onAddOrnament={addSticker}
+        onManualSave={handleManualSave}
+        isSavingLayout={isSavingLayout}
+        onResetBoard={handleResetBoard}
+        activeElement={activeElement}
+        onRotateDirect={setRotationDirect}
+        onScaleSelected={scaleSelected}
+        onStartEditText={handleStartEditText}
+        onRemoveElement={removeElement}
+        bringToFront={bringToFront}
+        sendToBack={sendToBack}
+      />
+
       {/* Interactive Desk Table Board */}
       <div
         ref={boardRef}
@@ -579,7 +653,7 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
               triggerHaptic("light");
               toast.success(!scrollLocked ? "Table Scroll Locked! 🔒 Drag objects freely." : "Scroll unlocked! 🔓");
             }}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[9px] font-mono font-bold shadow-xs backdrop-blur-xs transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-[9px] font-mono font-bold shadow-xs backdrop-blur-sm transition-all cursor-pointer ${
               scrollLocked
                 ? "bg-amber-100/90 border-amber-300 text-amber-800 dark:bg-stone-900/90 dark:border-amber-900/50 dark:text-amber-300"
                 : "bg-white/80 border-stone-300 text-stone-600 dark:bg-stone-900/80 dark:border-stone-800 dark:text-stone-400"
@@ -616,7 +690,7 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             >
               <div className="bg-[var(--fabric-cream)] dark:bg-stone-900 border border-[var(--wood-oak)]/30 rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-3 text-left">
                 <span className="text-[10px] uppercase tracking-wider text-[var(--primary)] font-bold">Edit Note Message</span>
@@ -658,9 +732,13 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
 
           const isSelected = selectedId === el.id;
 
+          // Dynamic key includes position so Framer Motion fully resets its internal transform on re-render
+          // This prevents the drag transform from clashing with the new CSS left/top position
+          const dragKey = `${el.id}-${Math.round(el.x)}-${Math.round(el.y)}`;
+
           return (
             <motion.div
-              key={el.id}
+              key={dragKey}
               drag
               dragMomentum={false}
               dragConstraints={boardRef}
@@ -792,23 +870,6 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
           );
         })}
       </div>
-
-      {/* Highly Z-Indexed, Responsive Creative Desk Drawer */}
-      <CreativeDrawer
-        onAddStickyNote={addStickyNote}
-        onAddWashiTape={(washiType) => handleAddCreativeItem({ type: "washi", props: { washiType } })}
-        onAddOrnament={addSticker}
-        onManualSave={handleManualSave}
-        isSavingLayout={isSavingLayout}
-        onResetBoard={handleResetBoard}
-        activeElement={activeElement}
-        onRotateDirect={setRotationDirect}
-        onScaleSelected={scaleSelected}
-        onStartEditText={handleStartEditText}
-        onRemoveElement={removeElement}
-        bringToFront={bringToFront}
-        sendToBack={sendToBack}
-      />
 
       {/* Quick Desk Guide */}
       <div className="p-3 bg-black/5 dark:bg-black/10 rounded-xl border border-dashed border-[var(--border-color)] dark:border-white/5 flex items-start gap-2 text-[10px] text-[var(--text-muted)] font-mono leading-relaxed">

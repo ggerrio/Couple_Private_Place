@@ -27,11 +27,14 @@ export function useProfileState() {
     if (updates.emoji !== undefined) dbUpdates.emoji = updates.emoji;
     if (updates.timezoneOffset !== undefined) dbUpdates.timezone_offset = updates.timezoneOffset;
     if (updates.timezoneName !== undefined) dbUpdates.timezone_name = updates.timezoneName;
+    if (updates.lastActive !== undefined) dbUpdates.last_active = updates.lastActive;
 
     try {
       const db = await getDb();
-      const { doc, updateDoc } = await import("firebase/firestore");
-      await updateDoc(doc(db, "profiles", userId), dbUpdates);
+      const { doc, runTransaction } = await import("firebase/firestore");
+      await runTransaction(db, async (transaction) => {
+        transaction.update(doc(db, "profiles", userId), dbUpdates);
+      });
     } catch (e) { console.error("[updateProfile]", e); }
   }, []);
 

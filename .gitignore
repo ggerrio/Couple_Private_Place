@@ -6,3 +6,20 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Firebase
+firebase-debug.log
+.firebase/
+
+# TypeScript incremental build
+*.tsbuildinfo
+
+# Local audit / generated analysis
+_design-audit/
+
+# Vite cache
+.vite/
+
+# OS
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,29 @@
+{
+  "rules": {
+    "rooms": {
+      "couple_piano_session": {
+        "events": {
+          // Izinkan semua pengguna yang terautentikasi untuk membaca data.
+          ".read": "auth != null",
+
+          // Izinkan DELETE (karena newData tidak ada saat delete)
+          // TAPI tidak izinkan overwrite (karena newData ada saat update/create penuh)
+          ".write": "auth != null && !newData.exists()",
+
+          "$eventId": {
+            // Izinkan CREATE (!data.exists()) dan DELETE (!newData.exists())
+            // TAPI tetap blokir UPDATE (data && newData keduanya ada)
+            ".write": "auth != null && (!data.exists() || !newData.exists())",
+
+            // Validasi struktur dan konten dari setiap event baru yang masuk.
+            ".validate": "newData.hasChildren(['n', 'a', 'u', 't']) &&
+                        newData.child('n').isString() && newData.child('n').val().length < 10 &&
+                        newData.child('a').isNumber() && (newData.child('a').val() == 0 || newData.child('a').val() == 1) &&
+                        newData.child('u').isString() && newData.child('u').val() == auth.uid &&
+                        newData.child('t').val() == now"
+          }
+        }
+      }
+    }
+  }
+}

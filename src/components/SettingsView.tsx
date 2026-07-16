@@ -6,7 +6,7 @@
  * and nests the admin reset panel behind a secure dual-tap button at the footer.
  */
 
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useCouple } from "../context/CoupleContext";
 import { motion, AnimatePresence } from "motion/react";
 import {

@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from "motion/react";
 import html2canvas from "html2canvas";
 import {
   Sparkles, Camera, Layers, Palette, Check, RefreshCw,
-  Heart, Copy, Timer, Users, Smile, X, Upload, ChevronLeft, ChevronRight,
+  Heart, Copy, Timer, Users, Smile, X, Upload, ChevronLeft, ChevronRight, Download,
 } from "lucide-react";
 import { getDb, uploadToCloudinary } from "../../firebaseClient";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -29,11 +29,13 @@ import { triggerHaptic } from "../../lib/haptics";
 // ─── Constants ──────────────────────────────────────────────────────────
 
 const STRIP_PRESETS = [
-  { id: "classic-cream", label: "Classic Cream", swatch: "#faf6ee", frameColor: "#faf6ee", textColor: "#3e372e", accent: "#c8a27d" },
-  { id: "blushing-sakura", label: "Blushing Sakura", swatch: "#fdf0f0", frameColor: "#fdf0f0", textColor: "#881337", accent: "#f472b6" },
-  { id: "retro-film", label: "Retro Film", swatch: "#252525", frameColor: "#252525", textColor: "#faf6ee", accent: "#dc2626" },
-  { id: "kraft-cardboard", label: "Kraft Cardboard", swatch: "#e8d5b8", frameColor: "#e8d5b8", textColor: "#5c4033", accent: "#283618" },
-  { id: "sage-garden", label: "Sage Garden", swatch: "#e2e8df", frameColor: "#e2e8df", textColor: "#2d3722", accent: "#bc6c25" },
+  { id: "classic-cream", label: "Classic Cream 🥛", swatch: "#faf6ee", frameColor: "#faf6ee", textColor: "#3e372e", accent: "#c8a27d", styleType: "classic" },
+  { id: "blushing-sakura", label: "Blushing Sakura 🌸", swatch: "#fdf0f0", frameColor: "#fdf0f0", textColor: "#881337", accent: "#f472b6", styleType: "sakura" },
+  { id: "retro-film", label: "Retro Film Reel 🎞️", swatch: "#18181b", frameColor: "#18181b", textColor: "#f4f4f5", accent: "#ef4444", styleType: "retro" },
+  { id: "kraft-cardboard", label: "Cozy Kraft Tape 📦", swatch: "#e8d5b8", frameColor: "#e8d5b8", textColor: "#5c4033", accent: "#283618", styleType: "kraft" },
+  { id: "y2k-cyber", label: "Cyber Neon Y2K 🌌", swatch: "#09090b", frameColor: "#09090b", textColor: "#38bdf8", accent: "#ec4899", styleType: "y2k" },
+  { id: "crazy-scrapbook", label: "Crazy Scrapbook 🤪🎨", swatch: "#fffae6", frameColor: "#fffae6", textColor: "#1e293b", accent: "#f43f5e", styleType: "crazy-scrapbook" },
+  { id: "scrapbook-cozy", label: "Scrapbook Cozy 📖✨", swatch: "#fdfaf2", frameColor: "#fdfaf2", textColor: "#544238", accent: "#c0a080", styleType: "scrapbook" },
 ];
 
 const LAYOUTS: Record<string, { cols: number; rows: number; label: string; totalRounds: number }> = {
@@ -42,6 +44,15 @@ const LAYOUTS: Record<string, { cols: number; rows: number; label: string; total
   "6-cut": { cols: 2, rows: 6, label: "6-Cut Strip", totalRounds: 6 },
   polaroid: { cols: 2, rows: 1, label: "Polaroid Duo", totalRounds: 1 },
 };
+
+const QUICK_PALETTES = [
+  { name: "Vintage Cream 🪵", bg: "#fdfaf2", text: "#544238", border: "#c0a080", description: "Warm cozy notes & kraft borders" },
+  { name: "Sakura Blossom 🌸", bg: "#fff0f5", text: "#7c1e3f", border: "#f472b6", description: "Soft blush pinks & cherry blossoms" },
+  { name: "Cyberpunk Glow 🌌", bg: "#0f172a", text: "#38bdf8", border: "#ec4899", description: "Deep midnight & electric neon lasers" },
+  { name: "Matcha Cream 🍵", bg: "#f0fdf4", text: "#14532d", border: "#86efac", description: "Gentle green tea & smooth cream" },
+  { name: "Pumpkin Latte 🎃", bg: "#fff7ed", text: "#7c2d12", border: "#fb923c", description: "Warm autumn orange skies & espresso" },
+  { name: "Velvet Gothic 🥀", bg: "#1e1b4b", text: "#e0e7ff", border: "#ef4444", description: "Royal purple & rich crimson velvet" },
+];
 
 const FILTERS = [
   { id: "natural", label: "Natural", css: "" },
@@ -219,12 +230,62 @@ const Carousel_003 = ({
   );
 };
 
+// ─── LiveCameraCanvas ──────────────────────────────────────────────────
+const LiveCameraCanvas = ({ videoRef }: { videoRef: React.RefObject<HTMLVideoElement | null> }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    let animationFrameId: number;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const render = () => {
+      if (!active) return;
+      const video = videoRef.current;
+      if (video && video.readyState >= 2) {
+        const size = Math.min(video.videoWidth, video.videoHeight);
+        const sx = (video.videoWidth - size) / 2;
+        const sy = (video.videoHeight - size) / 2;
+        
+        if (canvas.width !== 300) {
+          canvas.width = 300;
+          canvas.height = 300;
+        }
+        
+        ctx.drawImage(video, sx, sy, size, size, 0, 0, 300, 300);
+      } else {
+        if (canvas.width !== 300) {
+          canvas.width = 300;
+          canvas.height = 300;
+        }
+        ctx.clearRect(0, 0, 300, 300);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.15)";
+        ctx.fillRect(0, 0, 300, 300);
+      }
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      active = false;
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [videoRef]);
+
+  return <canvas ref={canvasRef} className="w-full h-full object-cover mirror" />;
+};
+
 // ─── PhotoboothSection ──────────────────────────────────────────────────
 
 export default function PhotoboothSection() {
   const { currentUser, userA, userB, memories, addMemory, cloudinaryCloudName, cloudinaryUploadPreset } = useCouple();
   const cam = useCamera();
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const persistentVideoRef = useRef<HTMLVideoElement | null>(null);
   const captureAreaRef = useRef<HTMLDivElement | null>(null);
 
   const [layout, setLayout] = useState<"2-cut" | "4-cut" | "6-cut" | "polaroid">("4-cut");
@@ -240,8 +301,11 @@ export default function PhotoboothSection() {
   const [saving, setSaving] = useState(false);
   const [savedUrl, setSavedUrl] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [cloudinaryHighResUrl, setCloudinaryHighResUrl] = useState<string | null>(null);
   const capturedRoundRef = useRef(0);
   const transitionLockRef = useRef(0);
+  const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("toggleNavbar", { detail: !previewUrl }));
@@ -251,13 +315,98 @@ export default function PhotoboothSection() {
   const isHost = room?.hostId === currentUser;
   const partnerName = currentUser === "user_a" ? userB.name : userA.name;
 
-  const attachVideoRef = useCallback((el: HTMLVideoElement | null) => {
-    videoRef.current = el;
-    if (el && cam.stream) { el.srcObject = cam.stream; el.play().catch(() => {}); }
+  // Sync camera stream to persistent video element
+  useEffect(() => {
+    const video = persistentVideoRef.current;
+    if (video) {
+      if (cam.stream) {
+        video.srcObject = cam.stream;
+        video.play().catch((err) => {
+          console.warn("Persistent video play failed:", err);
+        });
+      } else {
+        video.srcObject = null;
+      }
+    }
   }, [cam.stream]);
 
-  useEffect(() => { if (videoRef.current && cam.stream) { videoRef.current.srcObject = cam.stream; videoRef.current.play().catch(() => {}); } }, [cam.stream]);
-  useEffect(() => { return () => { cam.stopCamera(); }; }, []);
+  // Robust camera reconnection observer
+  const reconnectingRef = useRef(false);
+  const reconnectAttemptsRef = useRef(0);
+
+  useEffect(() => {
+    if (!cam.isActive || !cam.stream) {
+      reconnectAttemptsRef.current = 0;
+      return;
+    }
+
+    const handleTrackEnded = () => {
+      if (reconnectingRef.current) return;
+      
+      console.warn("Camera video track ended unexpectedly. Attempting clean reconnection...");
+      
+      if (reconnectAttemptsRef.current >= 3) {
+        toast.error("Camera connection lost repeatedly. Please check your camera device settings.", { id: "camera-reconnect" });
+        cam.stopCamera();
+        return;
+      }
+
+      reconnectingRef.current = true;
+      reconnectAttemptsRef.current += 1;
+
+      toast.warning(`Camera disconnected! Attempting to reconnect (Attempt ${reconnectAttemptsRef.current}/3)...`, {
+        id: "camera-reconnect",
+        duration: 4000
+      });
+
+      // Clean stop first
+      cam.stopCamera();
+
+      // Delay then attempt clean start
+      setTimeout(async () => {
+        try {
+          await cam.startCamera();
+          toast.success("Camera reconnected successfully! 📸", { id: "camera-reconnect" });
+        } catch (err: any) {
+          console.error("Camera reconnection failed:", err);
+          toast.error("Automatic camera reconnection failed.", { id: "camera-reconnect" });
+        } finally {
+          reconnectingRef.current = false;
+        }
+      }, 1500);
+    };
+
+    const tracks = cam.stream.getVideoTracks();
+    tracks.forEach((track) => {
+      track.addEventListener("ended", handleTrackEnded);
+    });
+
+    // Periodically check if camera stream gets frozen or inactive (e.g., if camera fails but ended is not fired)
+    const checkInterval = setInterval(() => {
+      if (cam.isActive && cam.stream) {
+        const activeTracks = cam.stream.getTracks().filter(t => t.readyState === "live");
+        if (activeTracks.length === 0 && !reconnectingRef.current) {
+          console.warn("No active camera tracks detected! Reconnecting...");
+          handleTrackEnded();
+        }
+      }
+    }, 2500);
+
+    return () => {
+      tracks.forEach((track) => {
+        track.removeEventListener("ended", handleTrackEnded);
+      });
+      clearInterval(checkInterval);
+    };
+  }, [cam.isActive, cam.stream, cam.stopCamera, cam.startCamera]);
+
+  useEffect(() => {
+    return () => {
+      cam.stopCamera();
+      if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    };
+  }, []);
+
   useEffect(() => {
     if (!roomCode) return;
     let unsub: (() => void) | null = null;
@@ -274,7 +423,13 @@ export default function PhotoboothSection() {
     })();
     return () => { if (unsub) unsub(); };
   }, [roomCode]);
-  useEffect(() => { if (!roomCode || room?.state === "waiting" || (room?.state === "countdown" && room.round === 1)) { capturedRoundRef.current = 0; transitionLockRef.current = 0; } }, [roomCode, room?.state, room?.round]);
+
+  useEffect(() => {
+    if (!roomCode || room?.state === "waiting" || (room?.state === "countdown" && room.round === 1)) {
+      capturedRoundRef.current = 0;
+      transitionLockRef.current = 0;
+    }
+  }, [roomCode, room?.state, room?.round]);
 
   const totalRounds = LAYOUTS[layout]?.totalRounds || 4;
 
@@ -349,7 +504,7 @@ export default function PhotoboothSection() {
   }, [room, isHost, roomCode]);
 
   const captureFrame = useCallback((): string | null => {
-    const video = videoRef.current;
+    const video = persistentVideoRef.current;
     if (!video || !video.videoWidth || video.readyState < 2) {
       const canvas = document.createElement("canvas");
       canvas.width = 360; canvas.height = 360;
@@ -370,17 +525,23 @@ export default function PhotoboothSection() {
     ctx.translate(canvas.width, 0); ctx.scale(-1, 1);
     ctx.drawImage(video, sx, sy, size, size, 0, 0, canvas.width, canvas.height);
     return canvas.toDataURL("image/jpeg", 0.65);
-  }, [currentUser]);
+  }, []);
+
+  const roomState = room?.state;
+  const roomRound = room?.round;
+  const countdownStartAt = room?.countdownStartAt;
+  const roomHostId = room?.hostId;
 
   useEffect(() => {
-    if (!room || room.state !== "countdown" || !room.countdownStartAt) { setCountdownVal(null); return; }
-    if (capturedRoundRef.current === room.round) return;
+    if (roomState !== "countdown" || !countdownStartAt) { setCountdownVal(null); return; }
+    if (capturedRoundRef.current === roomRound) return;
+    
     const tick = () => {
-      const remaining = room.countdownStartAt! - Date.now();
+      const remaining = countdownStartAt - Date.now();
       if (remaining <= 0) {
         setCountdownVal(0);
-        if (capturedRoundRef.current !== room.round) {
-          capturedRoundRef.current = room.round;
+        if (capturedRoundRef.current !== roomRound) {
+          capturedRoundRef.current = roomRound;
           const shot = captureFrame();
           if (shot) {
             (async () => {
@@ -388,7 +549,7 @@ export default function PhotoboothSection() {
               if (cloudinaryCloudName && cloudinaryUploadPreset) {
                 try { const res = await fetch(shot); const blob = await res.blob(); uploadUrl = await uploadToCloudinary(blob, `photobooth-${Date.now()}.jpg`, cloudinaryCloudName, cloudinaryUploadPreset); } catch {}
               }
-              const field = currentUser === room.hostId ? "photosA" : "photosB";
+              const field = currentUser === roomHostId ? "photosA" : "photosB";
               const db = await getDb();
               const { doc, updateDoc, arrayUnion } = await import("firebase/firestore");
               await updateDoc(doc(db, "photobooth_rooms", roomCode), { [field]: arrayUnion(uploadUrl) });
@@ -404,55 +565,430 @@ export default function PhotoboothSection() {
     if (tick()) return;
     const id = setInterval(() => { if (tick()) clearInterval(id); }, 120);
     return () => clearInterval(id);
-  }, [room, roomCode, currentUser, captureFrame, cloudinaryCloudName, cloudinaryUploadPreset]);
+  }, [roomState, roomRound, countdownStartAt, roomHostId, roomCode, currentUser, captureFrame, cloudinaryCloudName, cloudinaryUploadPreset]);
 
+  // Handle host-side next round transitions
   useEffect(() => {
-    if (!room || !isHost || room.state !== "countdown") return;
+    if (!room || !isHost || room.state !== "countdown") {
+      if (transitionTimerRef.current) {
+        clearTimeout(transitionTimerRef.current);
+        transitionTimerRef.current = null;
+      }
+      return;
+    }
     const gotA = room.photosA.length >= room.round;
     const gotB = room.photosB.length >= room.round;
     if (!gotA || !gotB) return;
+    
     if (transitionLockRef.current === room.round) return;
     transitionLockRef.current = room.round;
-    const timer = setTimeout(async () => {
-      const db = await getDb();
-      const { doc, updateDoc } = await import("firebase/firestore");
-      if (room.round >= room.totalRounds) await updateDoc(doc(db, "photobooth_rooms", roomCode), { state: "editing", countdownStartAt: null });
-      else await updateDoc(doc(db, "photobooth_rooms", roomCode), { round: room.round + 1, countdownStartAt: Date.now() + COUNTDOWN_MS });
+    
+    if (transitionTimerRef.current) clearTimeout(transitionTimerRef.current);
+    
+    transitionTimerRef.current = setTimeout(async () => {
+      try {
+        const db = await getDb();
+        const { doc, updateDoc } = await import("firebase/firestore");
+        if (room.round >= room.totalRounds) {
+          await updateDoc(doc(db, "photobooth_rooms", roomCode), { state: "editing", countdownStartAt: null });
+        } else {
+          await updateDoc(doc(db, "photobooth_rooms", roomCode), { round: room.round + 1, countdownStartAt: Date.now() + COUNTDOWN_MS });
+        }
+      } catch (err) {
+        console.error("Transition to next round failed:", err);
+      }
     }, ROUND_GAP_MS);
-    return () => clearTimeout(timer);
-  }, [room, isHost, roomCode]);
+  }, [room?.round, room?.state, room?.photosA?.length, room?.photosB?.length, isHost, roomCode, room?.totalRounds]);
 
   const composeAndSave = useCallback(async () => {
     if (!room) return;
     setSaving(true);
     try {
       const preset = STRIP_PRESETS.find((p) => p.id === room.stripPreset) || STRIP_PRESETS[0];
+      const frameColor = room.customFrameColor || preset.frameColor;
+      const textColor = room.customTextColor || preset.textColor;
+      const accent = room.customAccentColor || preset.accent;
+
       const CELL = 300, MARGIN = 10, HEADER = 44, FOOTER = 64;
       const { cols: c, rows: r } = LAYOUTS[room.layout];
       const canvas = document.createElement("canvas");
       canvas.width = c * CELL + (c + 1) * MARGIN;
       canvas.height = r * CELL + (r + 1) * MARGIN + HEADER + FOOTER;
       const ctx = canvas.getContext("2d")!;
-      ctx.fillStyle = preset.frameColor; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.fillStyle = preset.accent; ctx.fillRect(0, 0, canvas.width, 6);
-      ctx.fillStyle = preset.textColor; ctx.font = "bold 17px sans-serif"; ctx.textAlign = "center";
+      
+      // Draw background color
+      ctx.fillStyle = frameColor; 
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw scrapbook grid if crazy-scrapbook theme
+      if (preset.styleType === "crazy-scrapbook") {
+        ctx.strokeStyle = "rgba(0, 0, 0, 0.03)";
+        ctx.lineWidth = 1;
+        for (let x = 0; x < canvas.width; x += 15) {
+          ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+        }
+        for (let y = 0; y < canvas.height; y += 15) {
+          ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+        }
+      }
+
+      // Draw paper texture if scrapbook theme preset
+      if (preset.styleType === "scrapbook") {
+        // Speckled paper texture dots (underruled)
+        ctx.fillStyle = "rgba(139, 115, 85, 0.06)";
+        for (let j = 0; j < 1200; j++) {
+          const px = Math.random() * canvas.width;
+          const py = Math.random() * canvas.height;
+          const pSize = Math.random() * 1.5 + 0.3;
+          ctx.beginPath();
+          ctx.arc(px, py, pSize, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        // Subtle gridded / lined notepad pattern
+        ctx.strokeStyle = "rgba(139, 92, 26, 0.07)";
+        ctx.lineWidth = 1;
+        // Draw horizontal faint rules
+        for (let y = 40; y < canvas.height; y += 22) {
+          ctx.beginPath();
+          ctx.moveTo(10, y);
+          ctx.lineTo(canvas.width - 10, y);
+          ctx.stroke();
+        }
+        // Faint margin line on the left side
+        ctx.strokeStyle = "rgba(220, 80, 80, 0.15)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(35, 0);
+        ctx.lineTo(35, canvas.height);
+        ctx.stroke();
+      }
+
+      // Draw spiral binder loops on the left edge if crazy-scrapbook theme
+      if (preset.styleType === "crazy-scrapbook") {
+        const count = 12;
+        for (let i = 0; i < count; i++) {
+          const y = 30 + (i * (canvas.height - 60)) / (count - 1);
+          // Ring hole
+          ctx.fillStyle = "#1e293b";
+          ctx.beginPath();
+          ctx.arc(8, y, 5, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Shiny reflex
+          ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+          ctx.beginPath();
+          ctx.arc(6, y - 1, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Metal loop clip
+          ctx.strokeStyle = "rgba(148, 163, 184, 0.95)";
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(3, y, 6, -Math.PI / 2, Math.PI / 2);
+          ctx.stroke();
+        }
+      }
+
+      // Draw header accent line
+      ctx.fillStyle = accent; 
+      ctx.fillRect(0, 0, canvas.width, 6);
+
+      // Add a header label
+      ctx.fillStyle = textColor; 
+      ctx.font = "bold 17px sans-serif"; 
+      ctx.textAlign = "center";
       ctx.fillText("📸 Our Photobooth", canvas.width / 2, HEADER - 14);
+
       const merged: string[] = [];
-      if (room.layout === "polaroid") { if (room.photosA[0]) merged.push(room.photosA[0]); }
-      else { for (let i = 0; i < room.photosA.length; i++) { merged.push(room.photosA[i]); if (room.photosB[i]) merged.push(room.photosB[i]); } }
+      if (room.layout === "polaroid") { 
+        if (room.photosA[0]) merged.push(room.photosA[0]); 
+      } else { 
+        for (let i = 0; i < room.photosA.length; i++) { 
+          merged.push(room.photosA[i]); 
+          if (room.photosB[i]) merged.push(room.photosB[i]); 
+        } 
+      }
+
+      // Render photo cells
       for (let i = 0; i < Math.min(merged.length, c * r); i++) {
         const col = i % c, row = Math.floor(i / c);
         const x = MARGIN + col * (CELL + MARGIN);
         const y = HEADER + MARGIN + row * (CELL + MARGIN);
-        try { const img = await loadImage(merged[i]); ctx.save(); ctx.filter = getCanvasFilter(room.filter || "natural"); ctx.drawImage(img, x, y, CELL, CELL); ctx.restore(); } catch {}
+        try { 
+          const img = await loadImage(merged[i]); 
+          ctx.save(); 
+          ctx.filter = getCanvasFilter(room.filter || "natural"); 
+          ctx.drawImage(img, x, y, CELL, CELL); 
+          ctx.restore(); 
+
+          // Washi tape drawing overlay
+          if (preset.styleType === "crazy-scrapbook") {
+            ctx.save();
+            ctx.translate(x, y);
+            if (row % 2 === 0) {
+              // Row 0/2 left: top-left yellow tape
+              ctx.rotate(-15 * Math.PI / 180);
+              ctx.fillStyle = "rgba(253, 224, 71, 0.65)";
+              ctx.fillRect(-15, -10, 80, 24);
+              ctx.strokeStyle = "rgba(234, 179, 8, 0.3)";
+              ctx.strokeRect(-15, -10, 80, 24);
+            } else {
+              // Row 1/3 right: top-right pink tape
+              ctx.translate(CELL, 0);
+              ctx.rotate(12 * Math.PI / 180);
+              ctx.fillStyle = "rgba(244, 114, 182, 0.65)";
+              ctx.fillRect(-65, -10, 80, 24);
+              ctx.strokeStyle = "rgba(219, 39, 119, 0.3)";
+              ctx.strokeRect(-65, -10, 80, 24);
+            }
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(x, y);
+            if (row % 2 === 0) {
+              // Row 0/2 right: bottom-right teal tape
+              ctx.translate(CELL, CELL);
+              ctx.rotate(10 * Math.PI / 180);
+              ctx.fillStyle = "rgba(45, 212, 191, 0.65)";
+              ctx.fillRect(-65, -12, 75, 20);
+            } else {
+              // Row 1/3 left: bottom-left purple tape
+              ctx.rotate(-8 * Math.PI / 180);
+              ctx.fillStyle = "rgba(192, 132, 252, 0.65)";
+              ctx.fillRect(-10, -10, 75, 22);
+            }
+            ctx.restore();
+          } else if (preset.styleType === "kraft") {
+            ctx.save();
+            ctx.translate(x, y);
+            if (row % 2 === 0) {
+              ctx.rotate(-12 * Math.PI / 180);
+              ctx.fillStyle = "rgba(203, 178, 139, 0.85)";
+              ctx.fillRect(-10, -10, 65, 20);
+            } else {
+              ctx.translate(CELL, 0);
+              ctx.rotate(10 * Math.PI / 180);
+              ctx.fillStyle = "rgba(203, 178, 139, 0.85)";
+              ctx.fillRect(-55, -10, 65, 20);
+            }
+            ctx.restore();
+          } else if (preset.styleType === "scrapbook") {
+            // Draw colorful washi tape strips at the corners of each photo cell
+            // Top Left corner tape
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(-18 * Math.PI / 180);
+            ctx.fillStyle = "rgba(230, 200, 160, 0.75)"; // warm pastel beige tape
+            ctx.fillRect(-15, -10, 55, 16);
+            ctx.strokeStyle = "rgba(120, 90, 60, 0.2)";
+            ctx.strokeRect(-15, -10, 55, 16);
+            ctx.restore();
+
+            // Top Right corner tape
+            ctx.save();
+            ctx.translate(x + CELL, y);
+            ctx.rotate(22 * Math.PI / 180);
+            ctx.fillStyle = "rgba(165, 195, 165, 0.75)"; // soft sage green tape
+            ctx.fillRect(-40, -10, 55, 16);
+            ctx.strokeStyle = "rgba(80, 110, 80, 0.2)";
+            ctx.strokeRect(-40, -10, 55, 16);
+            ctx.restore();
+
+            // Bottom Left corner tape
+            ctx.save();
+            ctx.translate(x, y + CELL);
+            ctx.rotate(15 * Math.PI / 180);
+            ctx.fillStyle = "rgba(185, 165, 195, 0.7)"; // light lavender tape
+            ctx.fillRect(-15, -6, 50, 14);
+            ctx.restore();
+
+            // Bottom Right corner tape
+            ctx.save();
+            ctx.translate(x + CELL, y + CELL);
+            ctx.rotate(-12 * Math.PI / 180);
+            ctx.fillStyle = "rgba(225, 160, 160, 0.75)"; // dusty rose tape
+            ctx.fillRect(-40, -8, 50, 14);
+            ctx.restore();
+          }
+        } catch (err) {
+          console.warn("Failed to load and draw photo on canvas:", err);
+        }
       }
+
+      // Draw Theme Stickers on the outer strip backing
+      ctx.save();
+      ctx.font = "24px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      if (preset.styleType === "sakura") {
+        ctx.fillText("🌸", canvas.width - 30, 45);
+        ctx.fillText("🌸", 35, canvas.height * 0.35);
+        ctx.fillText("🌸", canvas.width - 45, canvas.height - 110);
+        ctx.fillText("💕", 40, canvas.height - 60);
+      } else if (preset.styleType === "kraft") {
+        ctx.fillText("🌿", canvas.width - 30, 60);
+        ctx.fillText("🪵", 30, canvas.height - 90);
+        
+        ctx.save();
+        ctx.translate(canvas.width - 50, canvas.height / 2);
+        ctx.rotate(6 * Math.PI / 180);
+        ctx.fillStyle = "#cfb590";
+        ctx.fillRect(-45, -12, 90, 24);
+        ctx.strokeStyle = "#5c4033";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(-45, -12, 90, 24);
+        ctx.fillStyle = "#5c4033";
+        ctx.font = "bold 11px Courier New";
+        ctx.fillText("MEMORIES", 0, 0);
+        ctx.restore();
+      } else if (preset.styleType === "y2k") {
+        ctx.fillText("⚡", canvas.width - 25, 45);
+        ctx.fillText("👾", 25, canvas.height * 0.5);
+        ctx.fillText("✨", canvas.width - 30, canvas.height - 90);
+
+        ctx.save();
+        ctx.translate(35, canvas.height - 40);
+        ctx.rotate(-8 * Math.PI / 180);
+        ctx.fillStyle = "#ec4899";
+        ctx.fillRect(-30, -10, 60, 20);
+        ctx.fillStyle = "#000000";
+        ctx.font = "bold 10px monospace";
+        ctx.fillText("ONLINE", 0, 0);
+        ctx.restore();
+      } else if (preset.styleType === "crazy-scrapbook") {
+        ctx.fillText("🧸", canvas.width - 30, 80);
+        ctx.fillText("🍀", 30, canvas.height * 0.35);
+        ctx.fillText("🎀", canvas.width - 25, canvas.height * 0.65);
+        ctx.fillText("🍕", 25, canvas.height - 100);
+        ctx.fillText("🌟", canvas.width - 35, canvas.height - 30);
+
+        // Yellow BADGE
+        ctx.save();
+        ctx.translate(canvas.width - 45, canvas.height - 100);
+        ctx.rotate(12 * Math.PI / 180);
+        ctx.fillStyle = "#fde047";
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-45, -12, 90, 24, 12);
+        else ctx.rect(-45, -12, 90, 24);
+        ctx.fill();
+        ctx.strokeStyle = "#1e293b";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = "#1e293b";
+        ctx.font = "bold 9px sans-serif";
+        ctx.fillText("GILA SCRAP!", 0, 0);
+        ctx.restore();
+
+        // Red BADGE
+        ctx.save();
+        ctx.translate(40, 100);
+        ctx.rotate(-8 * Math.PI / 180);
+        ctx.fillStyle = "#f43f5e";
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-30, -12, 60, 24, 12);
+        else ctx.rect(-30, -12, 60, 24);
+        ctx.fill();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 10px sans-serif";
+        ctx.fillText("US 💖", 0, 0);
+        ctx.restore();
+      } else if (preset.styleType === "scrapbook") {
+        ctx.fillText("🌿", canvas.width - 25, 55);
+        ctx.fillText("✨", 30, canvas.height * 0.4);
+        ctx.fillText("📖", canvas.width - 30, canvas.height * 0.7);
+        ctx.fillText("🤎", 30, canvas.height - 110);
+
+        // Circular Vintage Hand-written date stamp!
+        ctx.save();
+        ctx.translate(canvas.width - 55, canvas.height - 50);
+        ctx.rotate(-15 * Math.PI / 180);
+        
+        ctx.strokeStyle = "rgba(184, 50, 50, 0.75)";
+        ctx.lineWidth = 1.5;
+        
+        // Double ring circular postmark stamp
+        ctx.beginPath();
+        ctx.arc(0, 0, 26, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        ctx.beginPath();
+        ctx.arc(0, 0, 23, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(184, 50, 50, 0.75)";
+        ctx.font = "bold 8px Courier New";
+        ctx.fillText("LOVED", 0, -10);
+        
+        // Hand-written date inside the stamp
+        ctx.font = "bold 10px 'Caveat', cursive";
+        const dateStr = new Date(room.createdAt || Date.now()).toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "2-digit"
+        });
+        ctx.fillText(dateStr, 0, 3);
+        
+        ctx.font = "6px Courier New";
+        ctx.fillText("★ STUDIO ★", 0, 11);
+        ctx.restore();
+
+        // Rectangular vintage stamp on the left
+        ctx.save();
+        ctx.translate(45, 120);
+        ctx.rotate(8 * Math.PI / 180);
+        ctx.strokeStyle = "rgba(50, 100, 180, 0.75)";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(-28, -12, 56, 24);
+        ctx.fillStyle = "rgba(50, 100, 180, 0.75)";
+        ctx.font = "7px Courier New";
+        ctx.fillText("SWEETEST", 0, -3);
+        ctx.fillText("MEMORIES", 0, 5);
+        ctx.restore();
+      }
+      ctx.restore();
+
+      // Draw bottom caption
       const footerY = HEADER + r * (CELL + MARGIN) + MARGIN;
-      ctx.fillStyle = preset.textColor; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center";
+      
+      let fontStr = "bold 14px sans-serif";
+      if (preset.styleType === "crazy-scrapbook" || preset.styleType === "sakura" || preset.styleType === "scrapbook") {
+        fontStr = "bold 20px 'Caveat', cursive";
+      } else if (preset.styleType === "y2k") {
+        fontStr = "bold 12px monospace";
+      } else if (preset.styleType === "kraft") {
+        fontStr = "bold 14px 'Courier New', monospace";
+      }
+
+      ctx.fillStyle = textColor; 
+      ctx.font = fontStr; 
+      ctx.textAlign = "center";
       ctx.fillText(room.caption || "Our Special Moment 💖", canvas.width / 2, footerY + 34);
+
+      // Subtitle
+      ctx.fillStyle = textColor + "99";
+      ctx.font = preset.styleType === "y2k" ? "9px monospace" : "10px sans-serif";
+      ctx.fillText(
+        `${LAYOUTS[room.layout]?.label} • ${new Date(room.createdAt || Date.now()).toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" })}`, 
+        canvas.width / 2, 
+        footerY + 50
+      );
+
       const blob = await compressToWebP(canvas, 260);
       let imageUrl: string;
-      if (cloudinaryCloudName && cloudinaryUploadPreset) imageUrl = await uploadToCloudinary(blob, `photobooth-${Date.now()}.webp`, cloudinaryCloudName, cloudinaryUploadPreset);
-      else imageUrl = await new Promise<string>((res) => { const reader = new FileReader(); reader.onload = (e) => res(e.target?.result as string); reader.readAsDataURL(blob); });
+      if (cloudinaryCloudName && cloudinaryUploadPreset) {
+        imageUrl = await uploadToCloudinary(blob, `photobooth-${Date.now()}.webp`, cloudinaryCloudName, cloudinaryUploadPreset);
+      } else {
+        imageUrl = await new Promise<string>((res) => { 
+          const reader = new FileReader(); 
+          reader.onload = (e) => res(e.target?.result as string); 
+          reader.readAsDataURL(blob); 
+        });
+      }
       setSavedUrl(imageUrl);
       addMemory({
         type: "photobooth", title: `${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}, Live Photobooth`,
@@ -462,44 +998,217 @@ export default function PhotoboothSection() {
       const db = await getDb();
       const { doc, updateDoc } = await import("firebase/firestore");
       await updateDoc(doc(db, "photobooth_rooms", roomCode), { state: "done" });
-    } catch { toast.error("Failed to save strip."); }
-    finally { setSaving(false); }
+    } catch (err) { 
+      console.error(err);
+      toast.error("Failed to save strip."); 
+    } finally { 
+      setSaving(false); 
+    }
   }, [room, roomCode, cloudinaryCloudName, cloudinaryUploadPreset, currentUser, addMemory]);
 
   const renderStripMockup = () => {
     if (!room) return null;
     const { cols: c, rows: r } = LAYOUTS[room.layout] || LAYOUTS["4-cut"];
     const rowIndexes = Array.from({ length: r }, (_, i) => i);
-    const preset = STRIP_PRESETS.find((p) => p.id === (room.stripPreset || "classic-white")) || STRIP_PRESETS[0];
+    const preset = STRIP_PRESETS.find((p) => p.id === (room.stripPreset || "classic-cream")) || STRIP_PRESETS[0];
+    const frameColor = room.customFrameColor || preset.frameColor;
+    const textColor = room.customTextColor || preset.textColor;
+    const accent = room.customAccentColor || preset.accent;
     const filterCss = FILTERS.find((f) => f.id === (room.filter || "natural"))?.css || "";
+
+    // Decide fonts
+    let fontClass = "font-sans font-black";
+    if (preset.styleType === "crazy-scrapbook" || preset.styleType === "sakura" || preset.styleType === "scrapbook") {
+      fontClass = "font-handwrite text-lg font-bold leading-none";
+    } else if (preset.styleType === "kraft") {
+      fontClass = "font-mono text-sm font-bold";
+    } else if (preset.styleType === "y2k") {
+      fontClass = "font-mono text-xs uppercase tracking-tighter";
+    }
+
     return (
-      <div className="w-full max-w-xs mx-auto p-3 flex flex-col gap-3 shadow-2xl rounded-sm border border-black/5" style={{ backgroundColor: preset.frameColor }} ref={captureAreaRef} id="photobooth-strip-capture">
-        <div className="w-full h-1" style={{ backgroundColor: preset.accent }} />
-        <div className="flex flex-col gap-2.5">
+      <div 
+        className="relative w-full max-w-xs mx-auto p-4 flex flex-col gap-3.5 shadow-2xl rounded-sm border border-black/5 transition-all duration-300 overflow-hidden" 
+        style={{ 
+          backgroundColor: frameColor,
+          "--strip-bg": frameColor,
+          "--strip-border": accent,
+          "--strip-text": textColor,
+          // Draw grid or line patterns based on theme using CSS custom properties
+          backgroundImage: preset.styleType === "crazy-scrapbook" 
+            ? "radial-gradient(circle, rgba(0,0,0,0.035) 1px, transparent 1px)" 
+            : preset.styleType === "scrapbook"
+            ? "linear-gradient(rgba(139, 92, 26, 0.05) 1px, transparent 1px)"
+            : undefined,
+          backgroundSize: preset.styleType === "crazy-scrapbook" 
+            ? "14px 14px" 
+            : preset.styleType === "scrapbook"
+            ? "100% 22px"
+            : undefined
+        } as React.CSSProperties} 
+        ref={captureAreaRef} 
+        id="photobooth-strip-capture"
+      >
+        {/* Notebook paper vertical margin line for scrapbook */}
+        {preset.styleType === "scrapbook" && (
+          <div className="absolute left-8 top-0 bottom-0 w-[1.5px] bg-red-400/20 pointer-events-none z-10" />
+        )}
+        {/* Notebook spiral rings on the left for Crazy Scrapbook */}
+        {preset.styleType === "crazy-scrapbook" && (
+          <div className="absolute -left-1 top-6 bottom-6 flex flex-col justify-between py-4 pointer-events-none z-20">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-slate-900 border border-slate-700/50 shadow-inner flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-slate-100" />
+                </div>
+                <div className="w-3.5 h-1.5 bg-gradient-to-r from-zinc-300 to-zinc-500 rounded-md -ml-1 border-t border-white/50 shadow-xs" style={{ transform: "rotate(-10deg)" }} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Floating stickers for each style */}
+        {preset.styleType === "sakura" && (
+          <>
+            <div className="absolute right-2 top-4 text-sm animate-bounce opacity-80 pointer-events-none z-10">🌸</div>
+            <div className="absolute left-3 top-1/3 text-xs rotate-12 opacity-70 pointer-events-none z-10">🌸</div>
+            <div className="absolute right-4 bottom-16 text-sm rotate-45 opacity-80 pointer-events-none z-10">🌸</div>
+            <div className="absolute left-4 bottom-8 text-xs rotate-[-15deg] opacity-70 pointer-events-none z-10">💕</div>
+          </>
+        )}
+
+        {preset.styleType === "kraft" && (
+          <>
+            <div className="absolute -right-2 top-8 text-lg opacity-80 pointer-events-none z-10">🌿</div>
+            <div className="absolute -left-2 bottom-12 text-lg opacity-80 pointer-events-none z-10">🪵</div>
+            <div className="absolute right-3 top-1/2 text-[9px] opacity-75 font-mono pointer-events-none uppercase bg-[#cfb590] text-[#5c4033] px-1.5 py-0.5 rounded shadow-xs rotate-6 z-10 border border-[#5c4033]/20">MEMORIES</div>
+          </>
+        )}
+
+        {preset.styleType === "y2k" && (
+          <>
+            <div className="absolute -right-1 top-6 text-sm opacity-90 animate-pulse pointer-events-none z-10">⚡</div>
+            <div className="absolute -left-2 top-1/2 text-base opacity-90 pointer-events-none z-10">👾</div>
+            <div className="absolute right-2 bottom-12 text-sm opacity-90 pointer-events-none z-10">✨</div>
+            <div className="absolute left-2 bottom-4 text-[9px] font-mono bg-pink-500 text-black px-1.5 py-0.5 rounded-sm scale-95 rotate-[-8deg] uppercase tracking-tighter z-10 border border-black shadow-xs">ONLINE</div>
+          </>
+        )}
+
+        {preset.styleType === "crazy-scrapbook" && (
+          <>
+            <div className="absolute -right-2 top-10 text-xl rotate-12 pointer-events-none shadow-xs z-10 animate-pulse">🧸</div>
+            <div className="absolute -left-1 top-1/3 text-xl rotate-[-15deg] pointer-events-none shadow-xs z-10">🍀</div>
+            <div className="absolute right-1 top-2/3 text-lg rotate-12 pointer-events-none shadow-xs z-10">🎀</div>
+            <div className="absolute left-1 bottom-10 text-xl rotate-[-10deg] pointer-events-none shadow-xs z-10">🍕</div>
+            <div className="absolute right-3 bottom-1 text-sm rotate-[15deg] pointer-events-none shadow-xs z-10">🌟</div>
+            <div className="absolute -right-3 bottom-14 text-[9px] bg-yellow-300 text-slate-800 font-extrabold px-2 py-0.5 rounded-full border border-slate-800 shadow-md rotate-[12deg] pointer-events-none select-none uppercase tracking-wider z-10">
+              GILA SCRAP!
+            </div>
+            <div className="absolute -left-3 top-20 text-[9px] bg-rose-500 text-white font-extrabold px-2 py-0.5 rounded-full border border-white shadow-md rotate-[-8deg] pointer-events-none select-none uppercase tracking-wider z-10">
+              US 💖
+            </div>
+          </>
+        )}
+
+        {preset.styleType === "scrapbook" && (
+          <>
+            <div className="absolute right-2 top-10 text-sm opacity-95 pointer-events-none z-10">🌿</div>
+            <div className="absolute left-2 top-1/3 text-xs rotate-12 opacity-80 pointer-events-none z-10">✨</div>
+            <div className="absolute right-3 top-2/3 text-xs rotate-[-12deg] opacity-80 pointer-events-none z-10">📖</div>
+            <div className="absolute left-2.5 bottom-24 text-sm rotate-6 opacity-95 pointer-events-none z-10">🤎</div>
+            
+            {/* Vintage Double-Ring Ink Stamp */}
+            <div className="absolute right-3 bottom-14 flex flex-col items-center justify-center p-1 border border-red-500/50 rounded-full w-11 h-11 rotate-[-12deg] opacity-75 pointer-events-none select-none z-10" style={{ borderStyle: "double", borderWidth: "3px" }}>
+              <span className="text-[4px] font-mono font-bold text-red-500 leading-none">LOVED</span>
+              <span className="text-[7px] font-handwrite font-bold text-red-600 leading-none my-0.5">
+                {new Date(room.createdAt || Date.now()).toLocaleDateString("id-ID", { day: "2-digit", month: "2-digit" })}
+              </span>
+              <span className="text-[4px] font-mono text-red-500 leading-none">★ STUDIO ★</span>
+            </div>
+
+            {/* Vintage Rectangular Ink Stamp */}
+            <div className="absolute left-4 top-24 flex flex-col items-center justify-center px-1 py-0.5 border border-blue-500/50 rounded-sm rotate-[8deg] opacity-70 pointer-events-none select-none z-10">
+              <span className="text-[4px] font-mono font-bold text-blue-500 tracking-wider leading-none">SWEETEST</span>
+              <span className="text-[4px] font-mono font-bold text-blue-500 tracking-wider leading-none mt-0.5">MEMORIES</span>
+            </div>
+          </>
+        )}
+
+        {/* Top Accent Strip Line */}
+        <div className="w-full h-1 rounded-full shrink-0" style={{ backgroundColor: accent }} />
+        
+        {/* Photos Grid cells */}
+        <div className="flex flex-col gap-3">
           {rowIndexes.map((rowIdx) => {
             const photoA = room.photosA[rowIdx]; const photoB = room.photosB[rowIdx];
             const isActiveRow = (room.state === "countdown" && rowIdx === room.round - 1) || (room.state === "waiting" && rowIdx === 0);
             return (
-              <div key={rowIdx} className="grid grid-cols-2 gap-2 aspect-[8/3]">
-                <div className="rounded-md overflow-hidden aspect-square bg-black/10 shadow-inner border border-black/5 flex items-center justify-center">
+              <div key={rowIdx} className="grid grid-cols-2 gap-3 aspect-[8/3]">
+                {/* Photo Cell A (Left Column) */}
+                <div className="relative rounded-lg overflow-hidden aspect-square bg-black/10 shadow-inner border border-black/5 flex items-center justify-center transition-all duration-300">
                   {photoA ? <img src={photoA} alt={isHost ? "Your photobooth snapshot" : `${partnerName}'s photobooth snapshot`} className={`w-full h-full object-cover ${filterCss}`} referrerPolicy="no-referrer" loading="lazy" />
-                    : isActiveRow && currentUser === room.hostId && cam.isActive ? <video ref={attachVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
+                    : isActiveRow && currentUser === room.hostId && cam.isActive ? <LiveCameraCanvas videoRef={persistentVideoRef} />
                     : isActiveRow ? <Sparkles className="w-4 h-4 animate-pulse text-white" />
                     : <Camera className="w-4 h-4 opacity-20 text-[var(--text-muted)]" />}
+
+                  {/* Washi tape overlays */}
+                  {preset.styleType === "crazy-scrapbook" && (
+                    rowIdx % 2 === 0 ? (
+                      <div className="absolute -top-1.5 -left-2 w-8 h-3 bg-yellow-300/80 border-x border-dashed border-yellow-500/20 rotate-[-15deg] pointer-events-none z-10 shadow-xs" />
+                    ) : (
+                      <div className="absolute -top-1.5 -right-2 w-8 h-3 bg-pink-300/80 border-x border-dashed border-pink-500/20 rotate-[12deg] pointer-events-none z-10 shadow-xs" />
+                    )
+                  )}
+                  {preset.styleType === "kraft" && (
+                    rowIdx % 2 === 0 ? (
+                      <div className="absolute -top-1.5 -left-1 w-7 h-2.5 bg-[#cbb28b]/90 rotate-[-12deg] border-y border-dashed border-yellow-800/10 pointer-events-none z-10 shadow-xs" />
+                    ) : (
+                      <div className="absolute -top-1.5 -right-1.5 w-7 h-2.5 bg-[#cbb28b]/90 rotate-[10deg] border-y border-dashed border-yellow-800/10 pointer-events-none z-10 shadow-xs" />
+                    )
+                  )}
+                  {preset.styleType === "scrapbook" && (
+                    <>
+                      <div className="absolute -top-1.5 -left-2 w-7 h-3 bg-amber-200/75 border-x border-dashed border-amber-500/20 rotate-[-18deg] pointer-events-none z-10 shadow-xs" />
+                      <div className="absolute -top-1.5 -right-2 w-7 h-3 bg-green-200/75 border-x border-dashed border-green-500/20 rotate-[22deg] pointer-events-none z-10 shadow-xs" />
+                    </>
+                  )}
                 </div>
-                <div className="rounded-md overflow-hidden aspect-square bg-black/10 shadow-inner border border-black/5 flex items-center justify-center">
+
+                {/* Photo Cell B (Right Column) */}
+                <div className="relative rounded-lg overflow-hidden aspect-square bg-black/10 shadow-inner border border-black/5 flex items-center justify-center transition-all duration-300">
                   {photoB ? <img src={photoB} alt={isHost ? `${partnerName}'s photobooth snapshot` : "Your photobooth snapshot"} className={`w-full h-full object-cover ${filterCss}`} referrerPolicy="no-referrer" loading="lazy" />
-                    : isActiveRow && currentUser === room.guestId && cam.isActive ? <video ref={attachVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
+                    : isActiveRow && currentUser === room.guestId && cam.isActive ? <LiveCameraCanvas videoRef={persistentVideoRef} />
                     : isActiveRow ? <Sparkles className="w-4 h-4 animate-pulse text-white" />
                     : <Camera className="w-4 h-4 opacity-20 text-[var(--text-muted)]" />}
+
+                  {/* Washi tape overlays */}
+                  {preset.styleType === "crazy-scrapbook" && (
+                    rowIdx % 2 === 0 ? (
+                      <div className="absolute -bottom-1 -right-1 w-8 h-2.5 bg-teal-300/80 border-x border-dashed border-teal-500/20 rotate-[10deg] pointer-events-none z-10 shadow-xs" />
+                    ) : (
+                      <div className="absolute -top-1.5 -left-2 w-8 h-3 bg-purple-300/80 border-x border-dashed border-purple-500/20 rotate-[-8deg] pointer-events-none z-10 shadow-xs" />
+                    )
+                  )}
+                  {preset.styleType === "scrapbook" && (
+                    <>
+                      <div className="absolute -bottom-1.5 -left-2 w-6 h-2.5 bg-indigo-200/70 rotate-[15deg] pointer-events-none z-10 shadow-xs" />
+                      <div className="absolute -bottom-1.5 -right-2 w-6 h-2.5 bg-rose-200/80 rotate-[-12deg] pointer-events-none z-10 shadow-xs" />
+                    </>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
-        <div className="text-center pt-2.5 pb-1 border-t border-dashed" style={{ borderColor: preset.accent + "50" }}>
-          <p className="text-xs font-black tracking-wider" style={{ color: preset.textColor }}>{room.caption || "Our Special Moment 💖"}</p>
-          <p className="text-[7px] mt-0.5" style={{ color: preset.textColor + "99" }}>{LAYOUTS[room.layout]?.label} • {new Date(room.createdAt || Date.now()).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}</p>
+
+        {/* Footer Area with Caption */}
+        <div className="text-center pt-3 pb-1 border-t border-dashed transition-all duration-300" style={{ borderColor: accent + "40" }}>
+          <p className={`${fontClass} tracking-wide`} style={{ color: textColor }}>
+            {room.caption || "Our Special Moment 💖"}
+          </p>
+          <p className="text-[8px] mt-1 opacity-75 font-mono" style={{ color: textColor }}>
+            {LAYOUTS[room.layout]?.label} • {new Date(room.createdAt || Date.now()).toLocaleDateString("id-ID", { year: "numeric", month: "short", day: "numeric" })}
+          </p>
         </div>
       </div>
     );
@@ -508,13 +1217,63 @@ export default function PhotoboothSection() {
   const downloadPrintStrip = async () => {
     const element = captureAreaRef.current;
     if (!element || !room) return;
+    setExporting(true);
+    const toastId = toast.loading("Generating print-quality high-resolution PNG...");
     try {
       triggerHaptic("success");
-      await new Promise((res) => setTimeout(res, 50));
-      const canvas = await html2canvas(element, { useCORS: true, allowTaint: true, backgroundColor: null, scale: 3.0, logging: false });
-      const link = document.createElement("a"); link.href = canvas.toDataURL("image/png"); link.download = `photobooth_strip_${Date.now()}.png`;
-      document.body.appendChild(link); link.click(); document.body.removeChild(link);
-    } catch { toast.error("Failed to render strip."); }
+      // Small timeout to allow styling variables and styles to fully flush
+      await new Promise((res) => setTimeout(res, 120));
+      
+      const canvas = await html2canvas(element, { 
+        useCORS: true, 
+        allowTaint: true, 
+        backgroundColor: null, 
+        scale: 3.0, 
+        logging: false 
+      });
+      
+      const dataUrl = canvas.toDataURL("image/png");
+      
+      // Trigger user's browser download
+      const link = document.createElement("a"); 
+      link.href = dataUrl; 
+      link.download = `photobooth_scrapbook_strip_${Date.now()}.png`;
+      document.body.appendChild(link); 
+      link.click(); 
+      document.body.removeChild(link);
+      
+      // Cloudinary integration
+      if (cloudinaryCloudName && cloudinaryUploadPreset) {
+        toast.loading("Backing up high-resolution PNG to Cloudinary...", { id: toastId });
+        
+        canvas.toBlob(async (blob) => {
+          if (!blob) {
+            toast.success("High-res PNG exported! (Cloudinary backup error: empty blob)", { id: toastId });
+            return;
+          }
+          try {
+            const uploadedUrl = await uploadToCloudinary(
+              blob, 
+              `high-res-strip-${Date.now()}.png`, 
+              cloudinaryCloudName, 
+              cloudinaryUploadPreset
+            );
+            setCloudinaryHighResUrl(uploadedUrl);
+            toast.success("Success! High-res PNG downloaded and backed up to Cloudinary!", { id: toastId });
+          } catch (err) {
+            console.error("Cloudinary high-res backup error:", err);
+            toast.success("High-res PNG downloaded, but Cloudinary upload failed.", { id: toastId });
+          }
+        }, "image/png");
+      } else {
+        toast.success("High-res PNG exported successfully!", { id: toastId });
+      }
+    } catch (err) { 
+      console.error(err);
+      toast.error("Failed to render high-resolution strip.", { id: toastId }); 
+    } finally {
+      setExporting(false);
+    }
   };
 
   const content = (
@@ -528,7 +1287,9 @@ export default function PhotoboothSection() {
           {cam.isActive ? (
             <StickerButton onClick={stopWebcam} color="coral" size="sm" icon={<Camera className="w-3.5 h-3.5" />}>Close Camera</StickerButton>
           ) : (
-            <StickerButton onClick={startWebcam} color="primary" size="sm" icon={<Camera className="w-3.5 h-3.5" />}>Start Camera</StickerButton>
+            <StickerButton onClick={startWebcam} color="primary" size="sm" disabled={cam.isLoading} icon={cam.isLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}>
+              {cam.isLoading ? "Starting..." : "Start Camera"}
+            </StickerButton>
           )}
         </div>
       </div>
@@ -646,34 +1407,210 @@ export default function PhotoboothSection() {
 
             {room.state === "editing" && isHost && (
               <div className="space-y-4 pt-1">
+                {/* Theme presets */}
                 <div className="bg-[var(--fabric-cream)]/25 p-5 rounded-3xl border border-[var(--wood-oak)]/15 space-y-3">
-                  <span className="text-xs uppercase font-bold tracking-wider text-rose-500"><Camera className="w-4 h-4 inline" /> Frame Preset</span>
+                  <span className="text-xs uppercase font-bold tracking-wider text-rose-500 flex items-center gap-1.5">
+                    <Camera className="w-3.5 h-3.5" /> Frame Theme Preset
+                  </span>
                   <div className="flex gap-2 flex-wrap">
                     {STRIP_PRESETS.map((p) => (
-                      <button key={p.id} onClick={async () => { const __db = await getDb(); const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore"); await __upd(__doc(__db, "photobooth_rooms", roomCode), { stripPreset: p.id }); }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer ${room.stripPreset === p.id ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"}`}>
+                      <button 
+                        key={p.id} 
+                        onClick={async () => { 
+                          const __db = await getDb(); 
+                          const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore"); 
+                          // Clear custom overrides when a theme preset is clicked to reset to preset colors
+                          await __upd(__doc(__db, "photobooth_rooms", roomCode), { 
+                            stripPreset: p.id,
+                            customFrameColor: "",
+                            customTextColor: "",
+                            customAccentColor: ""
+                          }); 
+                        }}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer ${room.stripPreset === p.id ? "bg-[var(--primary)] text-white border-transparent shadow-sm" : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"}`}
+                      >
                         <span className="w-3.5 h-3.5 rounded-full border border-black/10 flex-shrink-0" style={{ backgroundColor: p.swatch }} /> {p.label}
                       </button>
                     ))}
                   </div>
                 </div>
+
+                {/* 🎨 Quick Color Palettes Selector (Updates CSS theme variables) */}
                 <div className="bg-[var(--fabric-cream)]/25 p-5 rounded-3xl border border-[var(--wood-oak)]/15 space-y-3">
-                  <span className="text-xs uppercase font-bold tracking-wider text-rose-500"><Palette className="w-4 h-4 inline" /> Filter</span>
+                  <span className="text-xs uppercase font-bold tracking-wider text-rose-500 flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5" /> Quick Color Palettes
+                  </span>
+                  <p className="text-[10px] text-[var(--text-muted)]">Coordinated designer themes that instantly set background, border, and text styles:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {QUICK_PALETTES.map((pal) => {
+                      const isActive = room.customFrameColor === pal.bg && room.customAccentColor === pal.border;
+                      return (
+                        <button
+                          key={pal.name}
+                          onClick={async () => {
+                            const __db = await getDb();
+                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
+                            await __upd(__doc(__db, "photobooth_rooms", roomCode), {
+                              customFrameColor: pal.bg,
+                              customTextColor: pal.text,
+                              customAccentColor: pal.border
+                            });
+                            triggerHaptic("light");
+                          }}
+                          className={`p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col gap-1.5 hover:bg-white/55 hover:scale-[1.01] ${
+                            isActive ? "bg-white border-rose-400 shadow-md ring-1 ring-rose-400/30" : "bg-white/10 border-white/45"
+                          }`}
+                        >
+                          <span className="text-[10px] font-bold text-[var(--text-main)] truncate leading-none">{pal.name}</span>
+                          <span className="text-[8px] text-[var(--text-muted)] line-clamp-1 leading-none">{pal.description}</span>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="w-4 h-4 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: pal.bg }} title="Background" />
+                            <span className="w-4 h-4 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: pal.border }} title="Accent / Border" />
+                            <span className="w-4 h-4 rounded-full border border-black/10 shrink-0" style={{ backgroundColor: pal.text }} title="Text color" />
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 🎨 Unlimited Color Customization (Colors can be changed) */}
+                <div className="bg-[var(--fabric-cream)]/25 p-5 rounded-3xl border border-[var(--wood-oak)]/15 space-y-4">
+                  <span className="text-xs uppercase font-bold tracking-wider text-rose-500 flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5" /> Color Customizer (Real-time)
+                  </span>
+
+                  {/* 1. Frame Background Color */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">1. Background Frame</label>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-[var(--text-muted)]">Custom:</span>
+                        <input 
+                          type="color" 
+                          value={room.customFrameColor || STRIP_PRESETS.find(p => p.id === room.stripPreset)?.frameColor || "#fffae6"} 
+                          onChange={async (e) => {
+                            const __db = await getDb();
+                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
+                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customFrameColor: e.target.value });
+                          }}
+                          className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {["#faf6ee", "#fdf0f0", "#18181b", "#e8d5b8", "#09090b", "#fffae6", "#f3e8ff", "#ecfdf5"].map((color) => (
+                        <button 
+                          key={color}
+                          onClick={async () => {
+                            const __db = await getDb();
+                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
+                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customFrameColor: color });
+                          }}
+                          style={{ backgroundColor: color }}
+                          className={`w-6 h-6 rounded-full border border-black/10 hover:scale-110 active:scale-95 transition-transform duration-100 ${room.customFrameColor === color ? "ring-2 ring-offset-2 ring-rose-400" : ""}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 2. Text / Caption Color */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">2. Title & Caption Text</label>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-[var(--text-muted)]">Custom:</span>
+                        <input 
+                          type="color" 
+                          value={room.customTextColor || STRIP_PRESETS.find(p => p.id === room.stripPreset)?.textColor || "#1e293b"} 
+                          onChange={async (e) => {
+                            const __db = await getDb();
+                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
+                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customTextColor: e.target.value });
+                          }}
+                          className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {["#1e293b", "#ffffff", "#5c4033", "#ec4899", "#881337", "#14532d", "#3b82f6", "#ef4444"].map((color) => (
+                        <button 
+                          key={color}
+                          onClick={async () => {
+                            const __db = await getDb();
+                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
+                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customTextColor: color });
+                          }}
+                          style={{ backgroundColor: color }}
+                          className={`w-6 h-6 rounded-full border border-black/10 hover:scale-110 active:scale-95 transition-transform duration-100 ${room.customTextColor === color ? "ring-2 ring-offset-2 ring-rose-400" : ""}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 3. Accent Ribbon Color */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-[var(--text-muted)] uppercase">3. Decorative Accent Line</label>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-mono text-[var(--text-muted)]">Custom:</span>
+                        <input 
+                          type="color" 
+                          value={room.customAccentColor || STRIP_PRESETS.find(p => p.id === room.stripPreset)?.accent || "#f43f5e"} 
+                          onChange={async (e) => {
+                            const __db = await getDb();
+                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
+                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customAccentColor: e.target.value });
+                          }}
+                          className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {["#f43f5e", "#38bdf8", "#eab308", "#10b981", "#059669", "#8b5cf6", "#ec4899", "#2563eb"].map((color) => (
+                        <button 
+                          key={color}
+                          onClick={async () => {
+                            const __db = await getDb();
+                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
+                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customAccentColor: color });
+                          }}
+                          style={{ backgroundColor: color }}
+                          className={`w-6 h-6 rounded-full border border-black/10 hover:scale-110 active:scale-95 transition-transform duration-100 ${room.customAccentColor === color ? "ring-2 ring-offset-2 ring-rose-400" : ""}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Filters */}
+                <div className="bg-[var(--fabric-cream)]/25 p-5 rounded-3xl border border-[var(--wood-oak)]/15 space-y-3">
+                  <span className="text-xs uppercase font-bold tracking-wider text-rose-500 flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5" /> Color Filter
+                  </span>
                   <div className="flex gap-2 flex-wrap">
                     {FILTERS.map((f) => (
                       <button key={f.id} onClick={async () => { const __db = await getDb(); const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore"); await __upd(__doc(__db, "photobooth_rooms", roomCode), { filter: f.id }); }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer ${room.filter === f.id ? "bg-[var(--primary)] text-white border-[var(--primary)]" : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"}`}>{f.label}</button>
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer ${room.filter === f.id ? "bg-[var(--primary)] text-white border-transparent shadow-sm" : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"}`}>{f.label}</button>
                     ))}
                   </div>
                 </div>
+
+                {/* Caption Input */}
                 <div className="bg-[var(--fabric-cream)]/25 p-5 rounded-3xl border border-[var(--wood-oak)]/15 space-y-3">
-                  <span className="text-xs uppercase font-bold tracking-wider text-rose-500"><Smile className="w-4 h-4 inline" /> Caption</span>                    <input value={room.caption || ""} onChange={async (e) => { const __db = await getDb(); const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore"); await __upd(__doc(__db, "photobooth_rooms", roomCode), { caption: e.target.value }); }}
+                  <span className="text-xs uppercase font-bold tracking-wider text-rose-500 flex items-center gap-1.5">
+                    <Smile className="w-3.5 h-3.5" /> Strip Caption
+                  </span>
+                  <input value={room.caption || ""} onChange={async (e) => { const __db = await getDb(); const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore"); await __upd(__doc(__db, "photobooth_rooms", roomCode), { caption: e.target.value }); }}
                     placeholder="Your caption..." maxLength={26}
-                    className="w-full text-xs px-3.5 py-2.5 bg-white/30 border border-white/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)]" />
+                    className="w-full text-xs px-3.5 py-2.5 bg-white/30 border border-white/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)] placeholder-gray-400" />
                 </div>
+
+                {/* Assemble button */}
                 <button onClick={composeAndSave} disabled={saving}
-                  className="w-full py-4 bg-gradient-to-r from-rose-500 to-rose-600 hover:opacity-95 text-white font-bold rounded-2xl text-sm shadow-lg disabled:opacity-50 cursor-pointer">
-                  {saving ? "Assembling..." : "Save to Library"}
+                  className="w-full py-4 bg-gradient-to-r from-rose-500 to-rose-600 hover:opacity-95 text-white font-bold rounded-2xl text-sm shadow-lg disabled:opacity-50 cursor-pointer transition-all duration-200 flex items-center justify-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  <span>{saving ? "Assembling & Syncing..." : "Save to Library"}</span>
                 </button>
               </div>
             )}
@@ -700,18 +1637,38 @@ export default function PhotoboothSection() {
               {renderStripMockup()}
               <AnimatePresence>
                 {countdownVal !== null && countdownVal > 0 && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-xs rounded-3xl z-30">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm rounded-3xl z-30">
                     <motion.span key={countdownVal} initial={{ opacity: 0, scale: 0.3 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 1.5 }}
                       className="text-8xl font-black text-white drop-shadow-2xl">{countdownVal}</motion.span>
                   </div>
                 )}
               </AnimatePresence>
             </div>
-            {room.state === "done" && savedUrl && (
-              <button onClick={downloadPrintStrip}
-                className="mt-4 py-2.5 px-5 bg-[var(--primary)] text-white font-bold rounded-xl text-xs cursor-pointer">
-                Download Strip 🖼️
-              </button>
+            {room.state === "done" && (
+              <div className="flex flex-col items-center gap-2 mt-4">
+                <button 
+                  onClick={downloadPrintStrip}
+                  disabled={exporting}
+                  className={`py-3 px-6 bg-gradient-to-r from-amber-500 to-rose-500 hover:opacity-95 text-white font-bold rounded-2xl text-xs shadow-md transition-all duration-200 cursor-pointer flex items-center gap-2 ${exporting ? "opacity-75 cursor-not-allowed scale-95" : "hover:scale-[1.02] active:scale-95"}`}
+                >
+                  {exporting ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>{exporting ? "Exporting High-Res PNG..." : "Download High-Res PNG 🖼️"}</span>
+                </button>
+                {cloudinaryHighResUrl && (
+                  <a 
+                    href={cloudinaryHighResUrl} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="text-[10px] text-blue-500 hover:underline font-mono"
+                  >
+                    ☁️ Cloudinary High-Res URL
+                  </a>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -724,6 +1681,13 @@ export default function PhotoboothSection() {
   return (
     <div>
       {content}
+      <video
+        ref={persistentVideoRef}
+        autoPlay
+        playsInline
+        muted
+        style={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }}
+      />
     </div>
   );
 }

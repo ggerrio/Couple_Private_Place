@@ -59,17 +59,17 @@ export function WelcomeHero({
         {/* Together badge with partner status */}
         <div className="flex flex-wrap items-center gap-4 pt-1">
           {/* Partner avatars */}
-          <div className="flex items-center -space-x-2">
+          <div className="flex items-center -space-x-4">
             <img loading="lazy"
               src={activeProfile.avatar}
               alt={activeProfile.name}
-              className="w-10 h-10 rounded-full border-[3px] border-white object-cover shadow-sm"
+              className="w-[60px] h-[60px] rounded-full border-[3.5px] border-white object-cover shadow-md hover:scale-105 transition-transform duration-300 z-10"
               referrerPolicy="no-referrer"
             />
             <img loading="lazy"
               src={partnerProfile.avatar}
               alt={partnerProfile.name}
-              className="w-10 h-10 rounded-full border-[3px] border-white object-cover shadow-sm"
+              className="w-[60px] h-[60px] rounded-full border-[3.5px] border-white object-cover shadow-md hover:scale-105 transition-transform duration-300"
               referrerPolicy="no-referrer"
             />
           </div>

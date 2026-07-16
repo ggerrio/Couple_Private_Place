@@ -5,10 +5,15 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useCouple } from "../../context/CoupleContext";
 import { motion, AnimatePresence } from "motion/react";
-import { Calendar, ChevronLeft, ChevronRight, Plus, X, Heart } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, X, Heart, RefreshCw } from "lucide-react";
 import { getDb } from "../../firebaseClient";
 import { toast } from "sonner";
 import { Skeleton } from "../extras/Skeleton";
+import { Calendar as ShadcnCalendar } from "../ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { format } from "date-fns";
+import { cn } from "../../lib/utils";
+
 
 interface CalendarEvent {
   id: string;
@@ -76,13 +81,14 @@ export default function SharedCalendar() {
     try {
       const db = await getDb();
       const { collection, addDoc } = await import("firebase/firestore");
-      await addDoc(collection(db, "calendar_events"), {
+      const eventRef = await addDoc(collection(db, "calendar_events"), {
         title: newTitle.trim(),
         date: newDate,
         description: newDescription.trim(),
         createdBy: currentUser,
         createdAt: new Date().toISOString(),
       });
+      
       setNewTitle("");
       setNewDescription("");
       setShowAddForm(false);
@@ -91,6 +97,7 @@ export default function SharedCalendar() {
       toast.error("Failed to add event");
     }
   }, [newTitle, newDate, newDescription, currentUser]);
+
 
   const deleteEvent = useCallback(async (id: string) => {
     try {
@@ -174,14 +181,16 @@ export default function SharedCalendar() {
     <div id="shared-calendar">
       <div className="bg-[var(--fabric-cream)]/40 border border-[var(--wood-oak)]/15 rounded-3xl p-5 md:p-6">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-[var(--primary)]" />
-            <h3 className="text-base font-bold text-[var(--text-main)] font-serif">Shared Calendar</h3>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-5 border-b border-[var(--border-color)] pb-4">
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-[var(--primary)]" />
+              <h3 className="text-base font-bold text-[var(--text-main)] font-serif">Shared Calendar</h3>
+            </div>
           </div>
           <button
             onClick={() => setShowAddForm(!showAddForm)}
-            className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all cursor-pointer"
+            className="px-3 py-1.5 bg-[var(--primary)] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 hover:opacity-90 transition-all cursor-pointer self-start md:self-center"
           >
             <Plus className="w-3.5 h-3.5" /> {showAddForm ? "Cancel" : "Add Event"}
           </button>
@@ -205,12 +214,18 @@ export default function SharedCalendar() {
                   className="w-full text-xs px-3 py-2 bg-white/70 border border-[var(--border-color)] rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)]"
                 />
                 <div className="flex gap-2">
-                  <input
-                    type="date"
-                    value={newDate}
-                    onChange={(e) => setNewDate(e.target.value)}
-                    className="flex-1 text-xs px-3 py-2 bg-white/70 border border-[var(--border-color)] rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)]"
-                  />
+                  <Popover>
+                    <PopoverTrigger className="flex-1 text-xs px-3 py-2 bg-white/70 border border-[var(--border-color)] rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)] text-left cursor-pointer">
+                      {newDate ? format(new Date(newDate), "PPP") : "Pick a date"}
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <ShadcnCalendar
+                        mode="single"
+                        selected={new Date(newDate)}
+                        onSelect={(date) => date && setNewDate(date.toISOString().split("T")[0])}
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <button
                     onClick={addEvent}
                     disabled={!newTitle.trim()}
@@ -311,7 +326,9 @@ export default function SharedCalendar() {
                         <Heart className={`w-3.5 h-3.5 ${isMine ? "text-[var(--primary)]" : "text-pink-400"}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-[var(--text-main)]">{ev.title}</p>
+                        <p className="text-xs font-bold text-[var(--text-main)] flex items-center gap-1">
+                          {ev.title}
+                        </p>
                         {ev.description && (
                           <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{ev.description}</p>
                         )}

@@ -117,9 +117,97 @@ interface CoupleContextProps {
   loginAsDev: (role: "user_a" | "user_b") => void;
 }
 
+// ─── Split contexts for granular re-render isolation ─────────────────
+// Each context only updates when its specific slice of state changes.
+// Components that use the specific hooks (useProfile, useContent, etc.)
+// will NOT re-render when unrelated state changes.
+
+// Profile context: user profiles, profile updates
+interface ProfileSlice {
+  userA: Profile;
+  userB: Profile;
+  updateProfile: (userId: "user_a" | "user_b", updates: Partial<Profile>) => void;
+  currentUser: "user_a" | "user_b";
+  partnerId: "user_a" | "user_b";
+}
+const ProfileCtx = createContext<ProfileSlice | undefined>(undefined);
+
+// Content context: memories, journals, letters, time capsules + CRUD
+interface ContentSlice {
+  memories: Memory[];
+  journals: Journal[];
+  letters: Letter[];
+  timeCapsules: TimeCapsule[];
+  userReactions: Record<string, Record<string, boolean>>;
+  addMemory: (memory: any) => void;
+  deleteMemory: (id: string) => Promise<void>;
+  updateMemory: (id: string, updates: Partial<Memory>) => Promise<void>;
+  addReactionToMemory: (memoryId: string, emoji: string) => void;
+  addCommentToMemory: (memoryId: string, text: string) => void;
+  deleteCommentFromMemory: (memoryId: string, commentId: string) => Promise<void>;
+  addJournal: (journal: any) => Promise<void>;
+  deleteJournal: (id: string) => Promise<void>;
+  updateJournal: (id: string, updates: Partial<Journal>) => Promise<void>;
+  sendLetter: (letter: any) => Promise<void>;
+  openLetter: (id: string) => Promise<void>;
+  reactToLetter: (id: string, emoji: string) => Promise<void>;
+  addTimeCapsule: (capsule: any) => Promise<void>;
+  openTimeCapsule: (id: string) => Promise<void>;
+  memoriesLimit: number;
+  journalsLimit: number;
+  loadMoreMemories: () => void;
+  loadMoreJournals: () => void;
+}
+const ContentCtx = createContext<ContentSlice | undefined>(undefined);
+
+// Engagement context: missions, garden, song, mood, gratitudes
+interface EngagementSlice {
+  missions: Mission[];
+  toggleMission: (id: string) => void;
+  gardenPlant: string;
+  waterLevel: number;
+  waterPlant: () => void;
+  changePlantType: (type: any) => void;
+  currentSong: Song;
+  setSongPlayState: (playing: boolean) => void;
+  updateSongProgress: (progressMs: number) => void;
+  syncSongToPartner: (song: Song) => void;
+  activityLogs: ActivityLog[];
+  addActivity: (text: string) => void;
+  moodHistory: MoodHistoryEntry[];
+  addMoodHistoryEntry: (mood: string, note?: string) => void;
+  gratitudes: GratitudeEntry[];
+  addGratitude: (text: string) => void;
+}
+const EngagementCtx = createContext<EngagementSlice | undefined>(undefined);
+
+// Settings context: theme, dates, preferences
+interface SettingsSlice {
+  darkMode: boolean;
+  toggleDarkMode: () => void;
+  fontTheme: string;
+  updateFontTheme: (theme: string) => void;
+  colorTheme: string;
+  updateColorTheme: (theme: string) => void;
+  washiTapeTheme: string;
+  updateWashiTapeTheme: (theme: string) => void;
+  anniversaryDate: string;
+  birthdayA: string;
+  birthdayB: string;
+  cloudinaryCloudName: string;
+  cloudinaryUploadPreset: string;
+  activeSurprise: string | null;
+  setActiveSurprise: (val: string | null) => void;
+  customGreetings: CustomGreetings;
+  updateCustomGreetings: (greetings: CustomGreetings) => void;
+  liveWeather: Record<string, { code: number; desc: string } | null>;
+  updateLiveWeather: (city: string, data: any) => void;
+}
+const SettingsCtx = createContext<SettingsSlice | undefined>(undefined);
+
 const CoupleContext = createContext<CoupleContextProps | undefined>(undefined);
 
-export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: string }> = ({ children, activeTab }) => {
   // ─── Compose sub-hooks ──────────────────────────────────────────────
   const auth = useAuthState();
   const profile = useProfileState();
@@ -194,20 +282,23 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return () => clearInterval(id);
   }, [currentSong.isPlaying]);
 
-  // ─── Firestore real-time listeners (lazy loaded after login) ──────
+  // ─── Firestore helpers ─────────────────────────────────────────────
+  const isTabActive = useCallback((tabs: string[]) => !activeTab || tabs.includes(activeTab), [activeTab]);
+
+  // Always-on listeners: lightweight docs needed globally
   useEffect(() => {
     if (!auth.session) return;
-
     const cleanups: (() => void)[] = [];
     let cancelled = false;
 
     (async () => {
       const db = await getDb();
-      const { doc, getDoc, setDoc, updateDoc, collection,
-        onSnapshot, query, orderBy, limit,
-        addDoc, deleteDoc, getDocs, arrayUnion } = await import("firebase/firestore");
+      const { doc, setDoc, collection,
+        onSnapshot, query, orderBy,
+        addDoc, deleteDoc, getDocs } = await import("firebase/firestore");
       if (cancelled) return;
 
+      // Profiles — always needed
       const unsubProfiles = onSnapshot(collection(db, "profiles"), (snap: any) => {
         snap.forEach((d: any) => {
           const p = d.data();
@@ -217,12 +308,115 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             weatherCity: p.weather_city, gender: p.gender,
             emoji: p.emoji || (d.id === "user_a" ? "💖" : "✨"),
             timezoneOffset: p.timezone_offset, timezoneName: p.timezone_name,
+            lastActive: p.last_active,
           };
           if (d.id === "user_a") setUserA((prev) => ({ ...prev, ...mapped }));
           if (d.id === "user_b") setUserB((prev) => ({ ...prev, ...mapped }));
         });
       }, (err: any) => { console.error("[profiles listener]", err); });
       cleanups.push(unsubProfiles);
+
+      // Missions — always needed (small docs, used in Home + Settings)
+      const unsubMissions = onSnapshot(
+        query(collection(db, "missions"), orderBy("created_at", "asc")),
+        (snap: any) => {
+          if (snap.empty && !missionSeededRef.current) {
+            missionSeededRef.current = true;
+            const defaults = [
+              { id: "mis-1", text: "Take a Life4Cuts photo print together", completed: false, type: "daily", created_at: new Date().toISOString() },
+              { id: "mis-2", text: "Send a sweet morning Live Letter", completed: false, type: "daily", created_at: new Date().toISOString() },
+              { id: "mis-3", text: "Water the Virtual Garden plant", completed: false, type: "daily", created_at: new Date().toISOString() },
+              { id: "mis-4", text: "Watch a synchronized YouTube stream", completed: false, type: "daily", created_at: new Date().toISOString() },
+              { id: "mis-5", text: "Post a new baking or travel Journal entry", completed: false, type: "weekly", created_at: new Date().toISOString() },
+              { id: "mis-6", text: "Win 3 rounds of Mini Games", completed: false, type: "weekly", created_at: new Date().toISOString() },
+            ];
+            defaults.forEach((m) => {
+              const { id, ...rest } = m;
+              setDoc(doc(db, "missions", id), rest, { merge: true });
+            });
+          } else if (!snap.empty) {
+            setMissions(snap.docs.map((d: any) => {
+              const m = d.data();
+              return { id: d.id, text: m.text, completed: m.completed, type: m.type };
+            }));
+          }
+        },
+        (err: any) => { console.error("[missions listener]", err); }
+      );
+      cleanups.push(unsubMissions);
+
+      // Settings — always needed
+      const unsubSettings = onSnapshot(doc(db, "settings", "couple_settings"), (d: any) => {
+        if (d.exists()) {
+          const data = d.data();
+          if (data.anniversary_date) setAnniversaryDate(data.anniversary_date);
+          if (data.birthday_a) setBirthdayA(data.birthday_a);
+          if (data.birthday_b) setBirthdayB(data.birthday_b);
+          if (data.cloudinary_cloud_name) setCloudinaryCloudName(data.cloudinary_cloud_name);
+          if (data.cloudinary_upload_preset) setCloudinaryUploadPreset(data.cloudinary_upload_preset);
+          if (data.custom_greetings) setCustomGreetings(data.custom_greetings);
+        } else {
+          setDoc(doc(db, "settings", "couple_settings"), {
+            anniversary_date: "2024-10-15", birthday_a: "11-18", birthday_b: "04-05",
+            cloudinary_cloud_name: "", cloudinary_upload_preset: "",
+            custom_greetings: DEFAULT_GREETINGS,
+          }).catch(console.error);
+        }
+      }, (err: any) => { console.error("[settings listener]", err); });
+      cleanups.push(unsubSettings);
+
+      // Shared song — always needed (visible in Home, but needed for music controls)
+      const unsubSong = onSnapshot(doc(db, "settings", "shared_song"), (d: any) => {
+        if (d.exists()) {
+          const s = d.data();
+          setCurrentSong((prev) => {
+            const newVideoId = s.video_id ?? prev.videoId;
+            const isNewSong = newVideoId && newVideoId !== prev.videoId;
+            return {
+              ...prev,
+              title: s.title ?? prev.title, artist: s.artist ?? prev.artist,
+              album: s.album ?? prev.album, artwork: s.artwork ?? prev.artwork,
+              durationMs: s.duration_ms ?? prev.durationMs,
+              videoId: newVideoId,
+              isPlaying: s.is_playing ?? prev.isPlaying,
+              progressMs: isNewSong ? 0 : prev.progressMs,
+            };
+          });
+        }
+      }, (err: any) => { console.error("[shared song listener]", err); });
+      cleanups.push(unsubSong);
+
+      // Admin config — always needed
+      const unsubAdminConfig = onSnapshot(doc(db, "settings", "admin_config"), (d: any) => {
+        if (d.exists() && d.data().admin_email) {
+          setAdminEmail(d.data().admin_email);
+        } else {
+          setDoc(doc(db, "settings", "admin_config"), {
+            admin_email: (import.meta as any).env?.VITE_ADMIN_EMAIL || "",
+          }).catch(console.error);
+          setAdminEmail((import.meta as any).env?.VITE_ADMIN_EMAIL || null);
+        }
+      }, (err: any) => { console.error("[admin_config listener]", err); });
+      cleanups.push(unsubAdminConfig);
+    })();
+
+    return () => {
+      cancelled = true;
+      cleanups.forEach(fn => fn());
+    };
+  }, [auth.session]);
+
+  // Tab-specific: Memories + Journals — only when activeTab is "home" or "memories"
+  useEffect(() => {
+    if (!auth.session || !isTabActive(["home", "memories"])) return;
+    const cleanups: (() => void)[] = [];
+    let cancelled = false;
+
+    (async () => {
+      const db = await getDb();
+      const { doc, collection,
+        onSnapshot, query, orderBy, limit } = await import("firebase/firestore");
+      if (cancelled) return;
 
       const unsubMemories = onSnapshot(
         query(collection(db, "memories"), orderBy("created_at", "desc"), limit(memoriesLimit)),
@@ -284,103 +478,25 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         (err: any) => { console.error("[journals listener]", err); }
       );
       cleanups.push(unsubJournals);
+    })();
 
-      const unsubMissions = onSnapshot(
-        query(collection(db, "missions"), orderBy("created_at", "asc")),
-        (snap: any) => {
-          if (snap.empty && !missionSeededRef.current) {
-            missionSeededRef.current = true;
-            const defaults = [
-              { id: "mis-1", text: "Take a Life4Cuts photo print together", completed: false, type: "daily", created_at: new Date().toISOString() },
-              { id: "mis-2", text: "Send a sweet morning Live Letter", completed: false, type: "daily", created_at: new Date().toISOString() },
-              { id: "mis-3", text: "Water the Virtual Garden plant", completed: false, type: "daily", created_at: new Date().toISOString() },
-              { id: "mis-4", text: "Watch a synchronized YouTube stream", completed: false, type: "daily", created_at: new Date().toISOString() },
-              { id: "mis-5", text: "Post a new baking or travel Journal entry", completed: false, type: "weekly", created_at: new Date().toISOString() },
-              { id: "mis-6", text: "Win 3 rounds of Mini Games", completed: false, type: "weekly", created_at: new Date().toISOString() },
-            ];
-            defaults.forEach((m) => {
-              const { id, ...rest } = m;
-              setDoc(doc(db, "missions", id), rest, { merge: true });
-            });
-          } else if (!snap.empty) {
-            setMissions(snap.docs.map((d: any) => {
-              const m = d.data();
-              return { id: d.id, text: m.text, completed: m.completed, type: m.type };
-            }));
-          }
-        },
-        (err: any) => { console.error("[missions listener]", err); }
-      );
-      cleanups.push(unsubMissions);
+    return () => {
+      cancelled = true;
+      cleanups.forEach(fn => fn());
+    };
+  }, [auth.session, activeTab, memoriesLimit, journalsLimit, isTabActive]);
 
-      const unsubSettings = onSnapshot(doc(db, "settings", "couple_settings"), (d: any) => {
-        if (d.exists()) {
-          const data = d.data();
-          if (data.anniversary_date) setAnniversaryDate(data.anniversary_date);
-          if (data.birthday_a) setBirthdayA(data.birthday_a);
-          if (data.birthday_b) setBirthdayB(data.birthday_b);
-          if (data.cloudinary_cloud_name) setCloudinaryCloudName(data.cloudinary_cloud_name);
-          if (data.cloudinary_upload_preset) setCloudinaryUploadPreset(data.cloudinary_upload_preset);
-          if (data.custom_greetings) setCustomGreetings(data.custom_greetings);
-        } else {
-          setDoc(doc(db, "settings", "couple_settings"), {
-            anniversary_date: "2024-10-15", birthday_a: "11-18", birthday_b: "04-05",
-            cloudinary_cloud_name: "", cloudinary_upload_preset: "",
-            custom_greetings: DEFAULT_GREETINGS,
-          }).catch(console.error);
-        }
-      }, (err: any) => { console.error("[settings listener]", err); });
-      cleanups.push(unsubSettings);
+  // Tab-specific: Letters + Time Capsules — only when activeTab is "together"
+  useEffect(() => {
+    if (!auth.session || !isTabActive(["together"])) return;
+    const cleanups: (() => void)[] = [];
+    let cancelled = false;
 
-      const unsubSong = onSnapshot(doc(db, "settings", "shared_song"), (d: any) => {
-        if (d.exists()) {
-          const s = d.data();
-          setCurrentSong((prev) => {
-            const newVideoId = s.video_id ?? prev.videoId;
-            const isNewSong = newVideoId && newVideoId !== prev.videoId;
-            return {
-              ...prev,
-              title: s.title ?? prev.title, artist: s.artist ?? prev.artist,
-              album: s.album ?? prev.album, artwork: s.artwork ?? prev.artwork,
-              durationMs: s.duration_ms ?? prev.durationMs,
-              videoId: newVideoId,
-              isPlaying: s.is_playing ?? prev.isPlaying,
-              progressMs: isNewSong ? 0 : prev.progressMs,
-            };
-          });
-        }
-      }, (err: any) => { console.error("[shared song listener]", err); });
-      cleanups.push(unsubSong);
-
-      const unsubGratitudes = onSnapshot(
-        query(collection(db, "gratitudes"), orderBy("createdAt", "desc")),
-        (snap: any) => {
-          setGratitudes(snap.docs.map((d: any) => {
-            const g = d.data();
-            return {
-              id: d.id,
-              userId: g.userId,
-              text: g.text,
-              date: g.date,
-              createdAt: g.createdAt || new Date().toISOString(),
-            };
-          }));
-        },
-        (err: any) => { console.error("[gratitudes listener]", err); }
-      );
-      cleanups.push(unsubGratitudes);
-
-      const unsubAdminConfig = onSnapshot(doc(db, "settings", "admin_config"), (d: any) => {
-        if (d.exists() && d.data().admin_email) {
-          setAdminEmail(d.data().admin_email);
-        } else {
-          setDoc(doc(db, "settings", "admin_config"), {
-            admin_email: (import.meta as any).env?.VITE_ADMIN_EMAIL || "",
-          }).catch(console.error);
-          setAdminEmail((import.meta as any).env?.VITE_ADMIN_EMAIL || null);
-        }
-      }, (err: any) => { console.error("[admin_config listener]", err); });
-      cleanups.push(unsubAdminConfig);
+    (async () => {
+      const db = await getDb();
+      const { collection,
+        onSnapshot, query, orderBy } = await import("firebase/firestore");
+      if (cancelled) return;
 
       const unsubLetters = onSnapshot(
         query(collection(db, "letters"), orderBy("created_at", "desc")),
@@ -428,7 +544,44 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       cancelled = true;
       cleanups.forEach(fn => fn());
     };
-  }, [auth.session, memoriesLimit, journalsLimit]);
+  }, [auth.session, activeTab, isTabActive]);
+
+  // Tab-specific: Gratitudes — only when activeTab is "home"
+  useEffect(() => {
+    if (!auth.session || !isTabActive(["home"])) return;
+    const cleanups: (() => void)[] = [];
+    let cancelled = false;
+
+    (async () => {
+      const db = await getDb();
+      const { collection,
+        onSnapshot, query, orderBy } = await import("firebase/firestore");
+      if (cancelled) return;
+
+      const unsubGratitudes = onSnapshot(
+        query(collection(db, "gratitudes"), orderBy("createdAt", "desc")),
+        (snap: any) => {
+          setGratitudes(snap.docs.map((d: any) => {
+            const g = d.data();
+            return {
+              id: d.id,
+              userId: g.userId,
+              text: g.text,
+              date: g.date,
+              createdAt: g.createdAt || new Date().toISOString(),
+            };
+          }));
+        },
+        (err: any) => { console.error("[gratitudes listener]", err); }
+      );
+      cleanups.push(unsubGratitudes);
+    })();
+
+    return () => {
+      cancelled = true;
+      cleanups.forEach(fn => fn());
+    };
+  }, [auth.session, activeTab, isTabActive]);
 
   // ─── Cross‑domain actions ──────────────────────────────────────────
 
@@ -824,6 +977,67 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setDarkMode(false);
   }, []);
 
+  // ─── Split context values (each memoized independently) ─────────────
+  const profileValue = useMemo(() => ({
+    userA, userB, updateProfile, currentUser, partnerId,
+  }), [userA, userB, updateProfile, currentUser, partnerId]);
+
+  const contentValue = useMemo(() => ({
+    memories, journals, letters, timeCapsules, userReactions,
+    addMemory, deleteMemory, updateMemory,
+    addReactionToMemory, addCommentToMemory, deleteCommentFromMemory,
+    addJournal, deleteJournal, updateJournal,
+    sendLetter, openLetter, reactToLetter,
+    addTimeCapsule, openTimeCapsule,
+    memoriesLimit, journalsLimit, loadMoreMemories, loadMoreJournals,
+  }), [
+    memories, journals, letters, timeCapsules, userReactions,
+    addMemory, deleteMemory, updateMemory,
+    addReactionToMemory, addCommentToMemory, deleteCommentFromMemory,
+    addJournal, deleteJournal, updateJournal,
+    sendLetter, openLetter, reactToLetter,
+    addTimeCapsule, openTimeCapsule,
+    memoriesLimit, journalsLimit, loadMoreMemories, loadMoreJournals,
+  ]);
+
+  const engagementValue = useMemo(() => ({
+    missions, toggleMission,
+    gardenPlant, waterLevel, waterPlant, changePlantType,
+    currentSong, setSongPlayState, updateSongProgress, syncSongToPartner,
+    activityLogs, addActivity,
+    moodHistory, addMoodHistoryEntry,
+    gratitudes, addGratitude,
+  }), [
+    missions, toggleMission,
+    gardenPlant, waterLevel, waterPlant, changePlantType,
+    currentSong, setSongPlayState, updateSongProgress, syncSongToPartner,
+    activityLogs, addActivity,
+    moodHistory, addMoodHistoryEntry,
+    gratitudes, addGratitude,
+  ]);
+
+  const settingsValue = useMemo(() => ({
+    darkMode, toggleDarkMode,
+    fontTheme, updateFontTheme,
+    colorTheme, updateColorTheme,
+    washiTapeTheme, updateWashiTapeTheme,
+    anniversaryDate, birthdayA, birthdayB,
+    cloudinaryCloudName, cloudinaryUploadPreset,
+    activeSurprise, setActiveSurprise,
+    customGreetings, updateCustomGreetings,
+    liveWeather, updateLiveWeather,
+  }), [
+    darkMode, toggleDarkMode,
+    fontTheme, updateFontTheme,
+    colorTheme, updateColorTheme,
+    washiTapeTheme, updateWashiTapeTheme,
+    anniversaryDate, birthdayA, birthdayB,
+    cloudinaryCloudName, cloudinaryUploadPreset,
+    activeSurprise, setActiveSurprise,
+    customGreetings, updateCustomGreetings,
+    liveWeather, updateLiveWeather,
+  ]);
+
   const contextValue = useMemo(() => ({
     session: auth.session, isAdmin, logout: auth.logout, currentUser, setCurrentUser: auth.setCurrentUser, partnerId,
     userA, userB, updateProfile,
@@ -870,9 +1084,17 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   ]);
 
   return (
-    <CoupleContext.Provider value={contextValue}>
-      {children}
-    </CoupleContext.Provider>
+    <ProfileCtx.Provider value={profileValue}>
+      <ContentCtx.Provider value={contentValue}>
+        <EngagementCtx.Provider value={engagementValue}>
+          <SettingsCtx.Provider value={settingsValue}>
+            <CoupleContext.Provider value={contextValue}>
+              {children}
+            </CoupleContext.Provider>
+          </SettingsCtx.Provider>
+        </EngagementCtx.Provider>
+      </ContentCtx.Provider>
+    </ProfileCtx.Provider>
   );
 };
 
@@ -882,5 +1104,33 @@ export { DEFAULT_AVATAR_A, DEFAULT_AVATAR_B } from "./defaults";
 export const useCouple = (): CoupleContextProps => {
   const ctx = useContext(CoupleContext);
   if (!ctx) throw new Error("useCouple must be used within a CoupleProvider");
+  return ctx;
+};
+
+// ─── Granular selector hooks ──────────────────────────────────────────
+// These hooks only trigger re-render when their specific slice changes.
+// Use these instead of useCouple() when you only need a subset of data.
+
+export const useProfileSlice = (): ProfileSlice => {
+  const ctx = useContext(ProfileCtx);
+  if (!ctx) throw new Error("useProfileSlice must be used within a CoupleProvider");
+  return ctx;
+};
+
+export const useContentSlice = (): ContentSlice => {
+  const ctx = useContext(ContentCtx);
+  if (!ctx) throw new Error("useContentSlice must be used within a CoupleProvider");
+  return ctx;
+};
+
+export const useEngagementSlice = (): EngagementSlice => {
+  const ctx = useContext(EngagementCtx);
+  if (!ctx) throw new Error("useEngagementSlice must be used within a CoupleProvider");
+  return ctx;
+};
+
+export const useSettingsSlice = (): SettingsSlice => {
+  const ctx = useContext(SettingsCtx);
+  if (!ctx) throw new Error("useSettingsSlice must be used within a CoupleProvider");
   return ctx;
 };
