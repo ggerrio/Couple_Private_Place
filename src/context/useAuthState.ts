@@ -67,7 +67,7 @@ export function useAuthState() {
 
   const resolveSlot = async (user: any) => {
     const db = await getDb();
-    const { doc, getDoc, setDoc } = await import("firebase/firestore");
+    const { doc, getDoc, setDoc, deleteDoc } = await import("firebase/firestore");
 
     const uid = user.uid;
     const userEmail = user.email;
@@ -114,6 +114,25 @@ export function useAuthState() {
       }
     }
 
+    // Helper: safely update a profile document; fallback to delete+recreate if merge fails
+    // This handles the case where a Firebase Auth account was deleted and re-created
+    // with a new UID — the old auth_id in the Firestore doc doesn't match the new UID,
+    // which would cause the security rule `request.auth.uid == resource.data.auth_id` to reject.
+    const safeSetProfile = async (slotId: string, data: any) => {
+      try {
+        await setDoc(doc(db, "profiles", slotId), data, { merge: true });
+      } catch (err) {
+        console.warn(`[Auth] setDoc ${slotId} merge failed, trying delete+recreate:`, err);
+        try {
+          await deleteDoc(doc(db, "profiles", slotId));
+          await setDoc(doc(db, "profiles", slotId), data);
+          console.log(`[Auth] ${slotId} successfully recreated after delete.`);
+        } catch (err2) {
+          console.error(`[Auth] ${slotId} delete+recreate also failed:`, err2);
+        }
+      }
+    };
+
     // Auto-link logic for whitelisted accounts
     if (isGerrio) {
       if (valA.auth_id !== uid) {
@@ -122,11 +141,7 @@ export function useAuthState() {
         valA.avatar_url = user.photoURL || valA.avatar_url;
         valA.status = "Online 💖";
         valA.updated_at = new Date().toISOString();
-        try {
-          await setDoc(doc(db, "profiles", "user_a"), valA, { merge: true });
-        } catch (err) {
-          console.warn("[Auth] auto-link setDoc user_a failed:", err);
-        }
+        await safeSetProfile("user_a", valA);
       }
       setCurrentUser("user_a");
       setIsOnboarding(false);
@@ -140,11 +155,7 @@ export function useAuthState() {
         valB.avatar_url = user.photoURL || valB.avatar_url;
         valB.status = "Online 💖";
         valB.updated_at = new Date().toISOString();
-        try {
-          await setDoc(doc(db, "profiles", "user_b"), valB, { merge: true });
-        } catch (err) {
-          console.warn("[Auth] auto-link setDoc user_b failed:", err);
-        }
+        await safeSetProfile("user_b", valB);
       }
       setCurrentUser("user_b");
       setIsOnboarding(false);

@@ -22,8 +22,18 @@ service cloud.firestore {
     match /profiles/{profileId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
-      // Allow update if: user is admin, OR the user owns this profile slot
-      allow update: if isAdmin() || request.auth.uid == resource.data.auth_id;
+      // Allow update if:
+      //   - user is admin, OR
+      //   - the user owns this profile slot (auth_id matches), OR
+      //   - user_a slot: the user's email matches the admin email pattern, OR
+      //   - user_b slot: the user's email contains nicole/nicola
+      //   (The last two cover the case where a Firebase Auth account was deleted
+      //    and re-created with a new UID — the old auth_id in the document no
+      //    longer matches the new UID, but the email identity is still valid.)
+      allow update: if isAdmin()
+        || request.auth.uid == resource.data.auth_id
+        || (profileId == 'user_a' && request.auth.token.email.matches('.*(pratamagerrio|gerrio).*'))
+        || (profileId == 'user_b' && request.auth.token.email.matches('.*(nicole|nicola).*'));
       allow delete: if isAdmin();
     }
 
