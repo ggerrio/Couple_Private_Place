@@ -388,28 +388,13 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
 
       // Admin config — always needed
       const unsubAdminConfig = onSnapshot(doc(db, "settings", "admin_config"), (d: any) => {
-        const expectedPartnerEmail = (import.meta as any).env?.VITE_PARTNER_EMAIL || "nicola.aliciazkim@gmail.com";
-        const expectedAdminEmail = (import.meta as any).env?.VITE_ADMIN_EMAIL || "pratamagerrio@gmail.com";
-
-        if (d.exists()) {
-          const data = d.data();
-          setAdminEmail(data.admin_email || expectedAdminEmail);
-
-          // If we are logged in as admin, and the document is missing partner_email or has outdated data, merge it in
-          if (auth.session && auth.session.email?.toLowerCase() === (data.admin_email || expectedAdminEmail).toLowerCase()) {
-            if (data.partner_email !== expectedPartnerEmail || data.admin_email !== expectedAdminEmail) {
-              setDoc(doc(db, "settings", "admin_config"), {
-                admin_email: expectedAdminEmail,
-                partner_email: expectedPartnerEmail,
-              }, { merge: true }).catch(console.error);
-            }
-          }
+        if (d.exists() && d.data().admin_email) {
+          setAdminEmail(d.data().admin_email);
         } else {
           setDoc(doc(db, "settings", "admin_config"), {
-            admin_email: expectedAdminEmail,
-            partner_email: expectedPartnerEmail,
+            admin_email: (import.meta as any).env?.VITE_ADMIN_EMAIL || "",
           }).catch(console.error);
-          setAdminEmail(expectedAdminEmail);
+          setAdminEmail((import.meta as any).env?.VITE_ADMIN_EMAIL || null);
         }
       }, (err: any) => { console.error("[admin_config listener]", err); });
       cleanups.push(unsubAdminConfig);
