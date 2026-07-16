@@ -7,6 +7,13 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/settings/admin_config).data.admin_email;
     }
 
+    // Reads the partner email from the admin_config document in Firestore, fallback if not set
+    function getPartnerEmail() {
+      return has(get(/databases/$(database)/documents/settings/admin_config).data.partner_email)
+        ? get(/databases/$(database)/documents/settings/admin_config).data.partner_email
+        : 'nicola.aliciazkim@gmail.com';
+    }
+
     // Returns true if the requester's email matches the stored admin email
     function isAdmin() {
       return request.auth != null && request.auth.token.email == getAdminEmail();
@@ -26,14 +33,20 @@ service cloud.firestore {
       //   - user is admin, OR
       //   - the user owns this profile slot (auth_id matches), OR
       //   - user_a slot: the user's email matches the admin email pattern, OR
-      //   - user_b slot: the user's email contains nicole/nicola
+      //   - user_b slot: the user's email contains nicole/nicola or matches partner_email
       //   (The last two cover the case where a Firebase Auth account was deleted
       //    and re-created with a new UID — the old auth_id in the document no
       //    longer matches the new UID, but the email identity is still valid.)
       allow update: if isAdmin()
         || request.auth.uid == resource.data.auth_id
-        || (profileId == 'user_a' && request.auth.token.email.matches('.*(pratamagerrio|gerrio).*'))
-        || (profileId == 'user_b' && request.auth.token.email.matches('.*(nicole|nicola).*'));
+        || (profileId == 'user_a' && (
+             request.auth.token.email.toLowerCase() == getAdminEmail().toLowerCase()
+             || request.auth.token.email.matches('(?i).*(pratamagerrio|gerrio).*')
+           ))
+        || (profileId == 'user_b' && (
+             request.auth.token.email.toLowerCase() == getPartnerEmail().toLowerCase()
+             || request.auth.token.email.matches('(?i).*(nicole|nicola).*')
+           ));
       allow delete: if isAdmin();
     }
 

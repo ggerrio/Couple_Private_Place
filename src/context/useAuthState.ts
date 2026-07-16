@@ -74,9 +74,11 @@ export function useAuthState() {
     const userDisplayName = user.displayName;
 
     const adminEmail = (import.meta as any).env?.VITE_ADMIN_EMAIL || "pratamagerrio@gmail.com";
+    const partnerEmail = (import.meta as any).env?.VITE_PARTNER_EMAIL || "nicola.aliciazkim@gmail.com";
 
     const isGerrio = userEmail && userEmail.toLowerCase() === adminEmail.toLowerCase();
-    const isNicole = (userEmail && (userEmail.toLowerCase().includes("nicole") || userEmail.toLowerCase().includes("nicola"))) ||
+    const isNicole = (userEmail && userEmail.toLowerCase() === partnerEmail.toLowerCase()) ||
+      (userEmail && (userEmail.toLowerCase().includes("nicole") || userEmail.toLowerCase().includes("nicola"))) ||
       (userDisplayName && (userDisplayName.toLowerCase().includes("nicole") || userDisplayName.toLowerCase().includes("nicola")));
 
     if (!isGerrio && !isNicole) {
