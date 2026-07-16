@@ -76,8 +76,8 @@ export function useAuthState() {
     const adminEmail = (import.meta as any).env?.VITE_ADMIN_EMAIL || "pratamagerrio@gmail.com";
 
     const isGerrio = userEmail && userEmail.toLowerCase() === adminEmail.toLowerCase();
-    const isNicole = (userEmail && (userEmail.toLowerCase().includes("nicole") || userEmail.toLowerCase().includes("nicola"))) || 
-                     (userDisplayName && (userDisplayName.toLowerCase().includes("nicole") || userDisplayName.toLowerCase().includes("nicola")));
+    const isNicole = (userEmail && (userEmail.toLowerCase().includes("nicole") || userEmail.toLowerCase().includes("nicola"))) ||
+      (userDisplayName && (userDisplayName.toLowerCase().includes("nicole") || userDisplayName.toLowerCase().includes("nicola")));
 
     if (!isGerrio && !isNicole) {
       throw new Error("Access Denied. Only Gerrio & Nicola are allowed to enter the Treehouse. 🔒");
@@ -200,7 +200,7 @@ export function useAuthState() {
       photoURL: DEFAULT_AVATAR_A,
     } : {
       uid: "dev_nicole_uid",
-      email: "nicole@treehouse.com",
+      email: "Nicola.aliciazkim@gmail.com",
       displayName: "Nicola (Dev Bypass)",
       photoURL: DEFAULT_AVATAR_B,
     };

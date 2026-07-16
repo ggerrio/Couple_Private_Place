@@ -31,6 +31,7 @@ import { ScrapbookStickers } from "./components/scrapbook";
 
 import gnLogo from "../logo/ger_n_nic_small.webp";
 import { triggerHaptic } from "./lib/haptics";
+import { formatLastSeen } from "./lib/utils";
 
 import { getDb } from "./firebaseClient";
 import Lenis from "lenis";
@@ -109,23 +110,6 @@ function setupGlobalErrorHandler() {
   };
   window.addEventListener("unhandledrejection", handler);
   return () => window.removeEventListener("unhandledrejection", handler);
-}
-
-function formatLastSeen(lastActive: number | undefined, isOnline: boolean): string {
-  if (isOnline) return "Active now";
-  if (!lastActive) return "Last seen: offline";
-  const diff = Date.now() - lastActive;
-  if (diff < 0) return "Active now";
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return "Last seen: just now";
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `Last seen: ${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `Last seen: ${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days === 1) return "Last seen: yesterday";
-  if (days < 7) return `Last seen: ${days}d ago`;
-  return `Last seen: ${new Date(lastActive).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
 }
 
 function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange: (tab: TabId) => void }) {
@@ -514,7 +498,7 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
                     <span className={`w-1.5 h-1.5 rounded-full ${isOnlineA ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
                     <span className="font-bold text-[9px]">{isOnlineA ? "Online" : "Offline"}</span>
                   </div>
-                  <span className="text-zinc-300 font-mono text-[8.5px]">{formatLastSeen(userA.lastActive, isOnlineA)}</span>
+                  <span className="text-zinc-300 font-mono text-[8.5px]">{formatLastSeen(userA.lastActive, isOnlineA, { prefix: "Last seen: ", offlineLabel: "offline" })}</span>
                 </div>
               </div>
               <span className="absolute -bottom-1 -right-1 text-[8px] bg-white rounded-full p-0.5 shadow-xs leading-none">
@@ -584,7 +568,7 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
                     <span className={`w-1.5 h-1.5 rounded-full ${isOnlineB ? "bg-green-500 animate-pulse" : "bg-red-500"}`} />
                     <span className="font-bold text-[9px]">{isOnlineB ? "Online" : "Offline"}</span>
                   </div>
-                  <span className="text-zinc-300 font-mono text-[8.5px]">{formatLastSeen(userB.lastActive, isOnlineB)}</span>
+                  <span className="text-zinc-300 font-mono text-[8.5px]">{formatLastSeen(userB.lastActive, isOnlineB, { prefix: "Last seen: ", offlineLabel: "offline" })}</span>
                 </div>
               </div>
               <span className="absolute -bottom-1 -right-1 text-[8px] bg-white rounded-full p-0.5 shadow-xs leading-none">

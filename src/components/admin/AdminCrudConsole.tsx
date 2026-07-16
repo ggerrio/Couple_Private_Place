@@ -14,14 +14,16 @@ import { useCouple } from "../../context/CoupleContext";
 import { getDb } from "../../firebaseClient";
 import {
   Sparkles, Trash2, Edit2, Plus, Check, X, Award,
-  StickyNote, Music, Mail, Image, Calendar, ChevronRight
+  StickyNote, Music, Mail, Image, Calendar, ChevronRight, Activity
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatLastSeen } from "../../lib/utils";
 import { Mission, Memory, Letter, CustomGreetings } from "../../types";
 
-type CrudTab = "missions" | "sticky_notes" | "vibe_logs" | "letters" | "memories";
+type CrudTab = "status" | "missions" | "sticky_notes" | "vibe_logs" | "letters" | "memories";
 
 const CRUD_TABS: { id: CrudTab; label: string; icon: React.ElementType; color: string }[] = [
+  { id: "status", label: "Status", icon: Activity, color: "text-green-500" },
   { id: "missions", label: "Missions", icon: Award, color: "text-amber-500" },
   { id: "sticky_notes", label: "Sticky Notes", icon: StickyNote, color: "text-purple-500" },
   { id: "vibe_logs", label: "Vibe Logs", icon: Music, color: "text-pink-500" },
@@ -73,6 +75,7 @@ export function AdminCrudConsole() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
+            {activeTab === "status" && <StatusDashboard />}
             {activeTab === "missions" && <MissionsCrud />}
             {activeTab === "sticky_notes" && <StickyNotesCrud />}
             {activeTab === "vibe_logs" && <VibeLogsCrud />}
@@ -298,7 +301,7 @@ function StickyNotesCrud() {
               text: data.text || "",
               color: data.color || "yellow",
               authorId: data.authorId || "user_a",
-              createdAt: data.createdAt || "",
+              createdAt: typeof data.createdAt === 'string' ? data.createdAt : (data.createdAt?.toDate?.()?.toISOString?.() || ""),
             });
           });
           setNotes(list);
@@ -461,7 +464,7 @@ function StickyNotesCrud() {
                 />
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-[var(--text-main)] truncate">{n.text}</p>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)]">By {sender.name} • {n.createdAt.split("T")[0]}</p>
+                  <p className="text-[8px] font-bold text-[var(--text-muted)]">By {sender.name} • {n.createdAt ? n.createdAt.split("T")[0] : "—"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
@@ -781,7 +784,7 @@ function LettersCrud() {
     setContent(letter.content);
     setSenderId(letter.senderId);
     setRecipientId(letter.recipientId);
-    setScheduledFor(letter.scheduledFor ? letter.scheduledFor.split("T")[0] : "");
+    setScheduledFor(typeof letter.scheduledFor === 'string' ? letter.scheduledFor.split("T")[0] : "");
     setIsOpened(letter.isOpened);
   };
 
@@ -946,7 +949,195 @@ function LettersCrud() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ─── 5. MEMORIES CRUD ────────────────────────────────────────────────────────
+// ─── 5. STATUS DASHBOARD ─────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+
+function StatusDashboard() {
+  const { userA, userB, currentUser } = useCouple();
+  const [now, setNow] = useState(Date.now());
+
+  // Tick every 15s to keep relative timestamps fresh
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isOnlineA = userA.lastActive ? (now - userA.lastActive < 45000) : false;
+  const isOnlineB = userB.lastActive ? (now - userB.lastActive < 45000) : false;
+
+  const lastActiveA = userA.lastActive ?? null;
+  const lastActiveB = userB.lastActive ?? null;
+
+  const renderUserCard = (
+    slot: "user_a" | "user_b",
+    profile: typeof userA,
+    isOnline: boolean,
+    lastActive: number | null
+  ) => {
+    const isYou = currentUser === slot;
+    return (
+      <div
+        className={`relative flex-1 min-w-[180px] p-4 rounded-2xl border transition-all ${
+          isYou
+            ? "bg-gradient-to-br from-emerald-50/80 to-teal-50/60 border-emerald-200/60"
+            : "bg-white/50 dark:bg-white/5 border-[var(--border-color)]/40"
+        }`}
+      >
+        {/* Slot label */}
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-[9px] font-black uppercase tracking-wider text-[var(--text-muted)]">
+            {slot === "user_a" ? "User A" : "User B"}
+            {isYou && (
+              <span className="ml-1.5 px-1.5 py-0.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 text-[7px] rounded-md font-bold">
+                YOU
+              </span>
+            )}
+          </span>
+          <span
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
+              isOnline
+                ? "bg-green-500/15 text-green-700 dark:text-green-300"
+                : "bg-red-500/10 text-red-600 dark:text-red-400"
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${
+                isOnline ? "bg-green-500 animate-pulse" : "bg-red-500"
+              }`}
+            />
+            {isOnline ? "Online" : "Offline"}
+          </span>
+        </div>
+
+        {/* Avatar + name */}
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="relative">
+            <img
+              src={profile.avatar}
+              alt={profile.name}
+              className="w-10 h-10 rounded-xl object-cover border-2 border-white/60 shadow-xs"
+              referrerPolicy="no-referrer"
+            />
+            <span
+              className={`absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-white transition-all duration-300 ${
+                isOnline
+                  ? "bg-green-500 shadow-[0_0_6px_#22c55e] animate-pulse"
+                  : "bg-red-400 shadow-[0_0_4px_#ef4444]"
+              }`}
+            />
+            <span className="absolute -bottom-1 -left-1 text-[10px] bg-white dark:bg-stone-800 rounded-full p-0.5 shadow-xs leading-none">
+              {profile.emoji || (slot === "user_a" ? "💖" : "✨")}
+            </span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-bold text-[var(--text-main)] truncate leading-tight">
+              {profile.name}
+            </p>
+            <p className="text-[9px] text-[var(--text-muted)] font-medium truncate">
+              {profile.gender === "wanita" ? "👩" : "👨"} {profile.gender || "—"}
+            </p>
+          </div>
+        </div>
+
+        {/* Status / Mood */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-[var(--text-muted)] font-medium">Status</span>
+            <span className="font-bold text-[var(--text-main)] truncate max-w-[140px]" title={profile.status}>
+              {profile.status || "—"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-[10px]">
+            <span className="text-[var(--text-muted)] font-medium">Mood</span>
+            <span className="font-bold text-[var(--text-main)]">
+              {profile.emoji || "—"} {profile.mood || "—"}
+            </span>
+          </div>
+          <div className="pt-1.5 border-t border-[var(--border-color)]/30">
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-[var(--text-muted)] font-medium">
+                {isOnline ? "Heartbeat" : "Last Seen"}
+              </span>
+              <span className="font-mono text-[9px] font-bold text-[var(--text-main)]">
+                {lastActive
+                  ? `${formatLastSeen(lastActive, isOnline)}${isOnline ? ` (${new Date(lastActive).toLocaleTimeString()})` : ""}`
+                  : "—"}
+              </span>
+            </div>
+            {lastActive && (
+              <div className="mt-1.5 w-full h-1 bg-[var(--border-color)]/20 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ${
+                    isOnline ? "bg-green-500" : "bg-red-400"
+                  }`}
+                  style={{
+                    width: isOnline
+                      ? `${Math.max(5, Math.min(100, ((45000 - (now - lastActive)) / 45000) * 100))}%`
+                      : "100%",
+                    opacity: isOnline ? 1 : 0.4,
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-1.5">
+          <Activity className="w-4 h-4 text-green-500" />
+          Live Presence Dashboard
+        </h4>
+        <span className="text-[8px] font-mono text-[var(--text-muted)] bg-[var(--border-color)]/10 px-2 py-0.5 rounded-full border border-[var(--border-color)]/20">
+          ⏱ {new Date(now).toLocaleTimeString()}
+        </span>
+      </div>
+
+      <div className="flex flex-wrap gap-4">
+        {renderUserCard("user_a", userA, isOnlineA, lastActiveA)}
+        {renderUserCard("user_b", userB, isOnlineB, lastActiveB)}
+      </div>
+
+      {/* Legend / summary bar */}
+      <div className="flex items-center gap-4 p-3 bg-[var(--fabric-cream)]/30 border border-[var(--border-color)]/30 rounded-xl">
+        <div className="flex items-center gap-1.5 text-[9px] text-[var(--text-muted)] font-medium">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+          <span>= Online (heartbeat within 45s)</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[9px] text-[var(--text-muted)] font-medium">
+          <span className="w-2 h-2 rounded-full bg-red-400" />
+          <span>= Offline (no recent heartbeat)</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-[9px] text-[var(--text-muted)] font-medium ml-auto">
+          <span>🔄 Auto-refresh every 15s</span>
+        </div>
+      </div>
+
+      {/* Raw lastActive timestamps */}
+      <details className="group">
+        <summary className="text-[9px] font-bold text-[var(--text-muted)] cursor-pointer hover:text-[var(--text-main)] transition-colors select-none">
+          📋 Raw Firestore timestamps
+        </summary>
+        <div className="mt-2 p-2.5 bg-black/5 dark:bg-white/5 rounded-xl font-mono text-[8px] text-[var(--text-muted)] space-y-1 border border-[var(--border-color)]/20">
+          <p><span className="text-emerald-600 font-bold">userA.lastActive</span> = {userA.lastActive !== undefined ? `${userA.lastActive} (${new Date(userA.lastActive).toISOString()})` : "undefined"}</p>
+          <p><span className="text-rose-600 font-bold">userB.lastActive</span> = {userB.lastActive !== undefined ? `${userB.lastActive} (${new Date(userB.lastActive).toISOString()})` : "undefined"}</p>
+          <p><span className="text-zinc-600 font-bold">userA.lastActive</span> type: {typeof userA.lastActive} &nbsp;|&nbsp; <span className="text-zinc-600 font-bold">userB.lastActive</span> type: {typeof userB.lastActive}</p>
+          <p className="pt-1 text-zinc-500">
+            isOnlineA = {(isOnlineA).toString()} ({now} - {userA.lastActive ?? "N/A"} &lt; 45000) &nbsp;|&nbsp;
+            isOnlineB = {(isOnlineB).toString()} ({now} - {userB.lastActive ?? "N/A"} &lt; 45000)
+          </p>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── 6. MEMORIES CRUD ────────────────────────────────────────────────────────
 // ─────────────────────────────────────────────────────────────────────────────
 
 function MemoriesCrud() {
@@ -979,7 +1170,7 @@ function MemoriesCrud() {
     setDescription(mem.description);
     setImageUrl(mem.imageUrl);
     setType(mem.type);
-    setDate(mem.date ? mem.date.split("T")[0] : "");
+    setDate(typeof mem.date === 'string' ? mem.date.split("T")[0] : "");
     setCreatorId(mem.creatorId);
     setShowOnTimeline(mem.showOnTimeline !== false);
   };
@@ -1148,7 +1339,7 @@ function MemoriesCrud() {
                 <img src={m.imageUrl} alt={m.title} className="w-7 h-7 rounded-lg object-cover flex-shrink-0 border" referrerPolicy="no-referrer" />
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-[var(--text-main)] truncate">{m.title}</p>
-                  <p className="text-[8px] font-bold text-[var(--text-muted)]">{m.date.split("T")[0]} • By {sender.name}</p>
+                  <p className="text-[8px] font-bold text-[var(--text-muted)]">{typeof m.date === 'string' ? m.date.split("T")[0] : "—"} • By {sender.name}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
