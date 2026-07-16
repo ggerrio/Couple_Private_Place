@@ -8,39 +8,15 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { DEFAULT_AVATAR_A, DEFAULT_AVATAR_B } from "./defaults";
 
 export function useAuthState() {
-  const [session, setSession] = useState<any>(() => {
-    try {
-      const saved = localStorage.getItem("dev_bypass_user");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [session, setSession] = useState<any>(null);
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [currentUser, setCurrentUser] = useState<"user_a" | "user_b">("user_a");
 
   const partnerId: "user_a" | "user_b" = currentUser === "user_a" ? "user_b" : "user_a";
 
-  // Resolve slots for active bypass user on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("dev_bypass_user");
-      if (saved) {
-        const mockUser = JSON.parse(saved);
-        resolveSlot(mockUser).catch(console.error);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  }, []);
-
   // ─── Auth listener ──────────────────────────────────────────────────────
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
-      // If we have an active developer/sandbox bypass session, ignore standard firebase auth listener
-      if (localStorage.getItem("dev_bypass_user")) {
-        return;
-      }
       if (user) {
         resolveSlot(user)
           .then(async () => {
@@ -66,17 +42,19 @@ export function useAuthState() {
   }, []);
 
   const resolveSlot = async (user: any) => {
-    const db = await getDb();
-    const { doc, getDoc, setDoc, deleteDoc } = await import("firebase/firestore");
-
     const uid = user.uid;
     const userEmail = user.email;
     const userDisplayName = user.displayName;
+    console.log("[Auth] resolveSlot started for user:", userEmail, uid);
+
+    const db = await getDb();
+    const { doc, getDoc, setDoc, deleteDoc } = await import("firebase/firestore");
 
     const adminEmail = (import.meta as any).env?.VITE_ADMIN_EMAIL || "pratamagerrio@gmail.com";
 
     const isGerrio = userEmail && userEmail.toLowerCase() === adminEmail.toLowerCase();
     const isNicole = !isGerrio;
+    console.log("[Auth] Role check: isGerrio =", isGerrio, ", isNicole =", isNicole);
 
     if (!isGerrio && !isNicole) {
       throw new Error("Access Denied. Only Gerrio & Nicola are allowed to enter the Treehouse. 🔒");
@@ -86,28 +64,34 @@ export function useAuthState() {
     let valB = null;
 
     try {
+      console.log("[Auth] Loading profiles from Firestore...");
       const [snapA, snapB] = await Promise.all([
         getDoc(doc(db, "profiles", "user_a")),
         getDoc(doc(db, "profiles", "user_b")),
       ]);
       valA = snapA.exists() ? snapA.data() : null;
       valB = snapB.exists() ? snapB.data() : null;
+      console.log("[Auth] Profiles loaded. valA exists:", !!valA, ", valB exists:", !!valB);
     } catch (err) {
       console.warn("[Auth] Firestore profile loading failed, using offline/local fallback:", err);
     }
 
     if (!valA) {
+      console.log("[Auth] Profile user_a missing. Initializing new document...");
       valA = { id: "user_a", auth_id: isGerrio ? uid : null, name: isGerrio ? (userDisplayName || "Gerrio") : "Partner A (Empty)", avatar_url: DEFAULT_AVATAR_A, status: "Waiting for connection...", mood: "happy", updated_at: new Date().toISOString() };
       try {
         await setDoc(doc(db, "profiles", "user_a"), valA);
+        console.log("[Auth] Profile user_a successfully initialized.");
       } catch (err) {
         console.warn("[Auth] setDoc user_a failed:", err);
       }
     }
     if (!valB) {
+      console.log("[Auth] Profile user_b missing. Initializing new document...");
       valB = { id: "user_b", auth_id: isNicole ? uid : null, name: isNicole ? (userDisplayName || "Nicola") : "Nicola", avatar_url: DEFAULT_AVATAR_B, status: "Waiting for connection...", mood: "happy", updated_at: new Date().toISOString() };
       try {
         await setDoc(doc(db, "profiles", "user_b"), valB);
+        console.log("[Auth] Profile user_b successfully initialized.");
       } catch (err) {
         console.warn("[Auth] setDoc user_b failed:", err);
       }
@@ -119,10 +103,13 @@ export function useAuthState() {
     // which would cause the security rule `request.auth.uid == resource.data.auth_id` to reject.
     const safeSetProfile = async (slotId: string, data: any) => {
       try {
+        console.log(`[Auth] Attempting setDoc for ${slotId} with merge...`);
         await setDoc(doc(db, "profiles", slotId), data, { merge: true });
+        console.log(`[Auth] Profile ${slotId} merged successfully.`);
       } catch (err) {
         console.warn(`[Auth] setDoc ${slotId} merge failed, trying delete+recreate:`, err);
         try {
+          console.log(`[Auth] Attempting deleteDoc and recreation for ${slotId}...`);
           await deleteDoc(doc(db, "profiles", slotId));
           await setDoc(doc(db, "profiles", slotId), data);
           console.log(`[Auth] ${slotId} successfully recreated after delete.`);
@@ -135,6 +122,7 @@ export function useAuthState() {
     // Auto-link logic for whitelisted accounts
     if (isGerrio) {
       if (valA.auth_id !== uid) {
+        console.log("[Auth] Linking user_a slot to new auth UID...");
         valA.auth_id = uid;
         valA.name = userDisplayName || "Gerrio";
         valA.avatar_url = user.photoURL || valA.avatar_url;
@@ -142,6 +130,7 @@ export function useAuthState() {
         valA.updated_at = new Date().toISOString();
         await safeSetProfile("user_a", valA);
       }
+      console.log("[Auth] resolveSlot: setting active user to user_a");
       setCurrentUser("user_a");
       setIsOnboarding(false);
       return;
@@ -149,6 +138,7 @@ export function useAuthState() {
 
     if (isNicole) {
       if (valB.auth_id !== uid) {
+        console.log("[Auth] Linking user_b slot to new auth UID...");
         valB.auth_id = uid;
         valB.name = userDisplayName || "Nicola";
         valB.avatar_url = user.photoURL || valB.avatar_url;
@@ -156,15 +146,26 @@ export function useAuthState() {
         valB.updated_at = new Date().toISOString();
         await safeSetProfile("user_b", valB);
       }
+      console.log("[Auth] resolveSlot: setting active user to user_b");
       setCurrentUser("user_b");
       setIsOnboarding(false);
       return;
     }
 
     // Fallback onboarding
-    if (valA.auth_id === uid) { setCurrentUser("user_a"); setIsOnboarding(false); }
-    else if (valB.auth_id === uid) { setCurrentUser("user_b"); setIsOnboarding(false); }
-    else { setIsOnboarding(true); }
+    console.log("[Auth] resolveSlot fallback routing...");
+    if (valA.auth_id === uid) {
+      console.log("[Auth] User matches user_a auth_id.");
+      setCurrentUser("user_a");
+      setIsOnboarding(false);
+    } else if (valB.auth_id === uid) {
+      console.log("[Auth] User matches user_b auth_id.");
+      setCurrentUser("user_b");
+      setIsOnboarding(false);
+    } else {
+      console.log("[Auth] User does not match any profile auth_id. Directing to onboarding.");
+      setIsOnboarding(true);
+    }
   };
 
   const claimProfileSlot = async (slotId: "user_a" | "user_b") => {
@@ -191,26 +192,7 @@ export function useAuthState() {
     setIsOnboarding(false);
   };
 
-  const loginAsDev = (role: "user_a" | "user_b") => {
-    const mockUser = role === "user_a" ? {
-      uid: "dev_gerrio_uid",
-      email: "pratamagerrio@gmail.com",
-      displayName: "Gerrio (Dev Bypass)",
-      photoURL: DEFAULT_AVATAR_A,
-    } : {
-      uid: "dev_nicole_uid",
-      email: "nicola.aliciazkim@gmail.com",
-      displayName: "Nicola (Dev Bypass)",
-      photoURL: DEFAULT_AVATAR_B,
-    };
-
-    localStorage.setItem("dev_bypass_user", JSON.stringify(mockUser));
-    setSession(mockUser);
-    resolveSlot(mockUser).catch(console.error);
-  };
-
   const logout = () => {
-    localStorage.removeItem("dev_bypass_user");
     return signOut(auth).then(() => setSession(null));
   };
 
@@ -219,6 +201,6 @@ export function useAuthState() {
     isOnboarding, setIsOnboarding,
     currentUser, setCurrentUser,
     partnerId,
-    logout, claimProfileSlot, resolveSlot, loginAsDev,
+    logout, claimProfileSlot, resolveSlot,
   };
 }

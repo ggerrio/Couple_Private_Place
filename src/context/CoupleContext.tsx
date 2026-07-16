@@ -114,7 +114,6 @@ interface CoupleContextProps {
   loadMoreMemories: () => void;
   journalsLimit: number;
   loadMoreJournals: () => void;
-  loginAsDev: (role: "user_a" | "user_b") => void;
 }
 
 // ─── Split contexts for granular re-render isolation ─────────────────
@@ -1064,10 +1063,8 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
     adminDeleteAllSketches, adminDeleteAllNotes, adminResetTTTScore,
     updateCoupleSettings,
     memoriesLimit, loadMoreMemories, journalsLimit, loadMoreJournals,
-    loginAsDev: auth.loginAsDev,
   }), [
     auth.session, isAdmin, auth.currentUser, auth.isOnboarding, auth.partnerId,
-    auth.loginAsDev,
     currentUser, partnerId,
     userA, userB,
     memories, userReactions, journals, letters, timeCapsules,

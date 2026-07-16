@@ -1,15 +1,13 @@
 /// <reference types="vite/client" />
 import React, { useState, useEffect } from "react";
 import { auth, googleProvider } from "../firebaseClient";
-import { signInWithRedirect, getRedirectResult } from "firebase/auth";
+import { signInWithRedirect, getRedirectResult, signInWithPopup } from "firebase/auth";
 import { Heart, Sparkles, AlertCircle, ArrowRight } from "lucide-react";
 import { triggerHaptic } from "../lib/haptics";
 import { motion } from "motion/react";
 import { ScrapbookPage, WashiTapeDivider, StickerButton } from "./scrapbook";
-import { useCouple } from "../context/CoupleContext";
 
 export default function LoginView() {
-  const { loginAsDev } = useCouple();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isUnauthorizedDomain, setIsUnauthorizedDomain] = useState(false);
@@ -53,23 +51,39 @@ export default function LoginView() {
     setIsUnauthorizedDomain(false);
     triggerHaptic("medium");
 
-    // Use signInWithRedirect instead of popup to avoid Cross-Origin-Opener-Policy issues
-    signInWithRedirect(auth, googleProvider)
+    console.log("[Login] Attempting sign-in with popup...");
+    signInWithPopup(auth, googleProvider)
+      .then((result) => {
+        console.log("[Login] Popup sign-in successful:", result.user?.email);
+      })
       .catch((err: any) => {
-        console.error("Firebase Redirect Sign-In Error:", err);
-
-        let friendlyError = "Google Sign-In failed. Please try again.";
-        if (err.code === "auth/configuration-not-found") {
-          friendlyError = "Google Sign-In is not enabled. Go to Firebase Console > Authentication > Providers to enable it.";
-        } else if (err.code === "auth/unauthorized-domain" || (err.message && err.message.includes("unauthorized-domain"))) {
-          setIsUnauthorizedDomain(true);
-          friendlyError = `This domain (${window.location.hostname}) is not authorized in your Firebase Project.`;
-        } else if (err.message) {
-          friendlyError = err.message;
+        // If the popup was closed by the user, just stop loading and don't redirect
+        if (err.code === "auth/popup-closed-by-user") {
+          console.log("[Login] Popup closed by user.");
+          setLoading(false);
+          return;
         }
 
-        setErrorMsg(friendlyError);
-        setLoading(false);
+        console.warn("[Login] signInWithPopup failed, falling back to redirect:", err);
+
+        // Fallback to Redirect if popup fails or is blocked
+        signInWithRedirect(auth, googleProvider)
+          .catch((redirectErr: any) => {
+            console.error("[Login] Redirect Sign-In also failed:", redirectErr);
+
+            let friendlyError = "Google Sign-In failed. Please try again.";
+            if (redirectErr.code === "auth/configuration-not-found") {
+              friendlyError = "Google Sign-In is not enabled. Go to Firebase Console > Authentication > Providers to enable it.";
+            } else if (redirectErr.code === "auth/unauthorized-domain" || (redirectErr.message && redirectErr.message.includes("unauthorized-domain"))) {
+              setIsUnauthorizedDomain(true);
+              friendlyError = `This domain (${window.location.hostname}) is not authorized in your Firebase Project.`;
+            } else if (redirectErr.message) {
+              friendlyError = redirectErr.message;
+            }
+
+            setErrorMsg(friendlyError);
+            setLoading(false);
+          });
       });
   };
 
@@ -205,37 +219,6 @@ export default function LoginView() {
                 <span>{errorMsg}</span>
               </div>
             ) : null}
-
-            {/* ── Dev Bypass Section — Always Visible ── */}
-            <div className="bg-rose-50/50 dark:bg-rose-950/20 p-3.5 rounded-2xl border border-rose-200/40 space-y-2.5">
-              <p className="text-[10px] font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1 font-sans">
-                <Sparkles className="w-3.5 h-3.5 text-yellow-600 animate-pulse shrink-0" />
-                Sandbox / Development Bypass:
-              </p>
-              <p className="text-[10px] text-gray-500 dark:text-gray-400 font-sans leading-relaxed">
-                Skip Google login and enter instantly as a test user:
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={() => {
-                    triggerHaptic("medium");
-                    loginAsDev("user_a");
-                  }}
-                  className="px-2.5 py-2 bg-gradient-to-r from-pink-500 to-rose-600 hover:from-pink-600 hover:to-rose-700 text-white text-[11px] font-bold rounded-lg transition-all duration-300 shadow hover:shadow-md cursor-pointer flex items-center justify-center gap-1"
-                >
-                  As Gerrio <ArrowRight className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={() => {
-                    triggerHaptic("medium");
-                    loginAsDev("user_b");
-                  }}
-                  className="px-2.5 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white text-[11px] font-bold rounded-lg transition-all duration-300 shadow hover:shadow-md cursor-pointer flex items-center justify-center gap-1"
-                >
-                  As Nicola <ArrowRight className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
           </div>
 
           <div className="pt-4 text-xs text-[var(--text-muted)] font-mono border-t" style={{ borderColor: 'var(--border-color)' }}>
