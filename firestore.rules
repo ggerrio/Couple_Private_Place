@@ -2,9 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // ────────── Helper functions ────────────────────────────────────────
-    // Reads the admin email from the admin_config document in Firestore
+    // Reads the admin email from the admin_config document in Firestore, checking existence first to avoid circular rules crash
     function getAdminEmail() {
-      return get(/databases/$(database)/documents/settings/admin_config).data.admin_email;
+      return exists(/databases/$(database)/documents/settings/admin_config)
+        ? get(/databases/$(database)/documents/settings/admin_config).data.admin_email
+        : 'pratamagerrio@gmail.com';
     }
 
     // Returns true if the requester's email matches the stored admin email

@@ -27,11 +27,16 @@ export async function getDb() {
   if (!_dbPromise) {
     _dbPromise = (async () => {
       const firestore = await import("firebase/firestore");
-      _db = firestore.initializeFirestore(app, {
-        localCache: firestore.persistentLocalCache({
-          tabManager: firestore.persistentMultipleTabManager(),
-        })
-      });
+      try {
+        _db = firestore.initializeFirestore(app, {
+          localCache: firestore.persistentLocalCache({
+            tabManager: firestore.persistentMultipleTabManager(),
+          })
+        });
+      } catch (err) {
+        console.warn("Firestore persistent cache failed to initialize, falling back to default:", err);
+        _db = firestore.getFirestore(app);
+      }
       return _db;
     })();
   }
