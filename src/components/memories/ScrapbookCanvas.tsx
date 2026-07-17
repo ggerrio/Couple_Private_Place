@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, motionValue } from "motion/react";
 import {
   RotateCw, ZoomIn, ZoomOut, Trash2, Plus, Smile, RefreshCw,
   FileText, Check, HelpCircle, Sparkles, HelpCircle as InfoIcon,
@@ -82,6 +82,35 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
   const [isSavingLayout, setIsSavingLayout] = useState(false);
   const [scrollLocked, setScrollLocked] = useState(true);
 
+  // Per-element Framer Motion drag offset values (x, y).
+  // These are bound to each <motion.div style={{ x, y }}> during drag.
+  // After dragEnd we reset them to 0 so the residual drag transform
+  // does NOT stack on top of the new `left/top` CSS values — which is
+  // what causes the dreaded element-jumps-elsewhere-on-release bug.
+  type MV = ReturnType<typeof motionValue>;
+  const motionVMapsRef = useRef<{ x: Map<string, MV>; y: Map<string, MV> }>({
+    x: new Map(),
+    y: new Map(),
+  });
+
+  const getMotionX = (id: string): MV => {
+    const map = motionVMapsRef.current.x;
+    if (!map.has(id)) map.set(id, motionValue(0));
+    return map.get(id)!;
+  };
+
+  const getMotionY = (id: string): MV => {
+    const map = motionVMapsRef.current.y;
+    if (!map.has(id)) map.set(id, motionValue(0));
+    return map.get(id)!;
+  };
+
+  // Helper for memory hygiene — also called from syncDeleteElement below.
+  const pruneMotionValues = (id: string) => {
+    motionVMapsRef.current.x.delete(id);
+    motionVMapsRef.current.y.delete(id);
+  };
+
   // Prevent background scroll when touch-dragging objects in the scrapbook
   useEffect(() => {
     const board = boardRef.current;
@@ -158,6 +187,9 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
       persistElements(updated);
       return updated;
     });
+    // Drop cached drag motion values for this element so the Maps don't leak
+    // across removes/adds of new elements with the same id.
+    pruneMotionValues(id);
     // Then try Firestore
     try {
       const db = await getDb();
@@ -394,6 +426,9 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
     if (confirm("Reset the whole scrapbook layout back to default scattered photos?")) {
       triggerHaptic("medium");
       setSelectedId(null);
+      // Drop ALL per-element Framer Motion drag values — reset wipes the board.
+      motionVMapsRef.current.x.clear();
+      motionVMapsRef.current.y.clear();
       try {
         const db = await getDb();
         const { collection, getDocs, doc, writeBatch } = await import("firebase/firestore");
@@ -411,23 +446,44 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
     }
   };
 
-  // Update specific values on drag end
-  const handleDragEnd = async (id: string, info: any) => {
+  // Update specific values on drag end.
+  //
+  // 🔧 ORDERING MATTERS: We must reset the per-element Framer Motion drag
+  // transforms to 0 SYNCHRONOUSLY, in the same tick as the setElements call,
+  // so React batches both updates into a single render. Awaiting the Firestore
+  // write here would let React re-render in between, during which the new
+  // `left/top` is applied WITHOUT the reset, meaning the residual drag
+  // `translate3d(dragDelta.x, dragDelta.y, 0)` composes ON TOP of the new
+  // position and the element visibly flashes at the wrong spot. Hence we
+  // fire-and-forget the sync (its synchronous setElements still queues the
+  // state update) and immediately reset the motion values.
+  const handleDragEnd = (id: string, info: any) => {
     if (!boardRef.current) return;
     const boardBounds = boardRef.current.getBoundingClientRect();
     const el = elements.find((e) => e.id === id);
     if (!el) return;
 
-    // Use info.offset (delta from drag start) instead of info.point (absolute position)
-    // This ensures the element stays exactly where the user dropped it
+    // Use info.offset (delta from drag start) which preserves the grab point
+    // regardless of scale/rotation (no need to compensate for bounding box
+    // distortion that getBoundingClientRect() would otherwise introduce).
     const deltaPercentX = (info.offset.x / boardBounds.width) * 100;
     const deltaPercentY = (info.offset.y / boardBounds.height) * 100;
 
     const newX = Math.max(2, Math.min(95, el.x + deltaPercentX));
     const newY = Math.max(2, Math.min(95, el.y + deltaPercentY));
 
-    // Sync to Firestore — syncUpdateElement handles local state update
-    await syncUpdateElement(id, { x: newX, y: newY });
+    // 1. Reset drag transforms FIRST — must happen synchronously and BEFORE
+    //    React paints, otherwise the old translate stacks on the new left/top.
+    getMotionX(id).set(0);
+    getMotionY(id).set(0);
+
+    // 2. Sync state. setElements inside this call is synchronous and will be
+    //    batched together with the motion-value resets in React 18, so the
+    //    user observes a single render at the correct final position. The
+    //    Firestore write is fire-and-forget; we attach a no-op .catch so any
+    //    future change that rejects this promise won't trigger an unhandled
+    //    rejection warning. The internal try/catch already swallows + logs.
+    syncUpdateElement(id, { x: newX, y: newY }).catch(() => {});
   };
 
   // Modify rotation directly via the slider
@@ -609,7 +665,7 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
 
   return (
     <div className="relative space-y-4 text-left">
-      {/* Creative Stationery Chest — now at the top, full width matching the canvas */}
+      {/* Creative Stationery Chest — sits above the interactive canvas (rendered first by design) */}
       <CreativeDrawer
         onAddStickyNote={addStickyNote}
         onAddWashiTape={(washiType) => handleAddCreativeItem({ type: "washi", props: { washiType } })}
@@ -732,13 +788,16 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
 
           const isSelected = selectedId === el.id;
 
-          // Dynamic key includes position so Framer Motion fully resets its internal transform on re-render
-          // This prevents the drag transform from clashing with the new CSS left/top position
-          const dragKey = `${el.id}-${Math.round(el.x)}-${Math.round(el.y)}`;
+          // Per-element Framer Motion drag offset values.
+          // Bound to style.x / style.y so the drag motion is composable
+          // alongside the CSS transforms (scale/rotate). After dragEnd
+          // we explicitly reset them to 0 in handleDragEnd().
+          const mvX = getMotionX(el.id);
+          const mvY = getMotionY(el.id);
 
           return (
             <motion.div
-              key={dragKey}
+              key={el.id}
               drag
               dragMomentum={false}
               dragConstraints={boardRef}
@@ -755,6 +814,8 @@ export default function ScrapbookCanvas({ onSelectMemory }: ScrapbookCanvasProps
                 rotate: `${el.rotate}deg`,
                 zIndex: el.zIndex || 10,
                 position: "absolute",
+                x: mvX,
+                y: mvY,
               }}
               className={`cursor-grab active:cursor-grabbing select-none transition-shadow ${
                 isSelected ? "z-40" : ""

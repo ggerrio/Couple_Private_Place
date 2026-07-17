@@ -136,7 +136,7 @@ export default function ForecastNotification({
         animate={{ opacity: 1, y: 0, x: 0, scale: 1, rotate: 0 }}
         exit={{ opacity: 0, y: 100, scale: 0.9, transition: { duration: 0.3 } }}
         transition={{ type: "spring", stiffness: 180, damping: 18 }}
-        className="fixed z-50 overflow-visible max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:w-full sm:bottom-6 sm:right-6 sm:w-full sm:max-w-[360px]"
+        className="fixed z-50 overflow-visible max-h-[80vh] max-sm:overflow-y-auto max-sm:bottom-[max(15rem,calc(env(safe-area-inset-bottom)+15rem))] max-sm:left-0 max-sm:right-0 max-sm:w-full sm:bottom-6 sm:right-6 sm:w-full sm:max-w-[360px]"
       >
         {/* Washi Tape Accent */}
         <div className="absolute -top-3.5 right-12 z-20 rotate-[3deg]">

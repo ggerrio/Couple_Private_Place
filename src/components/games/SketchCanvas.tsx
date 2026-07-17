@@ -9,6 +9,17 @@ import { getDb } from "../../firebaseClient";
 import { toast } from "sonner";
 import { WashiTapeDivider } from "../scrapbook";
 import { safeUpdateDoc, customArrayUnion, uploadToCloudinary } from "../../utils/gameUtils";
+import {
+  record as recordLatency,
+  getTabId,
+  tabWriteTs,
+  isLatencyOverlayEnabled,
+  type ListenerId,
+} from "../../utils/latencyTracker";
+
+// Two logical listeners instrumented in this component
+const SKETCH_ROOM_LISTENER: ListenerId = "studio:sketch_room";
+const SKETCH_CURSORS_LISTENER: ListenerId = "studio:sketch_cursors";
 
 // ─── Types & Constants ────────────────────────────────────────────────────────
 
@@ -19,6 +30,22 @@ interface StrokePoint {
   size: number;
   type: "start" | "draw" | "end";
 }
+
+interface PartnerCursor {
+  x: number;
+  y: number;
+  ts: number;
+}
+
+// 🖱️ Cursor sync constants
+// Adaptive throttle: 50ms (= 20fps) for the first strokes, then 100ms (= 10fps)
+// once sustained drawing passes 5s — halves Network writes without losing
+// partner-cursor responsiveness on the initial / short strokes.
+const CURSOR_WRITE_THROTTLE_MS_FAST = 50;
+const CURSOR_WRITE_THROTTLE_MS_SLOW = 100;
+const CURSOR_SUSTAINED_THRESHOLD_MS = 5000;
+// Anything older than this is treated as "partner stopped drawing"
+const CURSOR_STALE_MS = 3000;
 
 const COLORS = [
   "#000000", "#ef4444", "#f97316", "#eab308",
@@ -56,6 +83,7 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
   const [savedSketches, setSavedSketches] = useState<
     { id: string; url: string; createdAt: string; createdBy: string }[]
   >([]);
+  const [partnerCursors, setPartnerCursors] = useState<Record<string, PartnerCursor>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
@@ -88,6 +116,28 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
   const isInitialLoadRef = useRef(true);
   const lastSessionIdRef = useRef<string | null>(null);
   const lastStrokesRef = useRef<any[]>([]);
+  const lastCursorWriteRef = useRef(0);
+  const lastPartnerCursorTsRef = useRef(0);
+  // Tracks the start of a continuous-drawing session (pointerdown → pointerup).
+  // null when the user is NOT mid-stroke; used to switch the cursor-write
+  // throttle from 50ms → 100ms once we cross CURSOR_SUSTAINED_THRESHOLD_MS.
+  const continuousDrawStartRef = useRef<number | null>(null);
+
+  // ♻️ Stale-cursor sweeper — partner's dot fades away when they stop drawing
+  useEffect(() => {
+    const id = setInterval(() => {
+      setPartnerCursors((prev) => {
+        const cutoff = Date.now() - CURSOR_STALE_MS;
+        const next: Record<string, PartnerCursor> = {};
+        let changed = false;
+        Object.entries(prev).forEach(([uid, c]) => {
+          if (c.ts >= cutoff) next[uid] = c; else changed = true;
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
 
   // Toggle navbar on preview
   useEffect(() => {
@@ -129,11 +179,27 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
             setDoc(doc(db, "rooms", "sketch_room"), {
               sessionId: "init",
               strokes: [],
+              ...tabWriteTs(SKETCH_ROOM_LISTENER),
             }).catch(console.error);
             return;
           }
 
           const data = d.data();
+          // ⏱️ Latency: record sample on every sketch_room echo when our own
+          // listenerId stamp is present and our tab echoed back the write.
+          if (import.meta.env.DEV && isLatencyOverlayEnabled()) {
+            const writeTs = typeof data._clientWriteTs === "number" ? data._clientWriteTs : null;
+            const lsId = data._clientListenerId;
+            const myId = data._clientTabId;
+            if (writeTs != null && lsId === SKETCH_ROOM_LISTENER) {
+              recordLatency(SKETCH_ROOM_LISTENER, {
+                ts: Date.now(),
+                deltaMs: myId === getTabId() ? Date.now() - writeTs : null,
+                partnerWrite: myId !== getTabId(),
+                stale: false,
+              });
+            }
+          }
           const currentSessionId = data.sessionId || "init";
           const remoteStrokes = data.strokes || [];
 
@@ -201,7 +267,101 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
     };
   }, [currentUser]);
 
+  // 🖱️ Realtime partner-cursor sync via cursors subcollection
+  // Each user owns their own doc at rooms/sketch_room/cursors/{userId} —
+  // last-write-wins on that doc (only one writer per user), race-free.
+  useEffect(() => {
+    let unsub: (() => void) | null = null;
+    (async () => {
+      const db = await getDb();
+      if ((db as any).isFallback) return; // no Firestore sync in fallback mode
+      const { collection, onSnapshot } = await import("firebase/firestore");
+      unsub = onSnapshot(
+        collection(db, "rooms", "sketch_room", "cursors"),
+        (snap: any) => {
+          const next: Record<string, PartnerCursor> = {};
+          const now = Date.now();
+          snap.forEach((d: any) => {
+            if (d.id === currentUser) return; // skip self
+            const c = d.data();
+            if (typeof c?.x === "number" && typeof c?.y === "number") {
+              next[d.id] = { x: c.x, y: c.y, ts: c.ts || now };
+            }
+            // ⏱️ Latency: cursor writes are always partner-originated for THIS tab
+            // (we wrote our own doc — it never echoes back). Track the partner's
+            // written write→local-display round trip as a server→display sample.
+            if (import.meta.env.DEV && isLatencyOverlayEnabled()) {
+              const writeTs = typeof c?._clientWriteTs === "number" ? c._clientWriteTs : null;
+              if (writeTs != null && c?._clientListenerId === SKETCH_CURSORS_LISTENER) {
+                recordLatency(SKETCH_CURSORS_LISTENER, {
+                  ts: now,
+                  deltaMs: null, // partner originated, no write→display on this side
+                  partnerWrite: true,
+                  stale: false,
+                });
+              }
+            }
+          });
+          lastPartnerCursorTsRef.current = now;
+          setPartnerCursors(next);
+        },
+        (err) => { console.error("[sketch cursor listener]", err); }
+      );
+    })();
+    return () => { if (unsub) unsub(); };
+  }, [currentUser]);
+
+  // 🧹 Cleanup own cursor doc on unmount + tab switch
+  useEffect(() => {
+    const cleanup = async () => {
+      try {
+        const db = await getDb();
+        if ((db as any).isFallback) return;
+        const { doc, deleteDoc } = await import("firebase/firestore");
+        await deleteDoc(doc(db, "rooms", "sketch_room", "cursors", currentUser));
+      } catch {}
+    };
+    const onVisibility = () => { if (document.visibilityState === "hidden") void cleanup(); };
+    window.addEventListener("pagehide", cleanup);
+    window.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pagehide", cleanup);
+      window.removeEventListener("visibilitychange", onVisibility);
+      void cleanup();
+    };
+  }, [currentUser]);
+
+  // Helper: throttled cursor write (adaptive)
+  // While user is mid-stroke, switches from 50ms → 100ms after 5s of
+  // continuous drawing. Sustained count resets on pointerup.
+  const writeCursorThrottled = useCallback(async (x: number, y: number) => {
+    const now = Date.now();
+    const sustained =
+      continuousDrawStartRef.current != null &&
+      now - (continuousDrawStartRef.current as number) >= CURSOR_SUSTAINED_THRESHOLD_MS;
+    const throttleMs = sustained
+      ? CURSOR_WRITE_THROTTLE_MS_SLOW
+      : CURSOR_WRITE_THROTTLE_MS_FAST;
+    if (now - lastCursorWriteRef.current < throttleMs) return;
+    lastCursorWriteRef.current = now;
+    try {
+      const db = await getDb();
+      if ((db as any).isFallback) return;
+      const { doc, setDoc } = await import("firebase/firestore");
+      // ⏱️ Stamp the cursor doc so the partner's listener identifies it as a
+      // cursor write (not a stroke). x/y/ts unchanged.
+      await setDoc(
+        doc(db, "rooms", "sketch_room", "cursors", currentUser),
+        { x: Math.round(x), y: Math.round(y), ts: now, ...tabWriteTs(SKETCH_CURSORS_LISTENER) },
+        { merge: true }
+      );
+    } catch (err) {
+      console.error("[sketch cursor write]", err);
+    }
+  }, [currentUser]);
+
   // Saved drawings gallery
+
   useEffect(() => {
     let unsub: (() => void) | null = null;
     let cancelled = false;
@@ -358,6 +518,9 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
       const canvas = canvasRef.current;
       if (!canvas) return;
       isDrawingRef.current = true;
+      // Start the "continuous drawing" clock so writeCursorThrottled can
+      // shift to 100ms after 5s of sustained drawing.
+      continuousDrawStartRef.current = Date.now();
       const { x, y } = getPos(e, canvas);
       lastXRef.current = x;
       lastYRef.current = y;
@@ -409,13 +572,19 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
         y: Math.round(y),
         t: "d",
       } as any);
+
+      // 🖱️ Push cursor position to partner via subcollection (throttled)
+      void writeCursorThrottled(x, y);
     },
-    [color, brushSize, isEraser, isLimitReached]
+    [color, brushSize, isEraser, isLimitReached, writeCursorThrottled]
   );
 
   const onPointerUp = useCallback(async () => {
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
+    // End the continuous-drawing session — next pointerdown starts fresh
+    // and cursor writes return to 50ms throttle.
+    continuousDrawStartRef.current = null;
     const activeColor = isEraser ? "#ffffff" : color;
     strokeBufferRef.current.push({ x: 0, y: 0, t: "e" } as any);
 
@@ -424,6 +593,8 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
     try {
       const db = await getDb();
       const { doc } = await import("firebase/firestore");
+      // ⏱️ Sibling fields ride along with the strokes arrayUnion so the listener
+      // can identify this write as a sketch_room change.
       await safeUpdateDoc(doc(db, "rooms", "sketch_room"), {
         strokes: customArrayUnion({
           userId: currentUser,
@@ -432,6 +603,7 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
           points,
           ts: Date.now(),
         }),
+        ...tabWriteTs(SKETCH_ROOM_LISTENER),
       });
     } catch (e) {
       console.error("[sketch save stroke]", e);
@@ -446,6 +618,7 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
       await setDoc(doc(db, "rooms", "sketch_room"), {
         sessionId: newSessionId,
         strokes: [],
+        ...tabWriteTs(SKETCH_ROOM_LISTENER),
       });
       setUndoneStrokes([]);
       setStrokesDocs([]);
@@ -466,7 +639,7 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
     try {
       const db = await getDb();
       const { doc, setDoc } = await import("firebase/firestore");
-      await setDoc(doc(db, "rooms", "sketch_room"), { strokes: nextStrokes }, { merge: true });
+      await setDoc(doc(db, "rooms", "sketch_room"), { strokes: nextStrokes, ...tabWriteTs(SKETCH_ROOM_LISTENER) }, { merge: true });
     } catch (e) {
       console.error("[undo error]", e);
     }
@@ -484,6 +657,7 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
       const { doc } = await import("firebase/firestore");
       await safeUpdateDoc(doc(db, "rooms", "sketch_room"), {
         strokes: customArrayUnion(toRestore),
+        ...tabWriteTs(SKETCH_ROOM_LISTENER),
       });
     } catch (e) {
       console.error("[redo error]", e);
@@ -789,7 +963,7 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
         </div>
       </div>
 
-      {/* Canvas */}
+      {/* Canvas with partner-cursor overlay */}
       <div
         className="relative rounded-2xl overflow-hidden border border-[var(--wood-oak)]/15 shadow-inner"
         style={{ backgroundColor: "var(--fabric-cream)" }}
@@ -799,7 +973,7 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
           id="sketch-canvas"
           width={800}
           height={500}
-          className="w-full h-auto touch-none cursor-crosshair"
+          className="w-full h-auto touch-none cursor-crosshair select-none"
           onMouseDown={onPointerDown}
           onMouseMove={onPointerMove}
           onMouseUp={onPointerUp}
@@ -807,7 +981,43 @@ function SketchCanvas({ onSave }: { onSave?: () => void }) {
           onTouchStart={onPointerDown}
           onTouchMove={onPointerMove}
           onTouchEnd={onPointerUp}
+          onTouchCancel={onPointerUp}
         />
+
+        {/* 🖱️ Partner cursor dots — positioned by canvas-internal coords via %, fade after 2s of inactivity */}
+        <AnimatePresence>
+          {Object.entries(partnerCursors).map(([uid, c]) => {
+            const partnerName =
+              uid === "user_a" ? userA?.name?.split(" ")[0] : userB?.name?.split(" ")[0];
+            const partnerColor = uid === "user_a" ? "#ec4899" : "#8b5cf6";
+            const ageMs = Date.now() - c.ts;
+            const opacity = ageMs > 2000 ? Math.max(0, 1 - (ageMs - 2000) / 1000) : 1;
+            return (
+              <motion.div
+                key={uid}
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.5 }}
+                transition={{ type: "spring", stiffness: 250, damping: 20, mass: 0.4 }}
+                className="absolute pointer-events-none -translate-x-1/2 -translate-y-1/2 z-10"
+                style={{ left: `${(c.x / 800) * 100}%`, top: `${(c.y / 500) * 100}%` }}
+              >
+                <div
+                  className="w-4 h-4 rounded-full border-2 border-white shadow-lg flex items-center justify-center"
+                  style={{ backgroundColor: partnerColor }}
+                >
+                  <div className="w-1.5 h-1.5 bg-white rounded-full" />
+                </div>
+                <div
+                  className="absolute left-1/2 -translate-x-1/2 mt-1.5 px-1.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider text-white whitespace-nowrap shadow-md"
+                  style={{ backgroundColor: partnerColor }}
+                >
+                  {partnerName || "Partner"}
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </div>
 
       {/* Preview Modal */}

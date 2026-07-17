@@ -1,7 +1,7 @@
 /**
  * defaults.ts — Shared default values for CoupleContext sub-hooks
  */
-import type { Profile, Memory, Journal, Letter, TimeCapsule, Mission, Song, ActivityLog, MoodHistoryEntry, CustomGreetings, GratitudeEntry } from "../types";
+import type { Profile, Memory, Journal, Letter, TimeCapsule, Song, ActivityLog, MoodHistoryEntry, CustomGreetings, GratitudeEntry } from "../types";
 
 export const DEFAULT_AVATAR_A =
   "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80";
@@ -51,14 +51,7 @@ export const initialTimeCapsules: TimeCapsule[] = [
   { id: "capsule-1", senderId: "user_a", openDate: "2027-01-01T00:00:00.000Z", message: "Our dreams for 2027! I hope we are still as happy.", isOpened: false, createdAt: "2026-06-25T12:00:00.000Z" },
 ];
 
-export const initialMissions: Mission[] = [
-  { id: "mis-1", text: "Take a Life4Cuts photo print together", completed: false, type: "daily" },
-  { id: "mis-2", text: "Send a sweet morning Live Letter", completed: false, type: "daily" },
-  { id: "mis-3", text: "Water the Virtual Garden plant", completed: false, type: "daily" },
-  { id: "mis-4", text: "Watch a synchronized YouTube stream", completed: false, type: "daily" },
-  { id: "mis-5", text: "Post a new baking or travel Journal entry", completed: false, type: "weekly" },
-  { id: "mis-6", text: "Win 3 rounds of Mini Games", completed: false, type: "weekly" },
-];
+
 
 export const initialSong: Song = {
   title: "Somethin' Stupid", artist: "Robbie Williams, Nicole Kidman",

@@ -18,7 +18,7 @@ import {
 import { getDb } from "../../firebaseClient";
 
 export function MusicPlayer() {
-  const { currentSong, syncSongToPartner, setSongPlayState }: any = useCouple();
+  const { currentSong, syncSongToPartner, setSongPlayState, updateSongProgress }: any = useCouple();
   const SHARED_PLAYLIST_ID = "PLdf4QJ5Wy29c";
 
   const [musicExpanded, setMusicExpanded] = useState(true);
@@ -60,6 +60,12 @@ export function MusicPlayer() {
     setLocalVolume(val);
     window.dispatchEvent(new CustomEvent("setMusicVolume", { detail: val }));
   };
+
+  // Handle scrub: update local progress + dispatch event for YT seek + Firestore sync
+  const handleSeek = useCallback((newProgressMs: number) => {
+    updateSongProgress(newProgressMs);
+    window.dispatchEvent(new CustomEvent("musicSeekTo", { detail: newProgressMs }));
+  }, [updateSongProgress]);
 
   // Load playlist
   useEffect(() => {
@@ -221,6 +227,7 @@ export function MusicPlayer() {
               onSkipBack={() => goToOffset(-1)}
               onSkipForward={() => goToOffset(1)}
               onVolumeChange={handleVolumeChange}
+              onSeek={handleSeek}
             />
 
             {currentSong.isPlaying && (

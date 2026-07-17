@@ -14,6 +14,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { format } from "date-fns";
 import { cn } from "../../lib/utils";
 
+// ─── Helpers for local-region-safe date formatting ─────────────────────
+// `toISOString()` converts to UTC, which can shift the date by ±1 day in
+// non-UTC timezones (e.g. GMT+7/Asia). Users in those zones would click
+// "19" and see "18" selected, or vice versa. `format()` from date-fns
+// formats the LOCAL calendar date, preserving what the user actually clicked.
+function toLocalDateString(value: Date | string | null | undefined): string {
+  if (!value) return "";
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (isNaN(d.getTime())) return "";
+  return format(d, "yyyy-MM-dd");
+}
+
 
 interface CalendarEvent {
   id: string;
@@ -44,7 +56,7 @@ export default function SharedCalendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [newDate, setNewDate] = useState(today.toISOString().split("T")[0]);
+  const [newDate, setNewDate] = useState(() => toLocalDateString(today));
   const [newDescription, setNewDescription] = useState("");
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
 
@@ -222,7 +234,7 @@ export default function SharedCalendar() {
                       <ShadcnCalendar
                         mode="single"
                         selected={new Date(newDate)}
-                        onSelect={(date) => date && setNewDate(date.toISOString().split("T")[0])}
+                        onSelect={(date) => date && setNewDate(toLocalDateString(date))}
                       />
                     </PopoverContent>
                   </Popover>

@@ -437,7 +437,10 @@ export default function VirtualPiano() {
         } else if (event.a === 0) {
           // Remote key up
           remotelyPressedRef.current.delete(event.n);
+          // 🔧 Suppress echo: prevent stopNote from re-sending the event back
+          suppressRemoteEchoRef.current = true;
           stopNote(event.n);
+          suppressRemoteEchoRef.current = false;
         }
       }
     };
@@ -695,6 +698,7 @@ export default function VirtualPiano() {
   const physicallyPressedRef = useRef<Set<string>>(new Set());
   const remotelyPressedRef = useRef<Set<string>>(new Set());
   const lastHarmonyToastRef = useRef<number>(0);
+  const suppressRemoteEchoRef = useRef(false);
 
   const triggerHarmonyGlow = (note: string) => {
     const now = Date.now();
@@ -938,15 +942,22 @@ export default function VirtualPiano() {
         // Process all notes in batch immediately (no 20ms queue!)
         for (const item of batch) {
           triggerLocalNotePlay(item.note, item.time);
+          // 🔧 FIX: Send note-down event to partner via RTDB
+          pushLocalEvent(item.note, 1);
         }
       });
     }
-  }, []);
+  }, [pushLocalEvent]);
 
   const stopNote = React.useCallback((note: string, time?: number) => {
     if (!engineStartedRef.current) return;
 
     physicallyPressedRef.current.delete(note);
+
+    // 🔧 FIX: Send note-up event to partner (skip if triggered by remote event to avoid echo loop)
+    if (!suppressRemoteEchoRef.current) {
+      pushLocalEvent(note, 0);
+    }
 
     if (recordingStartTimeRef.current !== null) {
       const timestamp = performance.now() - recordingStartTimeRef.current;

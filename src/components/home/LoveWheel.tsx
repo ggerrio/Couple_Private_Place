@@ -3,7 +3,7 @@
  * Interactive wooden-styled physical spinning wheel for couples to solve daily decisions.
  * Features customizable options, fluid spin physics, synthesizer sound tick alerts, and Firestore sync.
  */
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useCouple } from "../../context/CoupleContext";
 import { motion, AnimatePresence } from "motion/react";
 import { HelpCircle, Play, Settings2, Plus, Trash2, CheckCircle2, RotateCcw, X } from "lucide-react";
@@ -112,6 +112,30 @@ export function LoveWheel({ compact = false }: { compact?: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const currentRotationRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
+  const championedRef = useRef(false); // dedupe partner-spin toast
+
+  // ✅ Persist spin result to Firestore (fire-and-forget)
+  // Uses updateDoc + arrayUnion so concurrent spins from both partners
+  // safely merge into the history array without clobbering each other.
+  const syncSpinResult = useCallback(async (selectedOption: string, cat: string) => {
+    try {
+      const db = await getDb();
+      if ((db as any).isFallback) return;
+      const { doc, updateDoc, arrayUnion } = await import("firebase/firestore");
+      const spinEntry = {
+        result: selectedOption,
+        category: cat,
+        spunBy: currentUser,
+        spunAt: Date.now(),
+      };
+      await updateDoc(doc(db, "rooms", "love_wheel"), {
+        lastSpin: spinEntry,
+        history: arrayUnion(spinEntry),
+      });
+    } catch (err) {
+      console.error("[love_wheel spin sync]", err);
+    }
+  }, [currentUser]);
 
   // Sync / Load Options
   useEffect(() => {
@@ -143,7 +167,7 @@ export function LoveWheel({ compact = false }: { compact?: boolean }) {
           return;
         }
 
-        const { doc, onSnapshot, setDoc } = await import("firebase/firestore");
+        const { doc, onSnapshot, setDoc, updateDoc, arrayUnion } = await import("firebase/firestore");
         const docRef = doc(db, "rooms", "love_wheel");
 
         unsub = onSnapshot(docRef, (docSnap: any) => {
@@ -151,6 +175,15 @@ export function LoveWheel({ compact = false }: { compact?: boolean }) {
             const data = docSnap.data();
             if (data && data.options) {
               setOptions(data.options);
+            }
+            // Track lastSpin so partner sees live spin results
+            if (data && data.lastSpin && data.lastSpin.spunBy !== currentUser) {
+              const since = Date.now() - (data.lastSpin.spunAt || 0);
+              if (since < 30000 && !championedRef.current) {
+                championedRef.current = true;
+                toast(`${data.lastSpin.spunBy === "user_a" ? (userA?.name?.split(" ")[0] || "Partner A") : (userB?.name?.split(" ")[0] || "Partner B")} spun: ${data.lastSpin.result} 🎉`, { duration: 4500 });
+                setTimeout(() => { championedRef.current = false; }, 31000);
+              }
             }
           } else {
             const initial: Record<string, string[]> = {};
@@ -192,8 +225,11 @@ export function LoveWheel({ compact = false }: { compact?: boolean }) {
       }));
     } else {
       try {
-        const { doc, setDoc } = await import("firebase/firestore");
-        await setDoc(doc(db, "rooms", "love_wheel"), { options: updated });
+        // ✅ Use updateDoc (merge) so concurrent edits from both partners
+        // don't clobber each other. updateDoc only touches the `options`
+        // field; any other future fields (history, lastSpin) stay intact.
+        const { doc, updateDoc } = await import("firebase/firestore");
+        await updateDoc(doc(db, "rooms", "love_wheel"), { options: updated });
       } catch (err) {
         console.error("Failed to sync wheel options to Firestore", err);
         localStorage.setItem("love_wheel_options", JSON.stringify(updated));
@@ -432,6 +468,9 @@ export function LoveWheel({ compact = false }: { compact?: boolean }) {
         triggerHaptic("heavy");
         playWinnerSound();
         toast.success(`🎉 Result: ${selectedOption}`);
+
+        // Fire-and-forget persist to Firestore so partner sees realtime
+        syncSpinResult(selectedOption, activeCat);
       }
     };
 
@@ -504,7 +543,8 @@ export function LoveWheel({ compact = false }: { compact?: boolean }) {
                 ref={canvasRef}
                 width={compact ? 150 : 210}
                 height={compact ? 150 : 210}
-                className={compact ? "w-[150px] h-[150px]" : "w-[210px] h-[210px]"}
+                className="max-w-full h-auto aspect-square"
+                style={{ maxWidth: compact ? 150 : 210, width: '100%' }}
               />
             </motion.div>
 

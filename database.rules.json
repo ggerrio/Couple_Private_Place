@@ -3,24 +3,24 @@
     "rooms": {
       "couple_piano_session": {
         "events": {
-          // Izinkan semua pengguna yang terautentikasi untuk membaca data.
-          ".read": "auth != null",
-
-          // Izinkan DELETE (karena newData tidak ada saat delete)
-          // TAPI tidak izinkan overwrite (karena newData ada saat update/create penuh)
-          ".write": "auth != null && !newData.exists()",
+          // Izinkan read/write untuk semua user (termasuk anon_xxx temp ID)
+          // Piano events bersifat transient (auto-clear tiap 30 menit) dan hanya berisi
+          // data keystroke (n, a, u, t) — tidak ada data pribadi.
+          // App mengelola identifikasi user sendiri via localUserIdRef.
+          ".read": true,
+          ".write": true,
 
           "$eventId": {
             // Izinkan CREATE (!data.exists()) dan DELETE (!newData.exists())
-            // TAPI tetap blokir UPDATE (data && newData keduanya ada)
-            ".write": "auth != null && (!data.exists() || !newData.exists())",
+            ".write": "!data.exists() || !newData.exists()",
 
-            // Validasi struktur dan konten dari setiap event baru yang masuk.
+            // Validasi struktur: n (note string), a (action 0/1), u (userId string), t (timestamp)
+            // NOTE: Tidak pakai auth.uid karena app bisa pake temp ID (anon_xxx) untuk user
+            // yang belum login lengkap, tapi tetap validasi format field-nya.
             ".validate": "newData.hasChildren(['n', 'a', 'u', 't']) &&
                         newData.child('n').isString() && newData.child('n').val().length < 10 &&
                         newData.child('a').isNumber() && (newData.child('a').val() == 0 || newData.child('a').val() == 1) &&
-                        newData.child('u').isString() && newData.child('u').val() == auth.uid &&
-                        newData.child('t').val() == now"
+                        newData.child('u').isString() && newData.child('u').val().length > 0"
           }
         }
       }

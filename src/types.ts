@@ -46,6 +46,13 @@ export interface Memory {
   stickersList?: { id: number; sticker: string; x: number; y: number }[];
   showOnTimeline?: boolean;
   polaroidNote?: string;
+  // Photobooth customization — captured at session end so the saved Memory
+  // carries the same design tokens the user picked in the editing step.
+  stripPreset?: string;
+  customFrameColor?: string;
+  customTextColor?: string;
+  customAccentColor?: string;
+  caption?: string;
 }
 
 export interface Journal {
@@ -83,12 +90,7 @@ export interface TimeCapsule {
   createdAt: string;
 }
 
-export interface Mission {
-  id: string;
-  text: string;
-  completed: boolean;
-  type: "daily" | "weekly";
-}
+
 
 export interface Song {
   title: string;
@@ -174,5 +176,23 @@ export interface PhotoboothRoom {
   photosA: string[];
   photosB: string[];
   createdAt: string;
+}
+
+/**
+ * Spin session for the Date Night Roulette feature.
+ *
+ * Lives at rooms/date_night_roulette as a singleton — only the *current*
+ * (latest) spin is meaningful. When expiresAt passes, the UI treats the
+ * slot as empty and shows the idle "Spin tonight!" state.
+ *
+ * `spinId` is the seed used to derive the lock-step result index on BOTH
+ * clients via FNV-1a, so partner and local device land on the same item.
+ */
+export interface DateNightRoulette {
+  spinId: string;
+  spunBy: "user_a" | "user_b";
+  selectedCategory: "movie" | "topic" | "chapter" | "recipe";
+  startedAt: number;
+  expiresAt: number;
 }
 

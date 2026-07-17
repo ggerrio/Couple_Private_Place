@@ -8,10 +8,10 @@ This document establishes the product definition, design language, system archit
 ### 1. Product Requirements Document (PRD)
 
 #### 1.1 Core Value Proposition
-A private, non-social-media digital sanctuary for a single couple. It combines the utility of collaborative planning with emotional triggers (daily prompts, letters, shared memories, gamified gardening, and real-time interactive games).
+A private, non-social-media digital sanctuary for a single couple. It combines the utility of collaborative planning with emotional triggers (daily prompts, letters, shared memories, synced date-night roulette picks, and real-time interactive games).
 
 #### 1.2 Persona Profiles & User Dynamics
-*   **User A (Han-byul 🌸)**: Enthusiastic about design, logs daily thoughts, loves virtual gardening, updates statuses.
+*   **User A (Han-byul 🌸)**: Enthusiastic about design, logs daily thoughts, loves spinning the Date Night Roulette together, updates statuses.
 *   **User B (Min-seok ☕)**: Minimalist, tech-forward, enjoys playing quick games, joins movie watch-along rooms.
 
 #### 1.3 Key Features List
@@ -28,13 +28,14 @@ A private, non-social-media digital sanctuary for a single couple. It combines t
 *   **Section 4: Play**:
     *   *Mini Games*: Multiplayer games (Tic Tac Toe, Connect Four, Would You Rather, Truth or Dare, Couple Quiz, Spin the Wheel) with historical scoreboards, achievements, and fluid mechanics.
     *   *Collaborative Drawing*: Real-time shared canvas using HTML5 Canvas. Brush size, color picker, shapes, text, undo/redo, and live simulated cursors of the partner.
-*   **Section 5: Adventure (Gamification)**:
-    *   *Virtual Garden*: Shared growth garden. Plant grows healthily based on relationship XP gained by sending letters, writing journal entries, taking photobooth prints, and completing daily missions.
-    *   *Couple Missions*: Daily & weekly challenges (e.g., "Send a Polaroid", "Write a 50-word letter") to earn XP and unlock decorative items.
-    *   *Couple Level*: Experience progression unlocking premium themes, stickers, and photobooth borders.
-    *   *Time Capsule*: Messages locked until a future date with custom reveal animations, music, and confetti.
-    *   *Surprise Mode*: Trigger animated splash displays for Anniversaries, Birthdays, and special milestones.
-    *   *Couple Statistics*: Activity breakdown charts (mood history, letters sent, games played) using Recharts.
+*   **Section 5: Date Night**:
+    *   *Date Night Roulette*: Shared random-pick for LDR couples. Whichever partner taps "Spin Tonight!", both clients see the reels spin and land on the **same item** every time. Result auto-expires after 24 hours, leaving the slot free for the next night.
+    *   *Four Categories*: 🎬 **Movie Night** (10 picks — Romance, Comedy, Action, Sci-Fi, Fantasy, Documentary, Thriller, Animated, K-Drama, Anime), 💬 **Deep Talk** (10 conversation prompts — childhood dreams, future plans, love languages, fears, favorite memory, bucket list, fresh take, proudest moment, time-capsule letter, silly would-you-rather), 📖 **Bedtime Chapter** (10 cozy retro-chapter prompts about moments you shared), 👨‍🍳 **Cook Together** (10 same-recipe-different-kitchen ideas — pasta from scratch, pizza, Korean BBQ, pancake art, ramen, sushi, smoothie bowls, tacos, brownies, hot pot).
+    *   *Lock-step Sync Engine*: Both clients compute the same FNV-1a hash of a single `spinId` to land on the same bucket index — no need for a third-party RNG. Frame-by-frame item cycling is deterministically derived from `startedAt` so the visual reel animates in lock-step across devices even with latency.
+    *   *Pick Durability*: When the spin completes, the result persists in `rooms/date_night_roulette` for 24h so either partner can return and remember tonight's pick without re-spinning.
+    *   *Re-spin UX*: Either partner can re-spin at any time; the prior result is overwritten by a new deterministic slot-machine run.
+    *   *Empty-state Pedagogy*: When idle, the widget explains *why* both screens will land on the same item — a soft on-ramp for users unfamiliar with the lock-step concept.
+    *   *Visual Identity*: Coral-toned WashiTapeDivider frame, rose-500 section header heart, Dice5 navbar icon, and a 4-emoji confetti burst (🎉 ✨ 💖 🌟) on reveal.
 *   **Section 6: Settings & Theme Customization**:
     *   Instant beautiful theme switching with full color/gradient presets (Minimal White, Korean Cafe, Sakura, Studio Ghibli, Pixel Retro, Night, Coffee, Pastel, Valentine, Christmas).
     *   Simulated multi-profile switching panel (switch instantly between Han-byul and Min-seok to interact with yourself in real-time!).
@@ -56,14 +57,14 @@ The application uses an **Apple-inspired Floating Dock** layout combined with a 
 |  | - Days Counter     |  | - Life4Cuts Photobooth|  | - Live Status    |  | - Games   |  |
 |  | - Countdown List   |  | - Couple Journal     |  | - Live Letters   |  | - Canvas  |  |
 |  | - Quote & Mood     |  | - Memory Timeline    |  | - Watch Together |  +-----------+  |
-|  | - Spotify Player   |  +----------------------+  | - Listen Together|  |5.ADVNTURE |  |
-|  +--------------------+                            +------------------+  | - Garden  |  |
-|                                                                          | - Missions|  |
-|                                                                          | - Capsul  |  |
+|  | - Spotify Player   |  +----------------------+  | - Listen Together|  |5.DATENIGHT| |
+|  +--------------------+                            +------------------+  | - Roulette| |
+|                                                                          | - Spin sync| |
+|                                                                          | - 24h lock | |
 |                                                                          +-----------+  |
 +-----------------------------------------------------------------------------------------+
 |                              [   FLOATING DOCK NAVIGATION   ]                           |
-|                     [Home] [Memories] [Together] [Play] [Adventure] [Settings]          |
+|                     [Home] [Memories] [Together] [Play] [Date Night] [Settings]          |
 +-----------------------------------------------------------------------------------------+
 ```
 
@@ -80,7 +81,7 @@ The application uses an **Apple-inspired Floating Dock** layout combined with a 
    |
    +--> 6. Open "Play" --> Play Tic Tac Toe or Connect Four --> Switch profile turn-by-turn to compete against partner!
    |
-   +--> 7. Open "Adventure" --> Complete Missions --> Gain XP --> Level up Garden Plant from seedling to blossom
+   +--> 7. Open "Date Night" --> Both settle on a vibe (or leave default) --> One partner taps "Spin Tonight!" --> Both screens reel in lock-step --> Land on the same Movie / Deep Talk / Bedtime Chapter / Cook Together pick for tonight (locked for 24h) 🌙
 ```
 
 ---
@@ -131,12 +132,15 @@ To guarantee high responsiveness and full capability without complex setup, we d
 *   `reactions`: `string[]`
 *   `createdAt`: `string`
 
-#### 4.5 `garden`
-*   `xp`: `number`
-*   `level`: `number`
-*   `plantType`: `"tulip"` | `"bonsai"` | `"sakura"` | `"sunflower"`
-*   `waterLevel`: `number` (0-100)
-*   `lastInteracted`: `string`
+#### 4.5 `rooms/date_night_roulette` (singleton)
+Lives at `rooms/date_night_roulette` — only the latest spin is meaningful. When `expiresAt` passes, the UI treats the slot as empty and shows the idle "Spin tonight!" state.
+*   `spinId`: `string` (UUID; seed for the FNV-1a lock-step result index)
+*   `spunBy`: `"user_a"` | `"user_b"`
+*   `selectedCategory`: `"movie"` | `"topic"` | `"chapter"` | `"recipe"`
+*   `startedAt`: `number` (epoch ms)
+*   `expiresAt`: `number` (epoch ms, 24h after `startedAt`)
+
+*Note:* the previous `garden` collection (`xp`, `level`, `plantType`, `waterLevel`, `lastInteracted`) was retired alongside the XP/missions system in favor of the Date Night Roulette feature. The `gardenPlant` + `waterLevel` state in `useEngagementState.ts` are the only remaining plant-related fields, used purely for visual flair on the Home Dashboard (no XP/level persistence).
 
 #### 4.6 `timeCapsules`
 *   `id`: `string`
@@ -154,7 +158,7 @@ To guarantee high responsiveness and full capability without complex setup, we d
 *   `components/MemoriesView.tsx` (Timeline list, Korean Photobooth engine, Journal timeline builder)
 *   `components/TogetherView.tsx` (Live letter templates, real-time activity dashboard, synchronized video, music sync)
 *   `components/PlayView.tsx` (Mini-games arena, infinite collaborative doodle canvas)
-*   `components/AdventureView.tsx` (Virtual garden animations, mission tracker, level calculations, time capsule, statistics)
+*   `components/AdventureView.tsx` (DateNightRoulette widget — synced random pick, 4 category chips, decaying slot-machine reel, confetti burst reveal, 24h expired-state recovery)
 *   `components/SettingsView.tsx` (Pre-configured gorgeous theme sliders, database reset, initial profile name inputs)
 
 ---
@@ -165,5 +169,7 @@ To guarantee high responsiveness and full capability without complex setup, we d
 3.  **Phase 3**: Creating the Life4Cuts Photobooth, Shared Journal, and Interactive Memories Timeline.
 4.  **Phase 4**: Coding the Live Letters with letter opened animations, Status Sync, Watch Together & Listen Together simulators.
 5.  **Phase 5**: Building Mini Games (Tic Tac Toe, Connect Four, Quiz, Spin the Wheel) and the infinite collaborative Drawing Canvas.
-6.  **Phase 6**: Designing the Virtual Garden with plant growing animations, daily missions, time capsules, and stats dashboard charts.
+6.  **Phase 6**: Designing the DateNightRoulette widget — FNV-1a lock-step sync, 4 category chips (Movie · Deep Talk · Bedtime Chapter · Cook Together), decaying slot-machine reel animation, confetti burst reveal, 24h pick durability, and idle-state pedagogy.
+    * **Retires:** Virtual Garden (XP/level/plantType system), daily missions collection, stats dashboard charts, DreamBoard bucket-list widget (`src/components/adventure/DreamBoard.tsx`), Interactive Terrarium visualization (`src/components/adventure/InteractiveTerrarium.tsx`).
+    * **Survives:** Time Capsules (rendered inside `LettersPanel` in `TogetherView`; still its own collection `rooms/timeCapsules` with the `TimeCapsule` interface in `src/types.ts`).
 7.  **Phase 7**: Polishing the premium themes and conducting final compilation/lint verification.

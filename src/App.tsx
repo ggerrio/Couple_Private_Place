@@ -25,7 +25,7 @@ import OnboardingView from "./components/OnboardingView";
 import { ErrorBoundary } from "./components/common/ErrorBoundary";
 import { OptimizedImage } from "./components/common/OptimizedImage";
 import { motion, AnimatePresence } from "motion/react";
-import { Home, Camera, Mail, Gamepad2, Sprout, Settings, Sparkles, X, Sun, Moon, Heart, Smile } from "lucide-react";
+import { Home, Camera, Mail, Gamepad2, Settings, Sparkles, X, Sun, Moon, Heart, Smile, Dice5 } from "lucide-react";
 import { NightAmbient, ConfettiEffect, useConfetti, WeatherBadge, WeatherNotificationController } from "./components/emotional";
 import { ScrapbookStickers } from "./components/scrapbook";
 
@@ -36,6 +36,8 @@ import { formatLastSeen } from "./lib/utils";
 import { getDb } from "./firebaseClient";
 import Lenis from "lenis";
 import "lenis/dist/lenis.css";
+import { LatencyOverlay } from "./components/dev/LatencyOverlay";
+import { isLatencyOverlayEnabled, record as recordLatency } from "./utils/latencyTracker";
 
 type TabId = "home" | "memories" | "together" | "play" | "adventure" | "settings";
 
@@ -46,7 +48,7 @@ const NAV_ITEMS: { id: TabId; label: string; icon: React.ElementType }[] = [
   { id: "memories", label: "Our Archive", icon: Camera },
   { id: "together", label: "The Heartbeat", icon: Mail },
   { id: "play", label: "Game Attic", icon: Gamepad2 },
-  { id: "adventure", label: "Secret Garden", icon: Sprout },
+  { id: "adventure", label: "Date Night", icon: Dice5 },
   { id: "settings", label: "Workshop", icon: Settings },
 ];// Room identity metadata for arrival labels, spatial hierarchy, and hover tooltips
 const ROOM_METADATA: Record<TabId, { name: string; subtitle: string }> = {
@@ -54,7 +56,7 @@ const ROOM_METADATA: Record<TabId, { name: string; subtitle: string }> = {
   memories: { name: "Our Archive", subtitle: "Photographs and keepsakes" },
   together: { name: "The Heartbeat", subtitle: "Words from the heart" },
   play: { name: "Game Attic", subtitle: "Play and laughter" },
-  adventure: { name: "Secret Garden", subtitle: "Dreams and discoveries" },
+  adventure: { name: "Date Night", subtitle: "Tonight's pick, synced across screens" },
   settings: { name: "Workshop", subtitle: "Tinker and personalize" },
 };
 
@@ -339,6 +341,39 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
     return () => { if (unsub) unsub(); };
   }, [session, setSongPlayState]);
 
+  // ── Latency sidecar observer for `settings/shared_song` ────────────────
+  // Reads the doc independently of CoupleContext (which is the canonical
+  // consumer) so that we can record write→display latency without coupling
+  // the tracker into CoupleContext's render cycle.
+  useEffect(() => {
+    if (!session || !currentSong.videoId) return;
+    if (!import.meta.env.DEV) return;
+    let unsub: (() => void) | null = null;
+    (async () => {
+      const db = await getDb();
+      const { doc, onSnapshot } = await import("firebase/firestore");
+      unsub = onSnapshot(doc(db, "settings", "shared_song"), (d: any) => {
+        if (!d.exists()) return;
+        const data = d.data() || {};
+        const myId = data._clientTabId;
+        const writeTs = data._clientWriteTs as number | undefined;
+        const lsId = data._clientListenerId as string | undefined;
+        // Only record when this tab is responsible for the round trip
+        if (lsId !== "music:shared_song") return;
+        if (typeof writeTs !== "number") return;
+        // Sidecar: we don't know the tabId stamp, so we accept any echo — the
+        // first observer sidecar starts covering once the gate is satisfied.
+        recordLatency("music:shared_song", {
+          ts: Date.now(),
+          deltaMs: myId ? Date.now() - writeTs : null,
+          partnerWrite: !myId,
+          stale: false,
+        });
+      }, () => { /* ignore */ });
+    })();
+    return () => { if (unsub) unsub(); };
+  }, [session, currentSong.videoId]);
+
   // Listen for toggleNavbar events to temporarily hide nav dock (e.g. for lightbox view)
   useEffect(() => {
     const handler = (e: Event) => {
@@ -370,6 +405,51 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
     }, 1200); // 1.2s delay to make sure player API is initialized
     return () => clearTimeout(t);
   }, [currentSong.isPlaying, currentSong.videoId, safePostMessage]);
+
+  // Listen for remote seek events from CoupleContext (partner synced progress ahead)
+  // Sends seekTo command to the YouTube iframe so both users hear the same position
+  // Debounce 3s to prevent spamming seekTo when progress updates arrive rapidly
+  const lastSeekTimeRef = useRef(0);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const seekMs = (e as CustomEvent<number>).detail;
+      if (seekMs == null || seekMs < 0 || !playerIframeRef.current || !currentSong.videoId) return;
+      const now = Date.now();
+      if (now - lastSeekTimeRef.current < 3000) return;
+      lastSeekTimeRef.current = now;
+      const seekSeconds = seekMs / 1000;
+      safePostMessage(JSON.stringify({ event: "command", func: "seekTo", args: [seekSeconds, true] }));
+    };
+    window.addEventListener("musicRemoteSeek", handler);
+    return () => window.removeEventListener("musicRemoteSeek", handler);
+  }, [safePostMessage, currentSong.videoId]);
+
+  // Listen for manual scrub (musicSeekTo) — fired when user drags the progress bar.
+  // Seeks YouTube iframe immediately + writes new progress to Firestore for partner sync.
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const seekMs = (e as CustomEvent<number>).detail;
+      if (seekMs == null || seekMs < 0 || !currentSong.videoId) return;
+      // Seek YouTube iframe
+      const seekSeconds = seekMs / 1000;
+      safePostMessage(JSON.stringify({ event: "command", func: "seekTo", args: [seekSeconds, true] }));
+      // Immediately sync new position to Firestore so partner sees the scrub
+      try {
+        const db = await getDb();
+        const { tabWriteTs } = await import("./utils/latencyTracker");
+        const { doc, setDoc } = await import("firebase/firestore");
+        await setDoc(doc(db, "settings", "shared_song"), {
+          progress_ms: seekMs,
+          synced_at: new Date().toISOString(),
+          ...tabWriteTs("music:shared_song"),
+        }, { merge: true });
+      } catch (err) {
+        console.error("[musicSeekTo Firestore sync]", err);
+      }
+    };
+    window.addEventListener("musicSeekTo", handler);
+    return () => window.removeEventListener("musicSeekTo", handler);
+  }, [safePostMessage, currentSong.videoId]);
 
   // Listen for cross-component tab-change events (e.g. from HomeView shortcuts)
   useEffect(() => {
@@ -726,7 +806,7 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
                 {activeTab === "memories" && <ErrorBoundary viewName="Our Archive"><MemoriesView /></ErrorBoundary>}
                 {activeTab === "together" && <ErrorBoundary viewName="The Heartbeat"><TogetherView /></ErrorBoundary>}
                 {activeTab === "play" && <ErrorBoundary viewName="Game Attic"><PlayView /></ErrorBoundary>}
-                {activeTab === "adventure" && <ErrorBoundary viewName="Secret Garden"><AdventureView /></ErrorBoundary>}
+                {activeTab === "adventure" && <ErrorBoundary viewName="Date Night"><AdventureView /></ErrorBoundary>}
                 {activeTab === "settings" && <ErrorBoundary viewName="Workshop"><SettingsView /></ErrorBoundary>}
               </motion.div>
             </Suspense>
@@ -742,9 +822,10 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
             animate={{ y: 0, x: "-50%", opacity: 1 }}
             exit={{ y: 80, x: "-50%", opacity: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className="fixed bottom-6 sm:bottom-8 left-1/2 w-[calc(100%-24px)] max-w-md sm:max-w-lg md:max-w-xl z-50"
+            className="fixed left-1/2 w-[calc(100%-24px)] max-w-md sm:max-w-lg md:max-w-xl z-50"
+        style={{ bottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
           >
-            <div role="tablist" aria-label="Treehouse rooms" className="dock-runner backdrop-blur-xl bg-white/45 dark:bg-stone-900/55 px-4 sm:px-6 py-2.5 sm:py-3 rounded-2xl flex items-center justify-between gap-0.5 sm:gap-1.5 w-full">
+            <div role="tablist" aria-label="Treehouse rooms" className="dock-runner backdrop-blur-xl bg-white/45 dark:bg-stone-900/55 px-4 sm:px-6 py-2.5 sm:py-3 pb-1 rounded-2xl flex items-center justify-between gap-0.5 sm:gap-1.5 w-full">
               {NAV_ITEMS.map(({ id, label, icon: Icon }, idx) => {
                 const active = activeTab === id;
                 const meta = ROOM_METADATA[id];
@@ -869,6 +950,9 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
       </button>
 
       <Toaster theme={darkMode ? "dark" : "light"} />
+
+      {/* Dev-only latency overlay — opt-in via `?latencyOverlay=1`. */}
+      {import.meta.env.DEV && isLatencyOverlayEnabled() && <LatencyOverlay />}
     </div>
   );
 }

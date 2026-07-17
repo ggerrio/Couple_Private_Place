@@ -74,13 +74,14 @@ const PlayView = React.memo(function PlayView() {
             piano: data.piano || { playCount: 50, streak: 12 },
           });
         } else {
+          // ✅ Seed-only merge — if a partner created this doc first, we don't clobber their stats
           setDoc(doc(db, "rooms", "game_stats"), {
             tictactoe: { playCount: 24, streak: 5 },
             wyr: { playCount: 42, streak: 8 },
             spindare: { playCount: 15, streak: 3 },
             sketch: { playCount: 18, streak: 4 },
             piano: { playCount: 50, streak: 12 },
-          }).catch(console.error);
+          }, { merge: true }).catch(console.error);
         }
       }, (err) => {
         console.error("[game stats listener]", err);

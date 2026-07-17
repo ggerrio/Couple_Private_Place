@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useCouple } from "../../context/CoupleContext";
 import GreetingNotification from "./GreetingNotification";
 import ForecastNotification, { ForecastItem, HourlyItem } from "./ForecastNotification";
@@ -29,8 +29,9 @@ export default function WeatherNotificationController() {
     daily: ForecastItem[];
     hourly: HourlyItem[];
   } | null>(null);
-  const [showGreeting, setShowGreeting] = useState(true);
-  const [showForecast, setShowForecast] = useState(true);
+  const [showGreeting, setShowGreeting] = useState(false);
+  const [showForecast, setShowForecast] = useState(false);
+  const hasShownInitialRef = useRef(false);
 
   const activeProfile = currentUser === "user_a" ? userA : userB;
   const fallbackCity = activeProfile.weatherCity || "Seoul";
@@ -94,8 +95,13 @@ export default function WeatherNotificationController() {
           daily,
           hourly,
         });
-        setShowGreeting(true);
-        setShowForecast(true);
+        // Only show notification on first successful fetch (page refresh / login)
+        // Subsequent 15-min polling updates weather silently
+        if (!hasShownInitialRef.current) {
+          hasShownInitialRef.current = true;
+          setShowGreeting(true);
+          setShowForecast(true);
+        }
       } catch (err: any) {
         if (err?.name === "AbortError") {
           return;

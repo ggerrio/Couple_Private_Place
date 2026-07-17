@@ -1,7 +1,6 @@
 /**
  * AdminCrudConsole.tsx — Ultimate Admin Panel for CRUD operations
  * Allows the administrator to inspect, create, edit, and delete:
- * - Challenges (Missions)
  * - Sticky Notes
  * - Vibe Vinyl Logs
  * - Special Letters
@@ -13,26 +12,28 @@ import { motion, AnimatePresence } from "motion/react";
 import { useCouple } from "../../context/CoupleContext";
 import { getDb } from "../../firebaseClient";
 import {
-  Sparkles, Trash2, Edit2, Plus, Check, X, Award,
-  StickyNote, Music, Mail, Image, Calendar, ChevronRight, Activity
+  Sparkles, Trash2, Edit2, Plus, Check, X,
+  StickyNote, Music, Mail, Image, Calendar, ChevronRight, Activity,
+  Heart, Smile,
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatLastSeen } from "../../lib/utils";
-import { Mission, Memory, Letter, CustomGreetings } from "../../types";
+import { Memory, Letter, CustomGreetings } from "../../types";
 
-type CrudTab = "status" | "missions" | "sticky_notes" | "vibe_logs" | "letters" | "memories";
+type CrudTab = "status" | "sticky_notes" | "vibe_logs" | "letters" | "memories" | "activity_logs" | "mood_history";
 
 const CRUD_TABS: { id: CrudTab; label: string; icon: React.ElementType; color: string }[] = [
   { id: "status", label: "Status", icon: Activity, color: "text-green-500" },
-  { id: "missions", label: "Missions", icon: Award, color: "text-amber-500" },
   { id: "sticky_notes", label: "Sticky Notes", icon: StickyNote, color: "text-purple-500" },
   { id: "vibe_logs", label: "Vibe Logs", icon: Music, color: "text-pink-500" },
   { id: "letters", label: "Letters", icon: Mail, color: "text-indigo-500" },
   { id: "memories", label: "Memories", icon: Image, color: "text-rose-500" },
+  { id: "activity_logs", label: "Activity Feed", icon: Activity, color: "text-emerald-500" },
+  { id: "mood_history", label: "Mood History", icon: Heart, color: "text-rose-400" },
 ];
 
 export function AdminCrudConsole() {
-  const [activeTab, setActiveTab] = useState<CrudTab>("missions");
+  const [activeTab, setActiveTab] = useState<CrudTab>("status");
 
   return (
     <div className="border border-[var(--wood-oak)]/15 rounded-3xl p-4 sm:p-6 space-y-5 bg-[var(--fabric-cream)]/15 shadow-2xs mt-6">
@@ -76,11 +77,12 @@ export function AdminCrudConsole() {
             transition={{ duration: 0.2 }}
           >
             {activeTab === "status" && <StatusDashboard />}
-            {activeTab === "missions" && <MissionsCrud />}
             {activeTab === "sticky_notes" && <StickyNotesCrud />}
             {activeTab === "vibe_logs" && <VibeLogsCrud />}
             {activeTab === "letters" && <LettersCrud />}
             {activeTab === "memories" && <MemoriesCrud />}
+            {activeTab === "activity_logs" && <ActivityLogsCrud />}
+            {activeTab === "mood_history" && <MoodHistoryCrud />}
           </motion.div>
         </AnimatePresence>
       </div>
@@ -88,178 +90,7 @@ export function AdminCrudConsole() {
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ─── 1. MISSIONS CRUD ────────────────────────────────────────────────────────
-// ─────────────────────────────────────────────────────────────────────────────
 
-function MissionsCrud() {
-  const { missions } = useCouple();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  
-  // Form State
-  const [text, setText] = useState("");
-  const [type, setType] = useState<"daily" | "weekly">("daily");
-  const [completed, setCompleted] = useState(false);
-
-  const resetForm = () => {
-    setEditingId(null);
-    setText("");
-    setType("daily");
-    setCompleted(false);
-  };
-
-  const handleEdit = (mission: Mission) => {
-    setEditingId(mission.id);
-    setText(mission.text);
-    setType(mission.type);
-    setCompleted(mission.completed);
-  };
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!text.trim()) {
-      toast.error("Mission text cannot be empty!");
-      return;
-    }
-
-    try {
-      const db = await getDb();
-      const { doc, setDoc, updateDoc } = await import("firebase/firestore");
-
-      if (editingId) {
-        // Update existing
-        await updateDoc(doc(db, "missions", editingId), {
-          text,
-          type,
-          completed,
-        });
-        toast.success("Mission updated successfully! ✨");
-      } else {
-        // Create new
-        const newId = `mis-${Date.now()}`;
-        await setDoc(doc(db, "missions", newId), {
-          text,
-          type,
-          completed,
-          created_at: new Date().toISOString(),
-        });
-        toast.success("New mission added! ✨");
-      }
-      resetForm();
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to save mission.");
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this mission?")) return;
-    try {
-      const db = await getDb();
-      const { doc, deleteDoc } = await import("firebase/firestore");
-      await deleteDoc(doc(db, "missions", id));
-      toast.success("Mission deleted! 🗑️");
-      if (editingId === id) resetForm();
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete mission.");
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-1.5">
-          <Award className="w-4 h-4 text-amber-500" />
-          Manage Challenge Missions ({missions.length})
-        </h4>
-        {editingId && (
-          <button onClick={resetForm} className="text-[10px] font-bold text-rose-500 flex items-center gap-1 cursor-pointer">
-            <X className="w-3.5 h-3.5" /> Cancel Edit
-          </button>
-        )}
-      </div>
-
-      {/* Editor Form */}
-      <form onSubmit={handleSave} className="bg-white/40 dark:bg-black/10 border border-[var(--border-color)]/50 rounded-2xl p-3.5 space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="sm:col-span-2">
-            <label className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-1">Challenge Text</label>
-            <input
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="e.g. Kiss your partner in the rain"
-              className="w-full text-xs px-3 py-2 bg-white/60 dark:bg-black/20 border border-[var(--border-color)]/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)] font-semibold transition-all"
-            />
-          </div>
-          <div>
-            <label className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-1">Frequency Tier</label>
-            <select
-              value={type}
-              onChange={(e: any) => setType(e.target.value)}
-              className="w-full text-xs px-3 py-2 bg-white/60 dark:bg-black/20 border border-[var(--border-color)]/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)] font-semibold transition-all cursor-pointer"
-            >
-              <option value="daily">Daily Challenge</option>
-              <option value="weekly">Weekly Epic</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-2 pt-4">
-            <input
-              type="checkbox"
-              id="mission-completed"
-              checked={completed}
-              onChange={(e) => setCompleted(e.target.checked)}
-              className="w-4 h-4 rounded text-[var(--primary)] border-[var(--border-color)] cursor-pointer"
-            />
-            <label htmlFor="mission-completed" className="text-[10px] font-bold text-[var(--text-main)] cursor-pointer select-none">
-              Mark as Completed
-            </label>
-          </div>
-        </div>
-        <button
-          type="submit"
-          className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-98"
-        >
-          {editingId ? <><Edit2 className="w-3.5 h-3.5" /> Update Mission</> : <><Plus className="w-4 h-4" /> Add Mission</>}
-        </button>
-      </form>
-
-      {/* List */}
-      <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
-        {missions.map((m) => (
-          <div key={m.id} className="flex items-center justify-between gap-3 p-2 bg-white/50 dark:bg-black/5 border border-[var(--border-color)]/45 rounded-xl hover:bg-white/80 dark:hover:bg-black/10 transition-all">
-            <div className="flex items-center gap-2 min-w-0">
-              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${m.completed ? "bg-green-500" : "bg-amber-400"}`} />
-              <div className="min-w-0">
-                <p className="text-xs font-bold text-[var(--text-main)] truncate">{m.text}</p>
-                <span className="text-[8px] font-bold uppercase font-mono px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[var(--text-muted)]">
-                  {m.type}
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <button
-                onClick={() => handleEdit(m)}
-                className="p-1.5 bg-amber-500/10 text-amber-600 hover:bg-amber-500 hover:text-white rounded-lg transition-all cursor-pointer"
-                title="Edit Mission"
-              >
-                <Edit2 className="w-3 h-3" />
-              </button>
-              <button
-                onClick={() => handleDelete(m.id)}
-                className="p-1.5 bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white rounded-lg transition-all cursor-pointer"
-                title="Delete Mission"
-              >
-                <Trash2 className="w-3 h-3" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ─── 2. STICKY NOTES CRUD ────────────────────────────────────────────────────
@@ -1356,6 +1187,260 @@ function MemoriesCrud() {
                   <Trash2 className="w-3 h-3" />
                 </button>
               </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── 7. ACTIVITY LOGS CRUD ───────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Read-only viewer for partner activity feed. Admin can purge entries.
+
+interface ActivityLogModel {
+  id: string;
+  user_id: string;
+  text: string;
+  timestamp: string;
+}
+
+function ActivityLogsCrud() {
+  const { userA, userB } = useCouple();
+  const [entries, setEntries] = useState<ActivityLogModel[]>([]);
+
+  useEffect(() => {
+    let unsubscribe: () => void;
+    (async () => {
+      try {
+        const db = await getDb();
+        const { collection, onSnapshot, query, orderBy, limit } = await import("firebase/firestore");
+        const q = query(collection(db, "activity_logs"), orderBy("timestamp", "desc"), limit(100));
+        unsubscribe = onSnapshot(q, (snap) => {
+          const list: ActivityLogModel[] = [];
+          snap.forEach((d) => {
+            const data = d.data();
+            list.push({
+              id: d.id,
+              user_id: data.user_id || "user_a",
+              text: data.text || "",
+              timestamp: data.timestamp || "",
+            });
+          });
+          setEntries(list);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, []);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Permanently delete this activity log entry?")) return;
+    try {
+      const db = await getDb();
+      const { doc, deleteDoc } = await import("firebase/firestore");
+      await deleteDoc(doc(db, "activity_logs", id));
+      toast.success("Activity log entry purged.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete entry.");
+    }
+  };
+
+  const handlePurgeAll = async () => {
+    if (!confirm(`Purge ALL ${entries.length} activity_log entries? This cannot be undone.`)) return;
+    try {
+      const db = await getDb();
+      const { collection, getDocs, doc, deleteDoc } = await import("firebase/firestore");
+      const snap = await getDocs(collection(db, "activity_logs"));
+      await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, "activity_logs", d.id))));
+      toast.success(`Purged ${snap.size} activity log entries.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to purge activity logs.");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-1.5">
+          <Activity className="w-4 h-4 text-emerald-500" />
+          Activity Feed ({entries.length})
+        </h4>
+        <button
+          onClick={handlePurgeAll}
+          disabled={entries.length === 0}
+          className="text-[10px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+        >
+          <Trash2 className="w-3 h-3" /> Purge All
+        </button>
+      </div>
+
+      <p className="text-[9px] text-[var(--text-muted)] font-mono px-1">
+        Read-only latest 100 partner actions. Use Cases: debugging, audit, removing typos. New entries auto-appear (realtime listener).
+      </p>
+
+      <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+        {entries.map((e) => {
+          const actor = e.user_id === "user_a" ? userA : userB;
+          const avatar = actor.avatar;
+          return (
+            <div key={e.id} className="flex items-center justify-between gap-3 p-2 bg-white/50 dark:bg-black/5 border border-[var(--border-color)]/45 rounded-xl">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {avatar && (
+                  <img src={avatar} alt={actor.name} className="w-5 h-5 rounded-full object-cover border border-[var(--wood-oak)]/20 flex-shrink-0" loading="lazy" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-[var(--text-main)] truncate">{e.text}</p>
+                  <p className="text-[8px] font-bold text-[var(--text-muted)] font-mono">
+                    {actor.name.split(" ")[0]} · {e.timestamp ? new Date(e.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDelete(e.id)}
+                className="p-1.5 bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white rounded-lg transition-all cursor-pointer flex-shrink-0"
+                title="Delete entry"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ─── 8. MOOD HISTORY CRUD ────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Read-only viewer for mood updates. Admin can purge individual entries.
+
+interface MoodHistoryModel {
+  id: string;
+  user_id: string;
+  user_name: string;
+  mood: string;
+  note: string | null;
+  timestamp: string;
+}
+
+function MoodHistoryCrud() {
+  const { userA, userB } = useCouple();
+  const [entries, setEntries] = useState<MoodHistoryModel[]>([]);
+
+  useEffect(() => {
+    let unsubscribe: () => void;
+    (async () => {
+      try {
+        const db = await getDb();
+        const { collection, onSnapshot, query, orderBy, limit } = await import("firebase/firestore");
+        const q = query(collection(db, "mood_history"), orderBy("timestamp", "desc"), limit(50));
+        unsubscribe = onSnapshot(q, (snap) => {
+          const list: MoodHistoryModel[] = [];
+          snap.forEach((d) => {
+            const data = d.data();
+            list.push({
+              id: d.id,
+              user_id: data.user_id || "user_a",
+              user_name: data.user_name || (data.user_id === "user_a" ? userA.name : userB.name),
+              mood: data.mood || "",
+              note: data.note || null,
+              timestamp: data.timestamp || "",
+            });
+          });
+          setEntries(list);
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    })();
+    return () => { if (unsubscribe) unsubscribe(); };
+  }, [userA.name, userB.name]);
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Permanently delete this mood history entry?")) return;
+    try {
+      const db = await getDb();
+      const { doc, deleteDoc } = await import("firebase/firestore");
+      await deleteDoc(doc(db, "mood_history", id));
+      toast.success("Mood entry purged.");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete entry.");
+    }
+  };
+
+  const handlePurgeAll = async () => {
+    if (!confirm(`Purge ALL ${entries.length} mood_history entries? This cannot be undone.`)) return;
+    try {
+      const db = await getDb();
+      const { collection, getDocs, doc, deleteDoc } = await import("firebase/firestore");
+      const snap = await getDocs(collection(db, "mood_history"));
+      await Promise.all(snap.docs.map((d) => deleteDoc(doc(db, "mood_history", d.id))));
+      toast.success(`Purged ${snap.size} mood entries.`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to purge mood history.");
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-xs font-black uppercase tracking-wider text-[var(--text-main)] flex items-center gap-1.5">
+          <Heart className="w-4 h-4 text-rose-400" />
+          Mood History ({entries.length})
+        </h4>
+        <button
+          onClick={handlePurgeAll}
+          disabled={entries.length === 0}
+          className="text-[10px] font-bold text-rose-500 hover:text-rose-700 flex items-center gap-1 cursor-pointer disabled:opacity-40 transition-colors"
+        >
+          <Trash2 className="w-3 h-3" /> Purge All
+        </button>
+      </div>
+
+      <p className="text-[9px] text-[var(--text-muted)] font-mono px-1">
+        Latest 50 partner mood updates. Useful for reviewing emotional arc and admin cleanup.
+      </p>
+
+      <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
+        {entries.map((e) => {
+          const actor = e.user_id === "user_a" ? userA : userB;
+          const avatar = actor.avatar;
+          return (
+            <div key={e.id} className="flex items-center justify-between gap-3 p-2.5 bg-white/50 dark:bg-black/5 border border-[var(--border-color)]/45 rounded-xl">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {avatar && (
+                  <img src={avatar} alt={e.user_name} className="w-6 h-6 rounded-full object-cover border border-[var(--wood-oak)]/20 flex-shrink-0" loading="lazy" />
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Smile className="w-3 h-3 text-rose-400" />
+                    <p className="text-xs font-bold text-[var(--text-main)] truncate">{e.mood}</p>
+                  </div>
+                  {e.note && (
+                    <p className="text-[10px] text-[var(--text-muted)] truncate italic mt-0.5\">&ldquo;{e.note}&rdquo;</p>
+                  )}
+                  <p className="text-[8px] font-bold text-[var(--text-muted)] font-mono mt-0.5">
+                    {e.user_name.split(" ")[0]} · {e.timestamp ? new Date(e.timestamp).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDelete(e.id)}
+                className="p-1.5 bg-red-500/10 text-red-600 hover:bg-red-500 hover:text-white rounded-lg transition-all cursor-pointer flex-shrink-0"
+                title="Delete entry"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
             </div>
           );
         })}

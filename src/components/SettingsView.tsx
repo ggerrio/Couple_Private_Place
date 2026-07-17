@@ -891,7 +891,7 @@ function WorkspaceUtilitiesPanel() {
 
 function AdminSection() {
   const { 
-    adminResetMissions, adminClearActivityLogs, adminDeleteAllMemories, 
+    adminClearActivityLogs, adminDeleteAllMemories, 
     adminKickSlot, adminDeleteAllSketches, adminDeleteAllNotes, 
     adminResetTTTScore, resetAllData, userA, userB 
   } = useCouple();
@@ -907,15 +907,7 @@ function AdminSection() {
   };
 
   const actions = [
-    {
-      id: "reset-missions",
-      label: "Reset All Missions",
-      desc: "Mark all adventure missions as incomplete",
-      icon: RefreshCw,
-      color: "text-amber-600",
-      bg: "bg-amber-50/60 border-amber-100",
-      fn: adminResetMissions,
-    },
+    
     {
       id: "reset-ttt-score",
       label: "Reset Tic Tac Toe Scores",

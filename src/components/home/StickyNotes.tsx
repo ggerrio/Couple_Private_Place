@@ -117,6 +117,13 @@ export function StickyNotes() {
         </button>
       </div>
 
+      {/* 📌 Retention caption — explains limit-12 roll-off behavior */}
+      <p className="text-[10px] text-[var(--text-muted)] font-mono flex items-center gap-1.5 px-1 -mt-1">
+        <span className="inline-block w-1 h-1 rounded-full bg-[var(--primary)]/50" />
+        Showing the <span className="font-bold text-[var(--text-main)]">12 most recent</span> notes —
+        older ones roll off as new ones arrive. All notes stay safe in the database.
+      </p>
+
       {/* Notes Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5">
         {notes.map((note) => {

@@ -209,7 +209,8 @@ export default function GreetingNotification({ weatherCode, city, temp, isVisibl
         animate={{ opacity: 1, y: 0, x: 0, scale: 1, rotate: 0 }}
         exit={{ opacity: 0, y: 100, scale: 0.9, transition: { duration: 0.3 } }}
         transition={{ type: "spring", stiffness: 180, damping: 18 }}
-        className="fixed z-50 overflow-visible max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:w-full sm:bottom-6 sm:left-6 sm:w-full sm:max-w-[340px]"
+        className="fixed z-50 overflow-visible max-h-[80vh] max-sm:overflow-y-auto max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:w-full sm:bottom-6 sm:left-6 sm:w-full sm:max-w-[340px]"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
       >
         {/* Washi Tape Accent */}
         <div className="absolute -top-3.5 left-12 z-20 rotate-[-4deg]">
@@ -249,19 +250,17 @@ export default function GreetingNotification({ weatherCode, city, temp, isVisibl
                 {greetingData.title}, {userName}!
               </h4>
 
-              {/* Collapsible Subtext */}
+              {/* Collapsible Subtext — always show on desktop, expand-toggle on mobile */}
               <AnimatePresence initial={false}>
-                {(isExpanded || window.innerWidth >= 640) && (
-                  <motion.p
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="mt-2 text-xs font-serif italic leading-relaxed text-[#4E3B24]/80 dark:text-white/70 overflow-hidden"
-                  >
-                    {greetingData.subtext}
-                  </motion.p>
-                )}
+                <motion.p
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className={`mt-2 text-xs font-serif italic leading-relaxed text-[#4E3B24]/80 dark:text-white/70 overflow-hidden ${isExpanded ? '' : 'sm:block hidden'}`}
+                >
+                  {greetingData.subtext}
+                </motion.p>
               </AnimatePresence>
 
               {/* Mobile-only toggle */}

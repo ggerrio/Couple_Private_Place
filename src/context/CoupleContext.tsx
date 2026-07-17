@@ -16,11 +16,11 @@
  * Firestore SDK (~1MB) is lazy-loaded via dynamic import() after login.
  */
 
-import React, { createContext, useContext, useEffect, useCallback, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useCallback, useMemo, useState, useRef } from "react";
 
 import type {
   Profile, Memory, Journal, Letter, TimeCapsule,
-  Mission, Song, ActivityLog, MoodHistoryEntry,
+  Song, ActivityLog, MoodHistoryEntry,
   CustomGreetings, GratitudeEntry,
 } from "../types";
 import { getDb } from "../firebaseClient";
@@ -30,7 +30,7 @@ import { useProfileState } from "./useProfileState";
 import { useContentState } from "./useContentState";
 import { useEngagementState } from "./useEngagementState";
 import { useSettingsState } from "./useSettingsState";
-import { initialUserA, initialUserB, initialMemories, initialJournals, initialLetters, initialTimeCapsules, initialMissions, initialLogs, initialMoodHistory, DEFAULT_AVATAR_A, DEFAULT_AVATAR_B, DEFAULT_GREETINGS, lsGet } from "./defaults";
+import { initialUserA, initialUserB, initialMemories, initialJournals, initialLetters, initialTimeCapsules, initialLogs, initialMoodHistory, DEFAULT_AVATAR_A, DEFAULT_AVATAR_B, DEFAULT_GREETINGS, lsGet } from "./defaults";
 
 // ─── Public API (unchanged from original) ──────────────────────────────
 
@@ -61,8 +61,7 @@ interface CoupleContextProps {
   timeCapsules: TimeCapsule[];
   addTimeCapsule: (capsule: Omit<TimeCapsule, "id" | "senderId" | "isOpened" | "createdAt">) => Promise<void>;
   openTimeCapsule: (id: string) => Promise<void>;
-  missions: Mission[];
-  toggleMission: (id: string) => void;
+  
   gardenPlant: "tulip" | "bonsai" | "sakura" | "sunflower";
   waterLevel: number;
   waterPlant: () => void;
@@ -102,7 +101,7 @@ interface CoupleContextProps {
   claimProfileSlot: (slotId: "user_a" | "user_b") => Promise<void>;
   deleteMemory: (id: string) => Promise<void>;
   updateMemory: (id: string, updates: Partial<Memory>) => Promise<void>;
-  adminResetMissions: () => Promise<void>;
+  
   adminClearActivityLogs: () => Promise<void>;
   adminDeleteAllMemories: () => Promise<void>;
   adminKickSlot: (slotId: "user_a" | "user_b") => Promise<void>;
@@ -159,10 +158,8 @@ interface ContentSlice {
 }
 const ContentCtx = createContext<ContentSlice | undefined>(undefined);
 
-// Engagement context: missions, garden, song, mood, gratitudes
+// Engagement context: garden, song, mood, gratitudes
 interface EngagementSlice {
-  missions: Mission[];
-  toggleMission: (id: string) => void;
   gardenPlant: string;
   waterLevel: number;
   waterPlant: () => void;
@@ -228,9 +225,8 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
     loadMoreMemories, loadMoreJournals,
   } = content;
   const {
-    missions, setMissions, activityLogs, setActivityLogs,
+    activityLogs, setActivityLogs,
     moodHistory, setMoodHistory, gratitudes, setGratitudes,
-    missionSeededRef,
     gardenPlant, setGardenPlant, waterLevel, setWaterLevel,
     currentSong, setCurrentSong,
   } = engagement;
@@ -255,7 +251,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
       localStorage.setItem("couple_journals", JSON.stringify(journals));
       localStorage.setItem("couple_letters", JSON.stringify(letters));
       localStorage.setItem("couple_time_capsules", JSON.stringify(timeCapsules));
-      localStorage.setItem("couple_missions", JSON.stringify(missions));
+      
       localStorage.setItem("couple_garden_plant", JSON.stringify(gardenPlant));
       localStorage.setItem("couple_water_level", String(waterLevel));
       localStorage.setItem("couple_activity_logs", JSON.stringify(activityLogs));
@@ -269,17 +265,46 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
   });
   // ponytail: no dep array → runs every render; deferred to next paint via rAF
 
-  // ─── Cosmetic progress ticker ──────────────────────────────────────
+  // ── Track latest progressMs via ref to avoid stale closure in sync ───
+  const progressSyncRef = useRef(currentSong.progressMs);
+  // Keep ref in sync on every render
+  progressSyncRef.current = currentSong.progressMs;
+
+  // ─── Cosmetic progress ticker + passive-drift catch-up sync ────────
+  // ✅ UI events (play/pause/seek/skip) write progress_ms IMMEDIATELY
+  //    via setSongPlayState / updateSongProgress / syncSongToPartner.
+  //    This ticker only handles passive drift catch-up: every 30s it
+  //    writes the current local progress so the partner's UI never
+  //    drifts by more than the ticker window.
   useEffect(() => {
     if (!currentSong.isPlaying) return;
+    let ticks = 0;
     const id = setInterval(() => {
       setCurrentSong((prev) => {
         if (!prev.isPlaying) return prev;
-        return { ...prev, progressMs: prev.durationMs > 0 ? Math.min(prev.progressMs + 1000, prev.durationMs) : prev.progressMs + 1000 };
+        const newProgress = prev.durationMs > 0 ? Math.min(prev.progressMs + 1000, prev.durationMs) : prev.progressMs + 1000;
+        progressSyncRef.current = newProgress;
+        return { ...prev, progressMs: newProgress };
       });
+      ticks++;
+      // Passive drift sync every 30s (UI events handle immediate sync)
+      if (ticks % 30 === 0) {
+        (async () => {
+          try {
+            const db = await getDb();
+            const { doc, setDoc } = await import("firebase/firestore");
+            await setDoc(doc(db, "settings", "shared_song"), {
+              progress_ms: progressSyncRef.current,
+              synced_at: new Date().toISOString(),
+            }, { merge: true });
+          } catch (e) {
+            console.error("[drift sync]", e);
+          }
+        })();
+      }
     }, 1000);
     return () => clearInterval(id);
-  }, [currentSong.isPlaying]);
+  }, [currentSong.isPlaying, currentSong.videoId]);
 
   // ─── Firestore helpers ─────────────────────────────────────────────
   const isTabActive = useCallback((tabs: string[]) => !activeTab || tabs.includes(activeTab), [activeTab]);
@@ -293,7 +318,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
     (async () => {
       const db = await getDb();
       const { doc, setDoc, collection,
-        onSnapshot, query, orderBy,
+        onSnapshot, query, orderBy, limit,
         addDoc, deleteDoc, getDocs } = await import("firebase/firestore");
       if (cancelled) return;
 
@@ -314,35 +339,6 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
         });
       }, (err: any) => { console.error("[profiles listener]", err); });
       cleanups.push(unsubProfiles);
-
-      // Missions — always needed (small docs, used in Home + Settings)
-      const unsubMissions = onSnapshot(
-        query(collection(db, "missions"), orderBy("created_at", "asc")),
-        (snap: any) => {
-          if (snap.empty && !missionSeededRef.current) {
-            missionSeededRef.current = true;
-            const defaults = [
-              { id: "mis-1", text: "Take a Life4Cuts photo print together", completed: false, type: "daily", created_at: new Date().toISOString() },
-              { id: "mis-2", text: "Send a sweet morning Live Letter", completed: false, type: "daily", created_at: new Date().toISOString() },
-              { id: "mis-3", text: "Water the Virtual Garden plant", completed: false, type: "daily", created_at: new Date().toISOString() },
-              { id: "mis-4", text: "Watch a synchronized YouTube stream", completed: false, type: "daily", created_at: new Date().toISOString() },
-              { id: "mis-5", text: "Post a new baking or travel Journal entry", completed: false, type: "weekly", created_at: new Date().toISOString() },
-              { id: "mis-6", text: "Win 3 rounds of Mini Games", completed: false, type: "weekly", created_at: new Date().toISOString() },
-            ];
-            defaults.forEach((m) => {
-              const { id, ...rest } = m;
-              setDoc(doc(db, "missions", id), rest, { merge: true });
-            });
-          } else if (!snap.empty) {
-            setMissions(snap.docs.map((d: any) => {
-              const m = d.data();
-              return { id: d.id, text: m.text, completed: m.completed, type: m.type };
-            }));
-          }
-        },
-        (err: any) => { console.error("[missions listener]", err); }
-      );
-      cleanups.push(unsubMissions);
 
       // Settings — always needed
       const unsubSettings = onSnapshot(doc(db, "settings", "couple_settings"), (d: any) => {
@@ -370,7 +366,28 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
           const s = d.data();
           setCurrentSong((prev) => {
             const newVideoId = s.video_id ?? prev.videoId;
-            const isNewSong = newVideoId && newVideoId !== prev.videoId;
+            const sameSong = newVideoId === prev.videoId;
+            const isNewSong = newVideoId && !sameSong;
+            // Sync progress from partner: apply if the remote progress is ahead (avoid jumping backward)
+            // or if this is a new song (start from 0)
+            const remoteProgress = typeof s.progress_ms === 'number' ? s.progress_ms : -1;
+            let newProgress = prev.progressMs;
+            let needsSeek = false;
+            if (isNewSong) {
+              newProgress = 0;
+            } else if (remoteProgress >= 0 && sameSong) {
+              // Apply remote progress if it's ahead by more than 2s (catches up on drift)
+              if (remoteProgress > prev.progressMs + 2000) {
+                newProgress = remoteProgress;
+                needsSeek = true;
+              }
+            }
+            // Dispatch seek event asynchronously so React state is settled first
+            if (needsSeek) {
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent("musicRemoteSeek", { detail: remoteProgress }));
+              }, 0);
+            }
             return {
               ...prev,
               title: s.title ?? prev.title, artist: s.artist ?? prev.artist,
@@ -378,7 +395,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
               durationMs: s.duration_ms ?? prev.durationMs,
               videoId: newVideoId,
               isPlaying: s.is_playing ?? prev.isPlaying,
-              progressMs: isNewSong ? 0 : prev.progressMs,
+              progressMs: newProgress,
             };
           });
         }
@@ -397,6 +414,39 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
         }
       }, (err: any) => { console.error("[admin_config listener]", err); });
       cleanups.push(unsubAdminConfig);
+
+      // Activity logs — always-on so partner sees real-time activity feed
+      const unsubActivityLogs = onSnapshot(
+        query(collection(db, "activity_logs"), orderBy("timestamp", "desc"), limit(50)),
+        (snap: any) => {
+          setActivityLogs(snap.docs.map((d: any) => {
+            const a = d.data();
+            return {
+              id: d.id, userId: a.user_id, text: a.text,
+              timestamp: a.timestamp || new Date().toISOString(),
+            } as ActivityLog;
+          }));
+        },
+        (err: any) => { console.error("[activity_logs listener]", err); }
+      );
+      cleanups.push(unsubActivityLogs);
+
+      // Mood history — always-on so partner sees mood updates in realtime
+      const unsubMoodHistory = onSnapshot(
+        query(collection(db, "mood_history"), orderBy("timestamp", "desc"), limit(30)),
+        (snap: any) => {
+          setMoodHistory(snap.docs.map((d: any) => {
+            const m = d.data();
+            return {
+              id: d.id, userId: m.user_id, userName: m.user_name,
+              mood: m.mood, note: m.note,
+              timestamp: m.timestamp || new Date().toISOString(),
+            } as MoodHistoryEntry;
+          }));
+        },
+        (err: any) => { console.error("[mood_history listener]", err); }
+      );
+      cleanups.push(unsubMoodHistory);
     })();
 
     return () => {
@@ -451,6 +501,12 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
               partnerPhotosList: m.partner_photos_list || [], colabMode: m.colab_mode,
               reactions: reactionsCount, comments: m.comments || [],
               showOnTimeline: m.show_on_timeline !== undefined ? m.show_on_timeline : true,
+              // Photobooth customizations — read back so the saved strip's design
+              // metadata is recoverable (gallery renders the baked imageUrl, but
+              // these fields keep the data round-trippable).
+              stripPreset: m.strip_preset, customFrameColor: m.custom_frame_color,
+              customTextColor: m.custom_text_color, customAccentColor: m.custom_accent_color,
+              caption: m.caption,
             };
           });
           setMemories(list);
@@ -797,17 +853,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
     } catch (e) { console.error("[openTimeCapsule]", e); }
   }, []);
 
-  // ─── Missions ──────────────────────────────────────────────────────
-  const toggleMission = useCallback(async (id: string) => {
-    const mission = missions.find((m) => m.id === id);
-    if (!mission) return;
-    const nextCompleted = !mission.completed;
-    try {
-      const db = await getDb();
-      const { doc, updateDoc } = await import("firebase/firestore");
-      await updateDoc(doc(db, "missions", id), { completed: nextCompleted });
-    } catch (e) { console.error("[toggleMission]", e); }
-  }, [missions]);
+  
 
   // ─── Garden ────────────────────────────────────────────────────────
   const waterPlant = useCallback(() => {
@@ -829,8 +875,17 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
     } catch (e) { console.error("[setSongPlayState]", e); }
   }, []);
 
-  const updateSongProgress = useCallback((progressMs: number) => {
+  const updateSongProgress = useCallback(async (progressMs: number) => {
     setCurrentSong((prev) => ({ ...prev, progressMs }));
+    try {
+      // ✅ Instant sync on UI event (user scrubbed progress bar)
+      const db = await getDb();
+      const { doc, setDoc } = await import("firebase/firestore");
+      await setDoc(doc(db, "settings", "shared_song"), {
+        progress_ms: Math.max(0, progressMs),
+        synced_at: new Date().toISOString(),
+      }, { merge: true });
+    } catch (e) { console.error("[updateSongProgress]", e); }
   }, []);
 
   const syncSongToPartner = useCallback(async (song: Song) => {
@@ -842,18 +897,29 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
         title: song.title, artist: song.artist, album: song.album || "",
         artwork: song.artwork || "", duration_ms: song.durationMs || 0,
         video_id: song.videoId || "", is_playing: true,
+        progress_ms: 0,
         synced_at: new Date().toISOString(),
       });
     } catch (e) { console.error("[syncSongToPartner]", e); }
   }, []);
 
   // ─── Mood history ─────────────────────────────────────────────────
-  const addMoodHistoryEntry = useCallback((mood: string, note?: string) => {
+  const addMoodHistoryEntry = useCallback(async (mood: string, note?: string) => {
     const profile = currentUser === "user_a" ? userA : userB;
     const entry: MoodHistoryEntry = {
       id: `mood-${Date.now()}`, userId: currentUser, userName: profile.name,
       mood, note: note?.trim() || undefined, timestamp: new Date().toISOString(),
     };
+    // ✅ Persist cross-device — partner now sees realtime mood updates
+    try {
+      const db = await getDb();
+      const { addDoc, collection } = await import("firebase/firestore");
+      await addDoc(collection(db, "mood_history"), {
+        user_id: currentUser, user_name: profile.name,
+        mood, note: entry.note || null,
+        timestamp: entry.timestamp,
+      });
+    } catch (e) { console.error("[addMoodHistoryEntry Firestore]", e); }
     setMoodHistory((prev) => [entry, ...prev]);
     updateProfile(currentUser, { mood, moodNote: note?.trim() || "" });
   }, [currentUser, userA, userB, updateProfile]);
@@ -896,13 +962,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
   }, []);
 
   // ─── Admin ops (all use lazy Firestore) ────────────────────────────
-  const adminResetMissions = async () => {
-    const db = await getDb();
-    const { collection, getDocs, doc, updateDoc } = await import("firebase/firestore");
-    const snap = await getDocs(collection(db, "missions"));
-    await Promise.all(snap.docs.map((d: any) => updateDoc(doc(db, "missions", d.id), { completed: false })));
-    addActivity("admin reset all challenges to incomplete 🛠️");
-  };
+  
 
   const adminClearActivityLogs = async () => {
     const db = await getDb();
@@ -965,12 +1025,11 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
 
   // ─── Reset ─────────────────────────────────────────────────────────
   const resetAllData = useCallback(() => {
-    const keys = ["couple_user_a", "couple_user_b", "couple_memories", "couple_journals", "couple_letters", "couple_time_capsules", "couple_missions", "couple_garden_xp", "couple_garden_level", "couple_garden_plant", "couple_water_level", "couple_activity_logs", "couple_mood_history", "couple_user_reactions"];
+    const keys = ["couple_user_a", "couple_user_b", "couple_memories", "couple_journals", "couple_letters", "couple_time_capsules", "couple_garden_plant", "couple_water_level", "couple_activity_logs", "couple_mood_history", "couple_user_reactions"];
     keys.forEach((k) => localStorage.removeItem(k));
     setUserA(initialUserA); setUserB(initialUserB);
     setMemories(initialMemories); setJournals(initialJournals);
     setLetters(initialLetters); setTimeCapsules(initialTimeCapsules);
-    setMissions(initialMissions);
     setGardenPlant("sakura"); setWaterLevel(65);
     setActivityLogs(initialLogs); setMoodHistory(initialMoodHistory); setUserReactions({});
     setDarkMode(false);
@@ -1000,14 +1059,12 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
   ]);
 
   const engagementValue = useMemo(() => ({
-    missions, toggleMission,
     gardenPlant, waterLevel, waterPlant, changePlantType,
     currentSong, setSongPlayState, updateSongProgress, syncSongToPartner,
     activityLogs, addActivity,
     moodHistory, addMoodHistoryEntry,
     gratitudes, addGratitude,
   }), [
-    missions, toggleMission,
     gardenPlant, waterLevel, waterPlant, changePlantType,
     currentSong, setSongPlayState, updateSongProgress, syncSongToPartner,
     activityLogs, addActivity,
@@ -1044,7 +1101,6 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
     journals, addJournal, deleteJournal, updateJournal,
     letters, sendLetter, openLetter, reactToLetter,
     timeCapsules, addTimeCapsule, openTimeCapsule,
-    missions, toggleMission,
     gardenPlant, waterLevel, waterPlant, changePlantType,
     currentSong, setSongPlayState, updateSongProgress, syncSongToPartner,
     activityLogs, addActivity, moodHistory, addMoodHistoryEntry,
@@ -1059,7 +1115,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
     liveWeather, updateLiveWeather,
     resetAllData, isOnboarding: auth.isOnboarding, claimProfileSlot: auth.claimProfileSlot,
     deleteMemory, updateMemory,
-    adminResetMissions, adminClearActivityLogs, adminDeleteAllMemories, adminKickSlot,
+    adminClearActivityLogs, adminDeleteAllMemories, adminKickSlot,
     adminDeleteAllSketches, adminDeleteAllNotes, adminResetTTTScore,
     updateCoupleSettings,
     memoriesLimit, loadMoreMemories, journalsLimit, loadMoreJournals,
@@ -1069,7 +1125,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
     userA, userB,
     memories, userReactions, journals, letters, timeCapsules,
     memoriesLimit, journalsLimit,
-    missions, activityLogs, moodHistory, gratitudes,
+    activityLogs, moodHistory, gratitudes,
     gardenPlant, waterLevel,
     currentSong,
     darkMode, anniversaryDate, birthdayA, birthdayB,

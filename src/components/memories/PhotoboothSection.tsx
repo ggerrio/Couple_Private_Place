@@ -12,6 +12,7 @@ import html2canvas from "html2canvas";
 import {
   Sparkles, Camera, Layers, Palette, Check, RefreshCw,
   Heart, Copy, Timer, Users, Smile, X, Upload, ChevronLeft, ChevronRight, Download,
+  ZoomIn, ZoomOut, Maximize2, Calendar,
 } from "lucide-react";
 import { getDb, uploadToCloudinary } from "../../firebaseClient";
 import { Swiper, SwiperSlide } from "swiper/react";
@@ -21,7 +22,7 @@ import "swiper/css/effect-coverflow";
 import "swiper/css/pagination";
 import "swiper/css/navigation";
 import { cn } from "../../lib/utils";
-import type { PhotoboothRoom } from "../../types";
+import type { PhotoboothRoom, Memory } from "../../types";
 import { toast } from "sonner";
 import { StickerButton, ScrapbookPage } from "../scrapbook";
 import { triggerHaptic } from "../../lib/haptics";
@@ -115,6 +116,7 @@ const Carousel_003 = ({
   loop = true,
   autoplay = false,
   spaceBetween = 0,
+  onSlideClick,
 }: {
   images: { src: string; alt: string }[];
   className?: string;
@@ -123,6 +125,7 @@ const Carousel_003 = ({
   loop?: boolean;
   autoplay?: boolean;
   spaceBetween?: number;
+  onSlideClick?: (index: number) => void;
 }) => {
   const css = `
   .Carousal_003 {
@@ -130,16 +133,17 @@ const Carousel_003 = ({
     height: 380px;
     padding-bottom: 50px !important;
   }
-  
+
   .Carousal_003 .swiper-slide {
     background-position: center;
     background-size: contain;
     background-repeat: no-repeat;
-    width: 180px;
+    width: 220px;
     height: 330px;
     display: flex;
     align-items: center;
     justify-content: center;
+    cursor: grab;
   }
 
   .swiper-pagination-bullet-active {
@@ -180,12 +184,15 @@ const Carousel_003 = ({
           slidesPerView="auto"
           centeredSlides={true}
           loop={loop}
+          preventClicks={true}
+          preventClicksPropagation={true}
+          touchStartPreventDefault={false}
           coverflowEffect={{
-            rotate: 25,
+            rotate: 35,
             stretch: 0,
-            depth: 120,
+            depth: 110,
             modifier: 1,
-            slideShadows: false,
+            slideShadows: true,
           }}
           pagination={
             showPagination
@@ -206,11 +213,22 @@ const Carousel_003 = ({
           modules={[EffectCoverflow, Autoplay, Pagination, Navigation]}
         >
           {images.map((image, index) => (
-            <SwiperSlide key={index} className="drop-shadow-md">
+            <SwiperSlide
+              key={index}
+              className="drop-shadow-md select-none"
+              onClick={() => {
+                if (!onSlideClick) return;
+                triggerHaptic("light");
+                onSlideClick(index);
+              }}
+            >
               <img
-                className="h-full w-full object-contain rounded-lg"
+                className="h-full w-full object-contain rounded-lg pointer-events-none"
                 src={image.src}
                 alt={image.alt}
+                draggable={false}
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
               />
             </SwiperSlide>
           ))}
@@ -283,10 +301,15 @@ const LiveCameraCanvas = ({ videoRef }: { videoRef: React.RefObject<HTMLVideoEle
 // ─── PhotoboothSection ──────────────────────────────────────────────────
 
 export default function PhotoboothSection() {
-  const { currentUser, userA, userB, memories, addMemory, cloudinaryCloudName, cloudinaryUploadPreset } = useCouple();
+  const { currentUser, userA, userB, memories, addMemory, updateMemory, deleteMemory, cloudinaryCloudName, cloudinaryUploadPreset } = useCouple();
   const cam = useCamera();
   const persistentVideoRef = useRef<HTMLVideoElement | null>(null);
   const captureAreaRef = useRef<HTMLDivElement | null>(null);
+
+  // Gallery popup (zoom + add-to-timeline + download)
+  const [galleryPopupMemory, setGalleryPopupMemory] = useState<Memory | null>(null);
+  const [galleryZoom, setGalleryZoom] = useState(1); // 1 = fit; 1.5 / 2 / 2.5 / 3 = zoomed
+  const [galleryAddingToTimeline, setGalleryAddingToTimeline] = useState(false);
 
   const [layout, setLayout] = useState<"2-cut" | "4-cut" | "6-cut" | "polaroid">("4-cut");
   const [selectedBg, setSelectedBg] = useState("sakura");
@@ -308,9 +331,9 @@ export default function PhotoboothSection() {
   const transitionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    window.dispatchEvent(new CustomEvent("toggleNavbar", { detail: !previewUrl }));
+    window.dispatchEvent(new CustomEvent("toggleNavbar", { detail: !previewUrl && !galleryPopupMemory }));
     return () => { window.dispatchEvent(new CustomEvent("toggleNavbar", { detail: true })); };
-  }, [previewUrl]);
+  }, [previewUrl, galleryPopupMemory]);
 
   const isHost = room?.hostId === currentUser;
   const partnerName = currentUser === "user_a" ? userB.name : userA.name;
@@ -492,6 +515,61 @@ export default function PhotoboothSection() {
 
   const copyCode = useCallback(() => {
     navigator.clipboard?.writeText(roomCode).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
+  }, [roomCode]);
+
+  // Update the room doc + sync the local `room` state synchronously so the
+  // next composeAndSave() call (when the user clicks Save) reads the freshest
+  // values, not whatever Firestore happens to have at the moment. Without this,
+  // rapid edits followed by an immediate Save can race the listener and produce
+  // a saved strip that doesn't match the editing preview.
+  const updateRoom = useCallback(async (updates: Partial<PhotoboothRoom>) => {
+    setRoom((prev) => (prev ? { ...prev, ...updates } : prev));
+    try {
+      const db = await getDb();
+      const { doc, updateDoc } = await import("firebase/firestore");
+      await updateDoc(doc(db, "photobooth_rooms", roomCode), updates);
+    } catch (err) {
+      console.error("[updateRoom]", err);
+    }
+  }, [roomCode]);
+
+  // Debounced editor helper for continuous `onChange` inputs (color pickers,
+  // caption text). Mutates local React state IMMEDIATELY so the next Save
+  // click reads fresh values via composeAndSave — defers the Firestore write
+  // so a 60Hz color picker drag doesn't hammer the DB quota.
+  //
+  // Note on the 400ms race window: if Save is clicked within 400ms of the
+  // last edit, the pending Firestore write is dropped (next call clears it,
+  // or the cleanup useEffect cancels it on unmount/roomCode change). That's
+  // safe because the saved Memory reads from local `room` in composeAndSave,
+  // NOT from Firestore — so the strip design always matches the editing UI
+  // regardless of whether the debounced network write has flushed.
+  const writeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Cleanup pending debounced Firestore write on unmount or roomCode change.
+  // Without this, a stale 400ms setTimeout can fire after navigating away
+  // and attempt to write to an already-deleted room document.
+  useEffect(() => {
+    return () => {
+      if (writeTimeoutRef.current) {
+        clearTimeout(writeTimeoutRef.current);
+        writeTimeoutRef.current = null;
+      }
+    };
+  }, [roomCode]);
+
+  const updateRoomDebounced = useCallback((updates: Partial<PhotoboothRoom>) => {
+    setRoom((prev) => (prev ? { ...prev, ...updates } : prev));
+    if (writeTimeoutRef.current) clearTimeout(writeTimeoutRef.current);
+    writeTimeoutRef.current = setTimeout(async () => {
+      try {
+        const db = await getDb();
+        const { doc, updateDoc } = await import("firebase/firestore");
+        await updateDoc(doc(db, "photobooth_rooms", roomCode), updates);
+      } catch (err) {
+        console.error("[updateRoomDebounced]", err);
+      }
+    }, 400);
   }, [roomCode]);
 
   const startSession = useCallback(async () => {
@@ -992,8 +1070,9 @@ export default function PhotoboothSection() {
       setSavedUrl(imageUrl);
       addMemory({
         type: "photobooth", title: `${new Date().toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}, Live Photobooth`,
-        description: "Capturing our smiles 📸💕", imageUrl, date: new Date().toISOString(), creatorId: currentUser, layout: room.layout as any,
+        description: room.caption || "Capturing our smiles 📸💕", imageUrl, date: new Date().toISOString(), creatorId: currentUser, layout: room.layout as any,
         photosList: merged, bgStyle: room.bg, filterClass: room.filter, showOnTimeline: false,
+        stripPreset: room.stripPreset, customFrameColor: room.customFrameColor, customTextColor: room.customTextColor, customAccentColor: room.customAccentColor, caption: room.caption,
       });
       const db = await getDb();
       const { doc, updateDoc } = await import("firebase/firestore");
@@ -1146,7 +1225,7 @@ export default function PhotoboothSection() {
               <div key={rowIdx} className="grid grid-cols-2 gap-3 aspect-[8/3]">
                 {/* Photo Cell A (Left Column) */}
                 <div className="relative rounded-lg overflow-hidden aspect-square bg-black/10 shadow-inner border border-black/5 flex items-center justify-center transition-all duration-300">
-                  {photoA ? <img src={photoA} alt={isHost ? "Your photobooth snapshot" : `${partnerName}'s photobooth snapshot`} className={`w-full h-full object-cover ${filterCss}`} referrerPolicy="no-referrer" loading="lazy" />
+                  {photoA ? <img src={photoA} alt={isHost ? "Your photobooth snapshot" : `${partnerName}'s photobooth snapshot`} className={`w-full h-full object-cover ${filterCss}`} referrerPolicy="no-referrer" crossOrigin="anonymous" loading="lazy" />
                     : isActiveRow && currentUser === room.hostId && cam.isActive ? <LiveCameraCanvas videoRef={persistentVideoRef} />
                     : isActiveRow ? <Sparkles className="w-4 h-4 animate-pulse text-white" />
                     : <Camera className="w-4 h-4 opacity-20 text-[var(--text-muted)]" />}
@@ -1176,7 +1255,7 @@ export default function PhotoboothSection() {
 
                 {/* Photo Cell B (Right Column) */}
                 <div className="relative rounded-lg overflow-hidden aspect-square bg-black/10 shadow-inner border border-black/5 flex items-center justify-center transition-all duration-300">
-                  {photoB ? <img src={photoB} alt={isHost ? `${partnerName}'s photobooth snapshot` : "Your photobooth snapshot"} className={`w-full h-full object-cover ${filterCss}`} referrerPolicy="no-referrer" loading="lazy" />
+                  {photoB ? <img src={photoB} alt={isHost ? `${partnerName}'s photobooth snapshot` : "Your photobooth snapshot"} className={`w-full h-full object-cover ${filterCss}`} referrerPolicy="no-referrer" crossOrigin="anonymous" loading="lazy" />
                     : isActiveRow && currentUser === room.guestId && cam.isActive ? <LiveCameraCanvas videoRef={persistentVideoRef} />
                     : isActiveRow ? <Sparkles className="w-4 h-4 animate-pulse text-white" />
                     : <Camera className="w-4 h-4 opacity-20 text-[var(--text-muted)]" />}
@@ -1214,38 +1293,86 @@ export default function PhotoboothSection() {
     );
   };
 
+  // Detect mobile once so we can skip html2canvas (which taints on mobile
+  // when Cloudinary CORS headers are incomplete) and fall back to a direct
+  // download of the already-saved Cloudinary PNG.
+  const isMobileUA = typeof navigator !== "undefined" && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
   const downloadPrintStrip = async () => {
-    const element = captureAreaRef.current;
-    if (!element || !room) return;
+    if (!room) return;
     setExporting(true);
+
+    // ── Mobile fast-path: skip html2canvas, just download the saved Cloudinary PNG
+    if (isMobileUA && savedUrl) {
+      const toastId = toast.loading("Preparing your strip...");
+      try {
+        triggerHaptic("success");
+        const link = document.createElement("a");
+        link.href = savedUrl;
+        link.download = `photobooth_scrapbook_strip_${Date.now()}.png`;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success("Strip opened — long-press to save to Photos 🖼️", { id: toastId });
+      } catch (err) {
+        console.error("[downloadPrintStrip mobile]", err);
+        toast.error("Couldn't open the strip.", { id: toastId });
+      } finally {
+        setExporting(false);
+      }
+      return;
+    }
+
+    // ── Desktop path: html2canvas for true 3x high-res export + Cloudinary backup
+    const element = captureAreaRef.current;
+    if (!element) {
+      setExporting(false);
+      toast.error("Strip not ready — try again in a moment.");
+      return;
+    }
     const toastId = toast.loading("Generating print-quality high-resolution PNG...");
     try {
       triggerHaptic("success");
       // Small timeout to allow styling variables and styles to fully flush
       await new Promise((res) => setTimeout(res, 120));
-      
-      const canvas = await html2canvas(element, { 
-        useCORS: true, 
-        allowTaint: true, 
-        backgroundColor: null, 
-        scale: 3.0, 
-        logging: false 
+
+      const canvas = await html2canvas(element, {
+        useCORS: true,
+        allowTaint: false, // never taint; skip any image that lacks CORS headers
+        backgroundColor: null,
+        scale: 3.0,
+        logging: false,
       });
-      
-      const dataUrl = canvas.toDataURL("image/png");
-      
+
+      // canvas.toDataURL can still throw on some browsers if any image is tainted.
+      // Fall back to opening the saved Cloudinary URL in a new tab if so.
+      let dataUrl: string;
+      try {
+        dataUrl = canvas.toDataURL("image/png");
+      } catch (canvasErr) {
+        console.warn("[downloadPrintStrip] toDataURL failed; falling back to savedUrl", canvasErr);
+        if (savedUrl) {
+          window.open(savedUrl, "_blank", "noopener,noreferrer");
+          toast.success("Opened Cloudinary backup — long-press to save 🖼️", { id: toastId });
+          return;
+        }
+        throw canvasErr;
+      }
+
       // Trigger user's browser download
-      const link = document.createElement("a"); 
-      link.href = dataUrl; 
+      const link = document.createElement("a");
+      link.href = dataUrl;
       link.download = `photobooth_scrapbook_strip_${Date.now()}.png`;
-      document.body.appendChild(link); 
-      link.click(); 
+      document.body.appendChild(link);
+      link.click();
       document.body.removeChild(link);
-      
+
       // Cloudinary integration
       if (cloudinaryCloudName && cloudinaryUploadPreset) {
         toast.loading("Backing up high-resolution PNG to Cloudinary...", { id: toastId });
-        
+
         canvas.toBlob(async (blob) => {
           if (!blob) {
             toast.success("High-res PNG exported! (Cloudinary backup error: empty blob)", { id: toastId });
@@ -1253,9 +1380,9 @@ export default function PhotoboothSection() {
           }
           try {
             const uploadedUrl = await uploadToCloudinary(
-              blob, 
-              `high-res-strip-${Date.now()}.png`, 
-              cloudinaryCloudName, 
+              blob,
+              `high-res-strip-${Date.now()}.png`,
+              cloudinaryCloudName,
               cloudinaryUploadPreset
             );
             setCloudinaryHighResUrl(uploadedUrl);
@@ -1268,9 +1395,15 @@ export default function PhotoboothSection() {
       } else {
         toast.success("High-res PNG exported successfully!", { id: toastId });
       }
-    } catch (err) { 
-      console.error(err);
-      toast.error("Failed to render high-resolution strip.", { id: toastId }); 
+    } catch (err) {
+      console.error("[downloadPrintStrip desktop]", err);
+      // Last-ditch fallback: open the saved Cloudinary URL in a new tab.
+      if (savedUrl) {
+        window.open(savedUrl, "_blank", "noopener,noreferrer");
+        toast.success("Opened Cloudinary backup — long-press to save 🖼️", { id: toastId });
+      } else {
+        toast.error("Failed to render high-resolution strip.", { id: toastId });
+      }
     } finally {
       setExporting(false);
     }
@@ -1320,30 +1453,39 @@ export default function PhotoboothSection() {
                 <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-main)] flex items-center gap-1.5">
                   🎞️ Photobooth Gallery History
                 </h3>
-                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Flip through our captured photo strip memories.</p>
+                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">Swipe through our strips · click any slide to zoom, add to timeline, or download.</p>
               </div>
+              {memories.filter((m) => m.type === "photobooth" && m.imageUrl).length > 0 && (
+                <span className="text-[9px] font-mono uppercase tracking-wider text-[var(--text-muted)] bg-[var(--fabric-cream)]/40 px-2 py-1 rounded-full border border-[var(--border-color)]">
+                  {memories.filter((m) => m.type === "photobooth" && m.imageUrl).length} keepsakes
+                </span>
+              )}
             </div>
-            <div className="w-full flex justify-center">
-              {(() => {
-                const history = memories.filter((m) => m.type === "photobooth" && m.imageUrl);
-                if (history.length === 0) {
-                  return (
-                    <div className="w-full py-12 text-center bg-[var(--fabric-cream)]/20 border border-dashed border-[var(--border-color)] rounded-3xl">
-                      <Camera className="w-8 h-8 text-[var(--text-muted)]/40 mx-auto mb-2" />
-                      <p className="text-xs text-[var(--text-muted)]">No printed photo strips yet. Start a Live Studio session above!</p>
-                    </div>
-                  );
-                }
+            {(() => {
+              const history = memories.filter((m) => m.type === "photobooth" && m.imageUrl);
+              if (history.length === 0) {
                 return (
-                  <Carousel_003
-                    images={history.map((m) => ({ src: m.imageUrl, alt: m.title || "Memory Print" }))}
-                    showPagination={true}
-                    showNavigation={true}
-                    loop={history.length > 2}
-                  />
+                  <div className="w-full py-12 text-center bg-[var(--fabric-cream)]/20 border border-dashed border-[var(--border-color)] rounded-3xl">
+                    <Camera className="w-8 h-8 text-[var(--text-muted)]/40 mx-auto mb-2" />
+                    <p className="text-xs text-[var(--text-muted)]">No printed photo strips yet. Start a Live Studio session above!</p>
+                  </div>
                 );
-              })()}
-            </div>
+              }
+              return (
+                <Carousel_003
+                  images={history.map((m) => ({ src: m.imageUrl, alt: m.title || "Memory Print" }))}
+                  showPagination
+                  showNavigation
+                  loop={history.length > 2}
+                  onSlideClick={(index) => {
+                    const mem = history[index];
+                    if (!mem) return;
+                    setGalleryPopupMemory(mem);
+                    setGalleryZoom(1);
+                  }}
+                />
+              );
+            })()}
           </div>
         </>
       )}
@@ -1377,7 +1519,7 @@ export default function PhotoboothSection() {
                 <h4 className="text-xs uppercase font-bold tracking-wider text-rose-500 flex items-center gap-1.5"><Layers className="w-4 h-4" /> Layout</h4>
                 <div className="grid grid-cols-4 gap-2">
                   {Object.keys(LAYOUTS).map((lay) => (
-                    <button key={lay} onClick={async () => { setLayout(lay as any); const __db = await getDb(); const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore"); await __upd(__doc(__db, "photobooth_rooms", roomCode), { layout: lay }); }}
+                    <button key={lay} onClick={async () => { setLayout(lay as any); await updateRoom({ layout: lay }); }}
                       className={`py-2 px-1 text-[10px] font-bold rounded-xl border cursor-pointer ${layout === lay ? "bg-rose-500 text-white border-transparent shadow-md" : "bg-white text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--color-muted)]"}`}>{LAYOUTS[lay].label}</button>
                   ))}
                 </div>
@@ -1414,19 +1556,16 @@ export default function PhotoboothSection() {
                   </span>
                   <div className="flex gap-2 flex-wrap">
                     {STRIP_PRESETS.map((p) => (
-                      <button 
-                        key={p.id} 
-                        onClick={async () => { 
-                          const __db = await getDb(); 
-                          const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore"); 
-                          // Clear custom overrides when a theme preset is clicked to reset to preset colors
-                          await __upd(__doc(__db, "photobooth_rooms", roomCode), { 
-                            stripPreset: p.id,
-                            customFrameColor: "",
-                            customTextColor: "",
-                            customAccentColor: ""
-                          }); 
-                        }}
+                  <button
+                    key={p.id}
+                    onClick={() =>
+                      updateRoom({
+                        stripPreset: p.id,
+                        customFrameColor: "",
+                        customTextColor: "",
+                        customAccentColor: "",
+                      })
+                    }
                         className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer ${room.stripPreset === p.id ? "bg-[var(--primary)] text-white border-transparent shadow-sm" : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"}`}
                       >
                         <span className="w-3.5 h-3.5 rounded-full border border-black/10 flex-shrink-0" style={{ backgroundColor: p.swatch }} /> {p.label}
@@ -1445,17 +1584,15 @@ export default function PhotoboothSection() {
                     {QUICK_PALETTES.map((pal) => {
                       const isActive = room.customFrameColor === pal.bg && room.customAccentColor === pal.border;
                       return (
-                        <button
-                          key={pal.name}
-                          onClick={async () => {
-                            const __db = await getDb();
-                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
-                            await __upd(__doc(__db, "photobooth_rooms", roomCode), {
-                              customFrameColor: pal.bg,
-                              customTextColor: pal.text,
-                              customAccentColor: pal.border
-                            });
-                            triggerHaptic("light");
+                    <button
+                      key={pal.name}
+                      onClick={() => {
+                        updateRoom({
+                          customFrameColor: pal.bg,
+                          customTextColor: pal.text,
+                          customAccentColor: pal.border,
+                        });
+                        triggerHaptic("light");
                           }}
                           className={`p-2.5 rounded-xl border text-left transition-all duration-200 cursor-pointer flex flex-col gap-1.5 hover:bg-white/55 hover:scale-[1.01] ${
                             isActive ? "bg-white border-rose-400 shadow-md ring-1 ring-rose-400/30" : "bg-white/10 border-white/45"
@@ -1489,11 +1626,7 @@ export default function PhotoboothSection() {
                         <input 
                           type="color" 
                           value={room.customFrameColor || STRIP_PRESETS.find(p => p.id === room.stripPreset)?.frameColor || "#fffae6"} 
-                          onChange={async (e) => {
-                            const __db = await getDb();
-                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
-                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customFrameColor: e.target.value });
-                          }}
+                          onChange={(e) => updateRoomDebounced({ customFrameColor: e.target.value })}
                           className="w-6 h-6 rounded cursor-pointer border-0 p-0"
                         />
                       </div>
@@ -1502,11 +1635,7 @@ export default function PhotoboothSection() {
                       {["#faf6ee", "#fdf0f0", "#18181b", "#e8d5b8", "#09090b", "#fffae6", "#f3e8ff", "#ecfdf5"].map((color) => (
                         <button 
                           key={color}
-                          onClick={async () => {
-                            const __db = await getDb();
-                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
-                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customFrameColor: color });
-                          }}
+                          onClick={() => updateRoom({ customFrameColor: color })}
                           style={{ backgroundColor: color }}
                           className={`w-6 h-6 rounded-full border border-black/10 hover:scale-110 active:scale-95 transition-transform duration-100 ${room.customFrameColor === color ? "ring-2 ring-offset-2 ring-rose-400" : ""}`}
                         />
@@ -1523,11 +1652,7 @@ export default function PhotoboothSection() {
                         <input 
                           type="color" 
                           value={room.customTextColor || STRIP_PRESETS.find(p => p.id === room.stripPreset)?.textColor || "#1e293b"} 
-                          onChange={async (e) => {
-                            const __db = await getDb();
-                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
-                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customTextColor: e.target.value });
-                          }}
+                          onChange={(e) => updateRoomDebounced({ customTextColor: e.target.value })}
                           className="w-6 h-6 rounded cursor-pointer border-0 p-0"
                         />
                       </div>
@@ -1536,11 +1661,7 @@ export default function PhotoboothSection() {
                       {["#1e293b", "#ffffff", "#5c4033", "#ec4899", "#881337", "#14532d", "#3b82f6", "#ef4444"].map((color) => (
                         <button 
                           key={color}
-                          onClick={async () => {
-                            const __db = await getDb();
-                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
-                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customTextColor: color });
-                          }}
+                          onClick={() => updateRoom({ customTextColor: color })}
                           style={{ backgroundColor: color }}
                           className={`w-6 h-6 rounded-full border border-black/10 hover:scale-110 active:scale-95 transition-transform duration-100 ${room.customTextColor === color ? "ring-2 ring-offset-2 ring-rose-400" : ""}`}
                         />
@@ -1557,11 +1678,7 @@ export default function PhotoboothSection() {
                         <input 
                           type="color" 
                           value={room.customAccentColor || STRIP_PRESETS.find(p => p.id === room.stripPreset)?.accent || "#f43f5e"} 
-                          onChange={async (e) => {
-                            const __db = await getDb();
-                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
-                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customAccentColor: e.target.value });
-                          }}
+                          onChange={(e) => updateRoomDebounced({ customAccentColor: e.target.value })}
                           className="w-6 h-6 rounded cursor-pointer border-0 p-0"
                         />
                       </div>
@@ -1570,11 +1687,7 @@ export default function PhotoboothSection() {
                       {["#f43f5e", "#38bdf8", "#eab308", "#10b981", "#059669", "#8b5cf6", "#ec4899", "#2563eb"].map((color) => (
                         <button 
                           key={color}
-                          onClick={async () => {
-                            const __db = await getDb();
-                            const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore");
-                            await __upd(__doc(__db, "photobooth_rooms", roomCode), { customAccentColor: color });
-                          }}
+                          onClick={() => updateRoom({ customAccentColor: color })}
                           style={{ backgroundColor: color }}
                           className={`w-6 h-6 rounded-full border border-black/10 hover:scale-110 active:scale-95 transition-transform duration-100 ${room.customAccentColor === color ? "ring-2 ring-offset-2 ring-rose-400" : ""}`}
                         />
@@ -1590,7 +1703,7 @@ export default function PhotoboothSection() {
                   </span>
                   <div className="flex gap-2 flex-wrap">
                     {FILTERS.map((f) => (
-                      <button key={f.id} onClick={async () => { const __db = await getDb(); const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore"); await __upd(__doc(__db, "photobooth_rooms", roomCode), { filter: f.id }); }}
+                      <button key={f.id} onClick={() => updateRoom({ filter: f.id })}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all duration-200 cursor-pointer ${room.filter === f.id ? "bg-[var(--primary)] text-white border-transparent shadow-sm" : "bg-white/30 border-white/50 text-[var(--text-muted)] hover:bg-white/50"}`}>{f.label}</button>
                     ))}
                   </div>
@@ -1601,7 +1714,7 @@ export default function PhotoboothSection() {
                   <span className="text-xs uppercase font-bold tracking-wider text-rose-500 flex items-center gap-1.5">
                     <Smile className="w-3.5 h-3.5" /> Strip Caption
                   </span>
-                  <input value={room.caption || ""} onChange={async (e) => { const __db = await getDb(); const { doc: __doc, updateDoc: __upd } = await import("firebase/firestore"); await __upd(__doc(__db, "photobooth_rooms", roomCode), { caption: e.target.value }); }}
+                  <input value={room.caption || ""} onChange={(e) => updateRoomDebounced({ caption: e.target.value })}
                     placeholder="Your caption..." maxLength={26}
                     className="w-full text-xs px-3.5 py-2.5 bg-white/30 border border-white/50 rounded-xl outline-none focus:border-[var(--primary)] text-[var(--text-main)] placeholder-gray-400" />
                 </div>
@@ -1688,6 +1801,296 @@ export default function PhotoboothSection() {
         muted
         style={{ position: "absolute", width: "1px", height: "1px", opacity: 0, pointerEvents: "none" }}
       />
+
+    {/* ── Photo Strip Gallery Popup ─────────────────────────────────────── */}
+    {/* Opens when a user clicks a thumbnail in the "Photobooth Gallery      */}
+    {/* History" section. Supports zoom in/out, add/remove from timeline     */}
+    {/* (toggles Memory.showOnTimeline), and download the original image.   */}
+    <AnimatePresence>
+      {galleryPopupMemory && (
+        <PhotoStripPopup
+          memory={galleryPopupMemory}
+          zoom={galleryZoom}
+          setZoom={setGalleryZoom}
+          busy={galleryAddingToTimeline}
+          onClose={() => setGalleryPopupMemory(null)}
+          onToggleTimeline={async () => {
+            if (galleryAddingToTimeline) return;
+            setGalleryAddingToTimeline(true);
+            try {
+              const current = galleryPopupMemory;
+              const next = !(current.showOnTimeline !== false);
+              await updateMemory(current.id, { showOnTimeline: next });
+              // Mirror change locally so the action button re-renders instantly
+              setGalleryPopupMemory({ ...current, showOnTimeline: next });
+              toast.success(next ? "Added to timeline ✨" : "Removed from timeline.");
+              triggerHaptic("success");
+            } catch (e) {
+              console.error("[gallery toggle timeline]", e);
+              toast.error("Could not update timeline status.");
+            } finally {
+              setGalleryAddingToTimeline(false);
+            }
+          }}
+          onDelete={async () => {
+            if (!confirm("Delete this photo strip forever?")) return;
+            try {
+              await deleteMemory(galleryPopupMemory.id);
+              setGalleryPopupMemory(null);
+              triggerHaptic("success");
+              toast.success("Photo strip removed 💔");
+            } catch (e) {
+              console.error("[gallery delete]", e);
+              toast.error("Could not delete strip.");
+            }
+          }}
+          onDownload={async () => {
+            if (!galleryPopupMemory?.imageUrl) return;
+            try {
+              triggerHaptic("success");
+              let downloadUrl = galleryPopupMemory.imageUrl;
+              // Strip Cloudinary f_auto (so we get the true JPG/PNG)
+              if (downloadUrl.includes("/upload/")) {
+                downloadUrl = downloadUrl.replace(/f_auto,?/g, "");
+              }
+              const response = await fetch(downloadUrl);
+              const blob = await response.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              const link = document.createElement("a");
+              link.href = blobUrl;
+              link.download = `${(galleryPopupMemory.title || "photobooth_strip").replace(/\s+/g, "_")}.jpg`;
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(blobUrl);
+              toast.success("Download started ⬇️");
+            } catch (err) {
+              console.warn("[gallery download]", err);
+              window.open(galleryPopupMemory.imageUrl, "_blank");
+            }
+          }}
+        />
+      )}
+    </AnimatePresence>
+    </div>
+  );
+}
+
+// ─── PhotoStripPopup component ──────────────────────────────────────────────
+function PhotoStripPopup({
+  memory,
+  zoom,
+  setZoom,
+  busy,
+  onClose,
+  onToggleTimeline,
+  onDelete,
+  onDownload,
+}: {
+  memory: Memory;
+  zoom: number;
+  setZoom: (n: number) => void;
+  busy: boolean;
+  onClose: () => void;
+  onToggleTimeline: () => Promise<void> | void;
+  onDelete: () => Promise<void> | void;
+  onDownload: () => Promise<void> | void;
+}) {
+  // ESC to close + body scroll lock
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  // Wheel-to-zoom while popup is open (desktop convenience)
+  useEffect(() => {
+    const onWheel = (e: WheelEvent) => {
+      if (!(e.target as HTMLElement)?.closest?.("[data-photo-strip-image]")) return;
+      e.preventDefault();
+      setZoom(Math.min(3, Math.max(1, zoom + (e.deltaY < 0 ? 0.25 : -0.25))));
+    };
+    window.addEventListener("wheel", onWheel, { passive: false });
+    return () => window.removeEventListener("wheel", onWheel);
+  }, [zoom, setZoom]);
+
+  const onTimeline = memory.showOnTimeline !== false;
+  const cleanTitle = (memory.title || "Photo Strip")
+    .replace(/^\d+\s*/, "")
+    .replace("Live Photobooth", "Photo Strip");
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-5 md:p-8">
+      {/* Backdrop */}
+      <motion.button
+        type="button"
+        aria-label="Close photo strip"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/80 backdrop-blur-md cursor-zoom-out"
+      />
+      {/* Modal */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 bg-[var(--fabric-cream)] rounded-3xl shadow-2xl border border-[var(--wood-oak)]/30 w-full max-w-3xl max-h-[92vh] flex flex-col overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+      >
+        {/* Header */}
+        <div className="px-4 sm:px-5 py-3 border-b border-[var(--border-color)] flex items-start justify-between gap-3 flex-shrink-0">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm sm:text-base font-serif font-bold text-[var(--text-main)] truncate leading-tight">
+              📸 {cleanTitle}
+            </h3>
+            <p className="text-[9px] sm:text-[10px] font-mono text-[var(--text-muted)] mt-0.5 flex items-center gap-1 flex-wrap">
+              <Calendar className="w-3 h-3" />
+              <span>
+                {new Date(memory.date).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+              </span>
+              {memory.description && (
+                <>
+                  <span>•</span>
+                  <span className="truncate max-w-[160px] sm:max-w-xs">{memory.description}</span>
+                </>
+              )}
+              <span className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 bg-[var(--primary)]/10 text-[var(--primary)] rounded-full font-bold uppercase tracking-wider text-[8px]">
+                {onTimeline ? "On Timeline" : "Archive"}
+              </span>
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 bg-black/5 hover:bg-black/10 rounded-full text-[var(--text-muted)] cursor-pointer transition-colors flex-shrink-0"
+            aria-label="Close"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Image area */}
+        <div className="relative flex-1 overflow-auto bg-[#2a2520] flex items-center justify-center min-h-[40vh] sm:min-h-[50vh] p-4">
+          <motion.img
+            key={memory.id}
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 0.18 }}
+            src={memory.imageUrl}
+            alt={memory.title || "Photo strip"}
+            referrerPolicy="no-referrer"
+            data-photo-strip-image
+            onClick={() =>
+              setZoom(zoom >= 3 ? 1 : Math.min(3, +(zoom + 0.5).toFixed(2)))
+            }
+            className="select-none max-h-[68vh] cursor-zoom-in"
+            style={{
+              maxWidth: zoom === 1 ? "100%" : `${Math.round(zoom * 100)}%`,
+              width: zoom > 1 ? `${Math.round(zoom * 100)}%` : undefined,
+              transition: "max-width 240ms ease, width 240ms ease",
+            }}
+            draggable={false}
+          />
+          {/* Zoom level chip */}
+          <div className="absolute top-3 left-3 bg-black/60 text-white text-[10px] font-mono px-2 py-1 rounded-full backdrop-blur-sm pointer-events-none">
+            {zoom === 1 ? "Tap to zoom" : `Zoom ${zoom.toFixed(1)}×`}
+          </div>
+        </div>
+
+        {/* Action bar */}
+        <div className="px-4 py-3 border-t border-[var(--border-color)] flex flex-wrap items-center gap-2 flex-shrink-0 bg-[var(--fabric-cream)]">
+          <div className="flex items-center gap-1 bg-black/5 rounded-xl p-1">
+            <button
+              type="button"
+              onClick={() => setZoom(Math.max(1, +(zoom - 0.5).toFixed(2)))}
+              disabled={zoom <= 1}
+              className="p-1.5 rounded-lg hover:bg-black/10 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-[var(--text-main)]"
+              aria-label="Zoom out"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <span className="text-[10px] font-mono font-bold text-[var(--text-main)] px-1.5 min-w-[2.75rem] text-center">
+              {zoom === 1 ? "Fit" : `${zoom.toFixed(1)}×`}
+            </span>
+            <button
+              type="button"
+              onClick={() => setZoom(Math.min(3, +(zoom + 0.5).toFixed(2)))}
+              disabled={zoom >= 3}
+              className="p-1.5 rounded-lg hover:bg-black/10 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-[var(--text-main)]"
+              aria-label="Zoom in"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setZoom(1)}
+              disabled={zoom === 1}
+              className="p-1.5 rounded-lg hover:bg-black/10 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors text-[var(--text-main)]"
+              aria-label="Reset zoom"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onDelete()}
+            className="text-[10px] font-bold text-red-500/80 hover:text-red-600 hover:bg-red-50 px-2 py-1.5 rounded-xl cursor-pointer transition-colors flex items-center gap-1"
+            aria-label="Delete strip"
+          >
+            🗑️ Delete
+          </button>
+
+          <div className="flex-1" />
+
+          <button
+            type="button"
+            onClick={onToggleTimeline}
+            disabled={busy}
+            className={`text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 cursor-pointer transition-all shadow-sm disabled:opacity-60 ${
+              onTimeline
+                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200 border border-emerald-300"
+                : "bg-[var(--primary)] hover:opacity-90 text-white"
+            }`}
+            aria-label={onTimeline ? "Remove from timeline" : "Add to timeline"}
+          >
+            {busy ? (
+              <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : onTimeline ? (
+              <>
+                <Check className="w-3.5 h-3.5" /> On Timeline
+              </>
+            ) : (
+              <>
+                <Calendar className="w-3.5 h-3.5" /> Add to Timeline
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={onDownload}
+            className="text-xs font-bold px-3 py-2 bg-rose-500 hover:bg-rose-600 text-white rounded-xl flex items-center gap-1.5 cursor-pointer transition-all shadow-sm"
+            aria-label="Download"
+          >
+            <Download className="w-3.5 h-3.5" /> Download
+          </button>
+        </div>
+      </motion.div>
     </div>
   );
 }
