@@ -23,3 +23,23 @@ _design-audit/
 # OS
 Thumbs.db
 Desktop.ini
+
+# ─── "Rahasia Dapur" / Internal Notes ─────────────────────────────────
+# All Markdown files are internal-only by default. Explicit anchors for
+# the README exceptions so they re-include at root AND any subdirectory
+# (the most-tested GitHub pattern).
+*.md
+!/README.md
+!**/README.md
+
+# ─── Private Configs & Secrets ────────────────────────────────────────
+# Firebase Web Applet config (contains another active apiKey) — never track.
+firebase-applet-config.json
+# App metadata (may contain internal build info / personal notes).
+metadata.json
+# Editor workspace settings (absolute paths leak the user's machine).
+.vscode/
+
+# ─── Deploy Caches ────────────────────────────────────────────────────
+.vercel/
+.netlify/
