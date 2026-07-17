@@ -5,13 +5,12 @@
  * /e2e/auth-helpers.ts uses this to mint custom tokens.
  * /e2e/setup-firestore-data.ts uses this to seed profiles + admin_config.
  */
-import * as admin from "firebase-admin";
+import { initializeApp, getApps, getApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getFirestore } from "firebase-admin/firestore";
+import { getDatabase } from "firebase-admin/database";
 
 const EMULATOR_PROJECT_ID = "demo-couple-test";
-
-if (!admin.apps.length) {
-  admin.initializeApp({ projectId: EMULATOR_PROJECT_ID });
-}
 
 // Admin SDK must reach the emulator — point it at 127.0.0.1:8080 (Firestore).
 // (Auth + RTDB use their own ports; we set those explicitly when calling.)
@@ -19,9 +18,16 @@ process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:9099";
 process.env.FIREBASE_DATABASE_EMULATOR_HOST = "127.0.0.1:9000";
 
-export const adminAuth = admin.auth();
-export const adminDb = admin.firestore();
-export const adminRtdb = admin.database();
+const app = getApps().length === 0
+  ? initializeApp({
+      projectId: EMULATOR_PROJECT_ID,
+      databaseURL: `https://${EMULATOR_PROJECT_ID}.firebaseio.com`,
+    })
+  : getApp();
+
+export const adminAuth = getAuth(app);
+export const adminDb = getFirestore(app);
+export const adminRtdb = getDatabase(app);
 
 export const TEST_PROJECT_ID = EMULATOR_PROJECT_ID;
 
