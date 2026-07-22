@@ -38,6 +38,34 @@ import Lenis from "lenis";
 import "lenis/dist/lenis.css";
 import { LatencyOverlay } from "./components/dev/LatencyOverlay";
 import { isLatencyOverlayEnabled, record as recordLatency } from "./utils/latencyTracker";
+import { useBirthdayTrigger, BirthdayReplayButton } from "./experiences/birthday";
+
+// Lazy-load the full Birthday Experience — keeps HomeView + baseline
+// bundle unchanged. Clicking the replay button pulls in this chunk.
+const BirthdayExperienceLazy = React.lazy(() =>
+  import("./experiences/birthday/BirthdayExperience").then((m) => ({
+    default: m.BirthdayExperience,
+  })),
+);
+
+// DEV-only sandbox shortcut — lets the test engineer open the
+// birthday experience without any auth. Renders OUTSIDE the
+// CoupleProvider tree so the existing LoginView + useAuthState
+// flow remains untouched in every other code path. Tree-shaken
+// completely in production builds because the only entry point
+// is gated by `import.meta.env.DEV` below.
+type SandboxMode = { recipientNameOverride?: string };
+const SandboxPageLazy = React.lazy(() =>
+  import("./experiences/birthday/SandboxPage").then((m) => {
+    const Bound = ({
+      recipientNameOverride,
+    }: SandboxMode) => (
+      <m.SandboxPage recipientNameOverride={recipientNameOverride} />
+    );
+    Bound.displayName = "SandboxPageLazy";
+    return { default: Bound };
+  }),
+);
 
 type TabId = "home" | "memories" | "together" | "play" | "adventure" | "settings";
 
@@ -126,6 +154,12 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
   } = useCouple();
 
   const [now, setNow] = useState(Date.now());
+  // ── Birthday Experience trigger — manual by default, no auto-launch ──
+  // Set autoFireOnBirthday=true if you want a one-time popup on Nicola's day.
+  const birthday = useBirthdayTrigger({
+    birthdayMmDd: birthdayB,
+    autoFireOnBirthday: false,
+  });
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 15000);
     return () => clearInterval(interval);
@@ -931,6 +965,23 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
         </div>
       )}
 
+      {/* ── Floating Birthday Replay Trigger (left) ── */}
+      <BirthdayReplayButton
+        onOpen={birthday.open}
+        className="fixed bottom-24 left-4 sm:bottom-6 sm:left-6 z-50"
+      />
+
+      {/* Birthday Experience overlay — lazy-mounted, only on demand */}
+      <Suspense fallback={null}>
+        {birthday.isOpen && (
+          <BirthdayExperienceLazy
+            isOpen={birthday.isOpen}
+            onClose={birthday.close}
+            onComplete={birthday.close}
+          />
+        )}
+      </Suspense>
+
       {/* Floating Dark Mode Toggle (Circle Reveal + Blur transition) */}
       <button
         id="dark-mode-toggle-btn"
@@ -959,6 +1010,36 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabId>("home");
+
+  // Dev-only sandbox mode — read URL once on mount so subsequent
+  // re-renders don't churn based on user navigation. The `useState`
+  // initializer runs exactly once per mount so the URL search happens
+  // a single time. Production builds: `import.meta.env.DEV === false`
+  // so this branch resolves to `null` and the lazy SandboxPageLazy
+  // import is reachable only via a never-called code path
+  // (tree-shaken by Vite/Rollup).
+  const [sandboxMode] = useState<SandboxMode | null>(() => {
+    if (!import.meta.env.DEV) return null;
+    if (typeof window === "undefined") return null;
+    const v = new URLSearchParams(window.location.search).get("sandbox");
+    if (v === null) return null;
+    // `?sandbox` → no recipient override (use BIRTHDAY_CONTENT default).
+    // `?sandbox=` or `?sandbox=1` or `?sandbox=true` → also no override.
+    // `?sandbox=<name>` → override recipientName end-to-end.
+    const noOverride = v === "" || v === "1" || v === "true";
+    return { recipientNameOverride: noOverride ? undefined : v.trim() };
+  });
+
+  if (sandboxMode) {
+    return (
+      <Suspense fallback={null}>
+        <SandboxPageLazy
+          recipientNameOverride={sandboxMode.recipientNameOverride}
+        />
+      </Suspense>
+    );
+  }
+
   return (
     <CoupleProvider activeTab={activeTab}>
       <AppContent activeTab={activeTab} onTabChange={setActiveTab} />

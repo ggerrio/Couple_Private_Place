@@ -1079,6 +1079,25 @@ h1, h2, h3, h4, h5, h6, .font-display {
 @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 .animate-float { animation: float 4s ease-in-out infinite; }
 
+/* ── Cake smoke wisp ────── rising from extinguished candle wicks. */
+@keyframes cakeSmoke {
+  0%   { opacity: 0;   transform: translateY(0)   scaleY(0.7); }
+  20%  { opacity: 0.7; transform: translateY(-6px) scaleY(1); }
+  60%  { opacity: 0.4; transform: translateY(-22px) scaleY(1.4); }
+  100% { opacity: 0;   transform: translateY(-44px) scaleY(1.8); }
+}
+
+/* ── Cake puff-react ────── a single breath lands → cake squashes
+   horizontally + re-expands. Re-triggers per tap by keying on the
+   cake motion.div's React `key` prop in GiftOpeningScene. */
+@keyframes cakePuff {
+  0%   { transform: scale(1, 1)        rotate(0deg); }
+  20%  { transform: scale(1.06, 0.92)   rotate(-1.2deg); }
+  45%  { transform: scale(0.96, 1.04)   rotate(0.8deg); }
+  70%  { transform: scale(1.02, 0.98)   rotate(-0.4deg); }
+  100% { transform: scale(1, 1)        rotate(0deg); }
+}
+
 @keyframes heartbeat { 0%, 100% { transform: scale(1); } 25% { transform: scale(1.1); } 40% { transform: scale(1); } 60% { transform: scale(1.1); } }
 .animate-heartbeat { animation: heartbeat 2.5s infinite ease-in-out; }
 

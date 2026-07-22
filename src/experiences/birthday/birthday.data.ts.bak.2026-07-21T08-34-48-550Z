@@ -1,0 +1,526 @@
+/**
+ * birthday.data.ts
+ *
+ * Single source of truth for birthday scene list, photos, BGM, and
+ * (now-personalized) content text for Nicola.
+ *
+ * ── Personalization map ──
+ *   Edit `BIRTHDAY_CONTENT` (names + letter + ending line).
+ *   Edit `BIRTHDAY_PHOTO_CAPTIONS` (16 handwritten memory notes).
+ *   Search for `[GER: refine]` to find the lines where only you
+ *   can write the actual inside joke / memory that makes this
+ *   experience real instead of template.
+ *
+ * ── POSTCARD SUITE ───
+ *   The 16 single-photo slides are styled as a sequence of vintage
+ *   postcards Nicola receives. Each variant declares its ORIGIN CITY
+ *   and DATE on the postmark + caption header. Pattern is staggered
+ *   (F-F-B-F-B-F-F-B-F-F-B-B-F-F-B-F) so user sees 10 FRONTS and
+ *   6 BACKS in an organic rhythm — not perfectly alternate.
+ *   Starts and ends on FRONT to maximize photo impact.
+ *
+ * ── Caption authoring notes ──
+ *   Every caption is anchored to the city on that slide so each
+ *   postcard feels like it was mailed FROM somewhere specific.
+ *   Length: ~12-20 words (fits handwritten caption slot rotated by
+ *   captionRotation). No cap on creativity.
+ */
+
+import birthdayBGM from "../../assets/birthday/music/Happy-Birthday-Arranged-by-Mira.mp3";
+import type {
+  BirthdayPhoto,
+  BirthdayContent,
+  BirthdayPhotoVariant,
+  BirthdaySceneId,
+  BirthdaySceneConfig,
+} from "./birthday.types";
+
+// ── Photo collection ─────────────────────────────────────────────────
+const photoModules = import.meta.glob<{ default: string }>(
+  "../../assets/birthday/photos/*.jpeg",
+  { eager: true },
+);
+
+const sortedPhotoEntries = Object.entries(photoModules).sort(([a], [b]) => {
+  const numA = parseInt(a.match(/\((\d+)\)/)?.[1] ?? "0", 10);
+  const numB = parseInt(b.match(/\((\d+)\)/)?.[1] ?? "0", 10);
+  return numA - numB;
+});
+
+export const BIRTHDAY_PHOTOS: BirthdayPhoto[] = sortedPhotoEntries.map(
+  ([path, mod], idx) => ({
+    id: `sweet-heart-${idx + 1}`,
+    src: (mod as { default: string }).default,
+    caption: "",
+  }),
+);
+
+// ── Music ────────────────────────────────────────────────────────────
+export const BIRTHDAY_BGM_SRC: string = birthdayBGM;
+
+// ── Photo variants (16) — POSTCARD SUITE ────────────────────────────
+// Pattern: F-F-B-F-B-F-F-B-F-F-B-B-F-F-B-F
+// start + end on FRONT. 10 fronts (photo-dominant), 6 backs (text).
+//
+// postcardCity choices reflect actual travel Ger + Nicola have shared
+// (Indonesia, then up the long-distance arc: Manila, Singapore, KL,
+// Bangkok, Tokyo, Osaka, Kyoto, then closing back in Jakarta). Each
+// postcardCity is referenced in its matching caption — when you swap
+// the caption for an inside-joke, keep the city anchor so the
+// postmark still feels authentic.
+export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
+  // 1. F — Jakarta — sage washi
+  {
+    postcardSide: "front",
+    postcardCity: "Jakarta",
+    postcardDate: "27 · VII",
+    postcardCountry: "Indonesia",
+    rotation: -1.8,
+    decoration: "washi-top",
+    decorationColor: "sage",
+    captionPosition: "inside-bottom",
+    captionStyle: "handwrite",
+    captionRotation: -0.8,
+    cropMode: "portrait",
+    kenBurns: "zoom-in",
+    hueTint: "cream",
+    borderStyle: "thin-frame",
+    pageNumberStyle: "roman",
+    ephemera: "botany-corner",
+    stampMotif: "rose",
+    stampColor: "muted-red",
+    dateStamp: "I",
+  },
+  // 2. F — Bandung — rose washi
+  {
+    postcardSide: "front",
+    postcardCity: "Bandung",
+    postcardDate: "27 · VII",
+    postcardCountry: "Indonesia",
+    rotation: 2.6,
+    decoration: "washi-corner",
+    decorationColor: "rose",
+    captionPosition: "outside-bottom",
+    captionStyle: "serif",
+    captionRotation: -1.5,
+    cropMode: "portrait",
+    kenBurns: "pan-up",
+    hueTint: "rose",
+    borderStyle: "polaroid",
+    pageNumberStyle: "stamp-letter",
+    ephemera: "sparkle-corner",
+    stampMotif: "fern",
+    stampColor: "ochre",
+    dateStamp: "II",
+  },
+  // 3. B — Yogyakarta — paperclip
+  {
+    postcardSide: "back",
+    postcardCity: "Yogyakarta",
+    postcardDate: "27 · VII",
+    postcardCountry: "Indonesia",
+    rotation: 0.4,
+    decoration: "paperclip",
+    decorationColor: "tan",
+    captionPosition: "overlay-side",
+    captionStyle: "typewriter",
+    captionRotation: 1.2,
+    cropMode: "square",
+    kenBurns: "static",
+    hueTint: "sepia",
+    borderStyle: "thin-frame",
+    pageNumberStyle: "arabic",
+    ephemera: "none",
+    stampMotif: "letter",
+    stampColor: "ochre",
+    dateStamp: "III",
+  },
+  // 4. F — Bali — heavy tilt, lavender corner
+  {
+    postcardSide: "front",
+    postcardCity: "Bali",
+    postcardDate: "27 · VII",
+    postcardCountry: "Indonesia",
+    rotation: -4.5,
+    decoration: "washi-corner",
+    decorationColor: "lavender",
+    captionPosition: "inside-bottom",
+    captionStyle: "handwrite",
+    captionRotation: 1.6,
+    cropMode: "portrait",
+    kenBurns: "zoom-out",
+    hueTint: "rose",
+    borderStyle: "torn",
+    pageNumberStyle: "none",
+    ephemera: "botany-corner",
+    stampMotif: "star",
+    stampColor: "sage",
+    dateStamp: "IV",
+  },
+  // 5. B — Semarang — wax seal
+  {
+    postcardSide: "back",
+    postcardCity: "Semarang",
+    postcardDate: "27 · VII",
+    postcardCountry: "Indonesia",
+    rotation: 1.6,
+    decoration: "wax-seal",
+    decorationColor: "rose",
+    captionPosition: "corner-stamp",
+    captionStyle: "serif",
+    captionRotation: 0,
+    cropMode: "full-bleed",
+    kenBurns: "pan-left",
+    hueTint: "sage",
+    borderStyle: "thick-paper",
+    pageNumberStyle: "roman",
+    ephemera: "wax-corner",
+    stampMotif: "heart",
+    stampColor: "muted-red",
+    dateStamp: "V",
+  },
+  // 6. F — Malang — center polaroid, tan top washi
+  {
+    postcardSide: "front",
+    postcardCity: "Malang",
+    postcardDate: "27 · VII",
+    postcardCountry: "Indonesia",
+    rotation: -1.4,
+    decoration: "washi-top",
+    decorationColor: "tan",
+    captionPosition: "outside-bottom",
+    captionStyle: "handwrite",
+    captionRotation: -1.0,
+    cropMode: "portrait",
+    kenBurns: "zoom-in",
+    hueTint: "cream",
+    borderStyle: "polaroid",
+    pageNumberStyle: "stamp-letter",
+    ephemera: "sparkle-corner",
+    stampMotif: "rose",
+    stampColor: "indigo",
+    dateStamp: "VI",
+  },
+  // 7. F — Bogor — sage corners
+  {
+    postcardSide: "front",
+    postcardCity: "Bogor",
+    postcardDate: "27 · VII",
+    postcardCountry: "Indonesia",
+    rotation: 2.4,
+    decoration: "corners-only",
+    decorationColor: "sage",
+    captionPosition: "inside-bottom",
+    captionStyle: "serif",
+    captionRotation: 0.8,
+    cropMode: "portrait",
+    kenBurns: "pan-up",
+    hueTint: "sage",
+    borderStyle: "thin-frame",
+    pageNumberStyle: "arabic",
+    ephemera: "botany-corner",
+    stampMotif: "fern",
+    stampColor: "sage",
+    dateStamp: "VII",
+  },
+  // 8. B — Surabaya — hanging thread
+  {
+    postcardSide: "back",
+    postcardCity: "Surabaya",
+    postcardDate: "27 · VII",
+    postcardCountry: "Indonesia",
+    rotation: -0.2,
+    decoration: "thread-hang",
+    decorationColor: "gold",
+    captionPosition: "overleaf",
+    captionStyle: "handwrite",
+    captionRotation: -0.6,
+    cropMode: "square",
+    kenBurns: "static",
+    hueTint: "cream",
+    borderStyle: "polaroid",
+    pageNumberStyle: "roman",
+    ephemera: "none",
+    stampMotif: "star",
+    stampColor: "ochre",
+    dateStamp: "VIII",
+  },
+  // 9. F — Manila — heavy gold corner
+  {
+    postcardSide: "front",
+    postcardCity: "Manila",
+    postcardDate: "27 · VII",
+    postcardCountry: "Pilipinas",
+    rotation: 4.0,
+    decoration: "washi-corner",
+    decorationColor: "gold",
+    captionPosition: "outside-bottom",
+    captionStyle: "serif",
+    captionRotation: -1.8,
+    cropMode: "portrait",
+    kenBurns: "zoom-in",
+    hueTint: "sepia",
+    borderStyle: "polaroid",
+    pageNumberStyle: "stamp-letter",
+    ephemera: "sparkle-corner",
+    stampMotif: "star",
+    stampColor: "ochre",
+    dateStamp: "IX",
+  },
+  // 10. F — Singapore — center thin-frame
+  {
+    postcardSide: "front",
+    postcardCity: "Singapore",
+    postcardDate: "27 · VII",
+    postcardCountry: "Singapura",
+    rotation: -1.0,
+    decoration: "washi-corner",
+    decorationColor: "rose",
+    captionPosition: "overlay-side",
+    captionStyle: "script",
+    captionRotation: -1.0,
+    cropMode: "wide",
+    kenBurns: "pan-left",
+    hueTint: "rose",
+    borderStyle: "thin-frame",
+    pageNumberStyle: "arabic",
+    ephemera: "wax-corner",
+    stampMotif: "rose",
+    stampColor: "muted-red",
+    dateStamp: "X",
+  },
+  // 11. B — Kuala Lumpur — paperclip, typewriter
+  {
+    postcardSide: "back",
+    postcardCity: "Kuala Lumpur",
+    postcardDate: "27 · VII",
+    postcardCountry: "Malaysia",
+    rotation: 1.0,
+    decoration: "paperclip",
+    decorationColor: "sage",
+    captionPosition: "inside-bottom",
+    captionStyle: "typewriter",
+    captionRotation: 0,
+    cropMode: "square",
+    kenBurns: "static",
+    hueTint: "cream",
+    borderStyle: "thin-frame",
+    pageNumberStyle: "arabic",
+    ephemera: "sparkle-corner",
+    stampMotif: "letter",
+    stampColor: "sage",
+    dateStamp: "XI",
+  },
+  // 12. B — Bangkok — heavy tilt, torn edge
+  {
+    postcardSide: "back",
+    postcardCity: "Bangkok",
+    postcardDate: "27 · VII",
+    postcardCountry: "Thailand",
+    rotation: -3.5,
+    decoration: "washi-top",
+    decorationColor: "lavender",
+    captionPosition: "overleaf",
+    captionStyle: "handwrite",
+    captionRotation: 1.8,
+    cropMode: "portrait",
+    kenBurns: "zoom-out",
+    hueTint: "sepia",
+    borderStyle: "torn",
+    pageNumberStyle: "roman",
+    ephemera: "botany-corner",
+    stampMotif: "fern",
+    stampColor: "indigo",
+    dateStamp: "XII",
+  },
+  // 13. F — Tokyo — center polaroid, sage top washi + wax combo
+  {
+    postcardSide: "front",
+    postcardCity: "Tokyo",
+    postcardDate: "27 · VII",
+    postcardCountry: "Japan",
+    rotation: 2.6,
+    decoration: "wax-seal",
+    decorationColor: "sage",
+    captionPosition: "overleaf",
+    captionStyle: "serif",
+    captionRotation: -1.2,
+    cropMode: "full-bleed",
+    kenBurns: "zoom-out",
+    hueTint: "sage",
+    borderStyle: "thick-paper",
+    pageNumberStyle: "roman",
+    ephemera: "wax-corner",
+    stampMotif: "rose",
+    stampColor: "indigo",
+    dateStamp: "XIII",
+  },
+  // 14. F — Osaka — heavy tilt, gold corner
+  {
+    postcardSide: "front",
+    postcardCity: "Osaka",
+    postcardDate: "27 · VII",
+    postcardCountry: "Japan",
+    rotation: -0.6,
+    decoration: "thread-hang",
+    decorationColor: "gold",
+    captionPosition: "overleaf",
+    captionStyle: "serif",
+    captionRotation: -0.8,
+    cropMode: "wide",
+    kenBurns: "zoom-in",
+    hueTint: "cream",
+    borderStyle: "polaroid",
+    pageNumberStyle: "stamp-letter",
+    ephemera: "none",
+    stampMotif: "star",
+    stampColor: "ochre",
+    dateStamp: "XIV",
+  },
+  // 15. B — Kyoto — letter, paperclip
+  {
+    postcardSide: "back",
+    postcardCity: "Kyoto",
+    postcardDate: "27 · VII",
+    postcardCountry: "Japan",
+    rotation: 1.4,
+    decoration: "paperclip",
+    decorationColor: "tan",
+    captionPosition: "inside-bottom",
+    captionStyle: "script",
+    captionRotation: 0.8,
+    cropMode: "square",
+    kenBurns: "static",
+    hueTint: "sepia",
+    borderStyle: "thin-frame",
+    pageNumberStyle: "roman",
+    ephemera: "none",
+    stampMotif: "letter",
+    stampColor: "muted-red",
+    dateStamp: "XV",
+  },
+  // 16. F — FINALE: kembali ke Jakarta — biggest, most colorful
+  {
+    postcardSide: "front",
+    postcardCity: "Jakarta",
+    postcardDate: "27 · VII · MMXXVI",
+    postcardCountry: "for you, always",
+    rotation: -1.5,
+    decoration: "washi-top",
+    decorationColor: "rose",
+    captionPosition: "outside-bottom",
+    captionStyle: "serif",
+    captionRotation: 0,
+    cropMode: "full-bleed",
+    kenBurns: "zoom-in",
+    hueTint: "rose",
+    borderStyle: "thick-paper",
+    pageNumberStyle: "roman",
+    ephemera: "wax-corner",
+    stampMotif: "heart",
+    stampColor: "muted-red",
+    dateStamp: "XVI · the finale",
+  },
+];
+
+// ── Scene order & per-scene configuration ────────────────────────────
+const ROMAN: string[] = [
+  "I", "II", "III", "IV", "V", "VI", "VII", "VIII",
+  "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI",
+];
+
+export const BIRTHDAY_SCENE_ORDER: BirthdaySceneId[] = [
+  "gift-open",
+  "hero",
+  "scrapbook",
+  "photo-1", "photo-2", "photo-3", "photo-4",
+  "photo-5", "photo-6", "photo-7", "photo-8",
+  "photo-9", "photo-10", "photo-11", "photo-12",
+  "photo-13", "photo-14", "photo-15", "photo-16",
+  "ending",
+];
+
+export const BIRTHDAY_SCENES: BirthdaySceneConfig[] = [
+  {
+    id: "gift-open",
+    title: "Open Your Envelope",
+    order: 0,
+    layout: "interactive",
+    advanceMode: "interactive",
+    bgmVolume: 0.35,
+  },
+  {
+    id: "hero",
+    title: "A Postcard for You",
+    order: 1,
+    layout: "cinematic",
+    advanceMode: "auto",
+    durationMs: 7000,
+    bgmVolume: 0.55,
+  },
+  {
+    id: "scrapbook",
+    title: "A Letter From Afar",
+    order: 2,
+    layout: "spread",
+    advanceMode: "manual",
+    bgmVolume: 0.65,
+  },
+  ...BIRTHDAY_PHOTO_VARIANTS.map((_, i) => ({
+    id: (`photo-${i + 1}` as BirthdaySceneId),
+    title: `${ROMAN[i] ?? i + 1} ${
+      BIRTHDAY_PHOTO_VARIANTS[i].postcardSide === "front" ? "Front" : "Back"
+    } — ${BIRTHDAY_PHOTO_VARIANTS[i].postcardCity}`,
+    order: 3 + i,
+    layout: "single-photo" as const,
+    advanceMode: "manual" as const,
+    bgmVolume: 0.72,
+  })),
+  {
+    id: "ending",
+    title: "Yours, Always",
+    order: 19,
+    layout: "closing",
+    advanceMode: "manual",
+    bgmVolume: 0.5,
+  },
+];
+
+// ── Personal content ─────────────────────────────────────────────────
+// [personalize] — refine where marked with [GER: refine].
+export const BIRTHDAY_CONTENT: BirthdayContent = {
+  recipientName: "Nicola",
+  heroSubtitle: "A Postcard for You",
+  heroText: "Nicola",
+  scrapbookQuote: "The shortest distance between two hearts is a single stamp.",
+  letterLines: [
+    "Nicola — di hari kamu bertambah satu tahun ini, ada satu hal yang jarang aku ucapkan keras-keras.",
+    "kamu bukan cuma seseorang yang aku cintai — kamu adalah orang yang bikin aku pengen jadi versi terbaik dari diriku sendiri.",
+    "setiap kali aku capek, aku cuma perlu inget senyummu — dan semuanya terasa worth it.",
+    "makasih udah milih aku, milih sabar, dan milih terus jalan bareng meskipun jaraknya gak selalu dekat.",
+    "di tahun ini, harapan aku cuma satu: semoga kamu selalu ngerasa dicintai — setiap hari, setiap jam, setiap kali kita lupa waktu karena terlalu asik ngobrol.",
+  ],
+  endingMessage: "From Jakarta, with a love that doesn't expire.",
+};
+
+// ── Photo captions (16) — handwritten memory notes ──────────────────
+// Each caption is anchored to the city on its matching slide. Marked
+// `[GER: refine]` where only your actual inside-joke will land.
+export const BIRTHDAY_PHOTO_CAPTIONS: Record<number, string> = {
+  1: "Jakarta at 11PM — the night I knew this would last.",                                          // [GER: refine — maybe your first 'I like you' moment?]
+  2: "Bandung mist, your laugh ringing clearer than all of it.",                                    // [GER: refine — the cafe you couldn't stop ordering]
+  3: "Yogyakarta — your first time at Borobudur, eyes wide at sunrise.",                            // [GER: refine — your favorite Yogya street-food stall]
+  4: "Bali, Tanah Lot, salt still on our skin. We didn't need words.",                              // [GER: refine — your 'wow' moment in Bali]
+  5: "Semarang old town — your hand in my pocket the whole walk.",                                   // [GER: refine — what we ate at the warung]
+  6: "Malang — the apple orchard you made me try. I still don't like them. But I love you.",        // [GER: refine — what's the inside joke here?]
+  7: "Bogor botanical garden — your favorite bench, our quietest afternoon.",                        // [GER: refine — what you fed the ducks that day]
+  8: "Surabaya — the day I met your family. I was terrified. You were calm.",                        // [GER: refine — what your mom said about me]
+  9: "Manila jeepney ride — your elbow nudging mine at every bump.",                                 // [GER: refine — where we got lost]
+  10: "Singapore, Gardens by the Bay — the Supertree lit up just for us.",                            // [GER: refine — what we ate at Lau Pa Sat]
+  11: "KL — Petronas lit at midnight, taller than your smile. Almost.",                               // [GER: refine — late-night mamak order]
+  12: "Bangkok street-food alley — you teaching me to eat spicy.",                                   // [GER: refine — what we ordered twice]
+  13: "Tokyo, Shibuya crossing — the only chaos I'm glad to be lost in.",                             // [GER: refine — the konbini we returned to 3 nights in a row]
+  14: "Osaka — you laughed so hard at takoyaki you cried.",                                            // [GER: refine — what got stuck on my face]
+  15: "Kyoto bamboo grove — your whisper, my answer.",                                                // [GER: refine — the exact words if you remember]
+  16: "Sixteen cities, sixteen postcards — and you remain my favorite.",
+};

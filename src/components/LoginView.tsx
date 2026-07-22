@@ -1,7 +1,12 @@
 /// <reference types="vite/client" />
 import React, { useState, useEffect } from "react";
 import { auth, googleProvider } from "../firebaseClient";
-import { signInWithRedirect, getRedirectResult, signInWithPopup } from "firebase/auth";
+import {
+  signInWithRedirect,
+  getRedirectResult,
+  signInWithPopup,
+  signInAnonymously,
+} from "firebase/auth";
 import { Heart, Sparkles, AlertCircle, ArrowRight } from "lucide-react";
 import { triggerHaptic } from "../lib/haptics";
 import { motion } from "motion/react";
@@ -169,6 +174,34 @@ export default function LoginView() {
             >
               {loading ? "Climbing the rope ladder..." : "Climb up with Google"}
             </StickerButton>
+
+            {/* ── DEV-ONLY: anonymous sign-in for local testing (Vite tree-shakes at build) ── */}
+            {import.meta.env.DEV && (
+              <button
+                type="button"
+                onClick={async () => {
+                  setErrorMsg("");
+                  setIsUnauthorizedDomain(false);
+                  try {
+                    await signInAnonymously(auth);
+                    console.log("[Login] Anonymous sign-in successful (dev only)");
+                  } catch (err: any) {
+                    console.warn("[Login] Anonymous sign-in failed:", err);
+                    const friendly =
+                      err?.code === "auth/operation-not-allowed"
+                        ? "Anonymous sign-in is disabled in Firebase Console — enable it under Auth → Sign-in method."
+                        : err?.code === "auth/network-request-failed"
+                          ? "Network error — check your connection."
+                          : (err?.message as string) ?? "Anonymous sign-in failed";
+                    setErrorMsg(friendly);
+                  }
+                }}
+                className="w-full px-4 py-2 rounded-xl text-xs font-mono uppercase tracking-[0.32em] border border-dashed border-[#8B7355]/45 text-[#8B7355] dark:text-[#B8B0A4] hover:border-[#8B7355]/75 hover:bg-[#8B7355]/8 transition-colors cursor-pointer"
+                aria-label="Sign in anonymously (development preview)"
+              >
+                · dev only · sign in anonymously ·
+              </button>
+            )}
 
             {/* ── Error Messages ── */}
             {isUnauthorizedDomain ? (
