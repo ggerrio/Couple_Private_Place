@@ -26,8 +26,9 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
     return controls.stop;
   }, [ageValue, reduced]);
 
-  // First photo as Polaroid memory frame
-  const firstPhoto = photos?.[0];
+  // Dedicated photo for Slide 3 (CHAPTER I · THE ESSENCE OF YOU)
+  // Index 16 (photo17) prevents sharing photo 1 with Slide 5
+  const polaroidPhoto = photos?.[16] ?? photos?.[0];
 
   return (
     <button
@@ -41,9 +42,8 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
       {/* Decorative backdrop glow (turns deep violet when purple vibe is active) */}
       <div
         aria-hidden
-        className={`absolute w-[80vw] max-w-[1000px] h-[60vh] rounded-full transition-colors duration-1000 blur-3xl pointer-events-none ${
-          purpleVibe ? "bg-violet-500/20" : "bg-rose-200/10"
-        }`}
+        className={`absolute w-[80vw] max-w-[1000px] h-[60vh] rounded-full transition-colors duration-1000 blur-3xl pointer-events-none ${purpleVibe ? "bg-violet-500/20" : "bg-rose-200/10"
+          }`}
       />
 
       <motion.div
@@ -98,8 +98,8 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
         />
 
         {/* Card Header text */}
-        <div className="absolute top-3 left-0 right-0 text-center font-serif italic text-[10px] tracking-[0.3em] text-[#705646] z-10">
-          CHAPTER I · THE ESSENCE OF YOU
+        <div className="absolute top-3 left-0 right-0 text-center font-serif italic text-[10px] tracking-[0.3em] text-[#3a2511] z-10 font-bold">
+          LITTLE THINGS I LOVE ABOUT YOU
         </div>
 
         {/* Vertical divider */}
@@ -112,49 +112,60 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
           }}
         />
 
-        {/* LEFT PAGE: 21 milestone & purple theme accent & text note */}
-        <div className="relative flex-1 px-8 pt-10 pb-6 flex flex-col justify-between items-center text-center overflow-hidden">
-          <div className="flex flex-col items-center mt-2 w-full">
-            <span className="font-serif italic text-[11px] uppercase tracking-[0.25em] text-[#8a6552]/70 mb-1">
-              Nicola is turning
+        {/* LEFT PAGE: Poetic list of little things I love about Nicola */}
+        <div
+          data-testid="left-page-column"
+          className="relative flex-1 px-5 pt-8 pb-5 flex flex-col justify-between items-start overflow-hidden text-left"
+        >
+          <div className="w-full flex flex-col gap-2 mt-1">
+            <span className="font-serif italic text-[10px] md:text-xs uppercase tracking-[0.2em] text-[#705646] font-bold">
+              Little Things I Love About You
             </span>
-            <div className="font-serif text-[#3a2511] font-bold text-5xl md:text-6xl tracking-tight leading-none my-1 flex items-baseline gap-1">
-              <motion.span>{roundedAge}</motion.span>
-              <span className="text-2xl md:text-3xl font-serif italic text-[#7c2b22]">st</span>
+            <div className="w-8 h-px bg-[#705646]/40 mb-1" />
+
+            <div className="flex flex-col gap-2.5">
+              {[
+                "The way your smile always arrives before your words.",
+                "The way you get excited over the smallest things.",
+                "The sparkle in your eyes whenever something makes you genuinely happy.",
+                "The way hearing your voice can instantly make everything feel lighter.",
+                "The comfort of knowing you're only one message away, even across the distance.",
+                "The way you always manage to calm the chaos inside my mind.",
+                "How you became my safe place without ever trying to be.",
+                "The way you make me want to become a better man, little by little.",
+                "The way 'my baby girl' stopped being just a nickname and quietly became my favorite person.",
+                "And maybe... it was never just one thing. It has always been you."
+              ].map((item, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={reduced ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + idx * 0.35, duration: 0.6, ease: "easeOut" }}
+                  className="flex items-start gap-1.5"
+                >
+                  <span className="text-[#7c2b22] text-xs mt-1 select-none">✿</span>
+                  <p className="font-handwrite text-[13px] md:text-[15px] text-[#3a2511] font-bold leading-tight">
+                    {item}
+                  </p>
+                </motion.div>
+              ))}
             </div>
-            <span className="font-handwrite text-[#5C3A1E] text-lg md:text-xl rotate-[-2deg]">
-              Birthday milestone!
-            </span>
           </div>
 
-          {/* Integrated description text */}
-          <div className="font-serif italic text-xs text-[#8a6552]/80 leading-relaxed text-center px-4 max-w-[85%] mt-4 select-none border-t border-[#dfd0bd]/40 pt-4">
-            "She loves cozy purple aesthetics, quiet movie nights, and warm memories."
-          </div>
-
-          {/* Interactive purple vibe button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setPurpleVibe(!purpleVibe);
-            }}
-            className="interactive-target relative group flex items-center gap-2 px-3 py-1.5 rounded-full border border-violet-300 bg-violet-100/40 hover:bg-violet-150/60 shadow-sm transition-all duration-300 outline-none mb-1 z-20 cursor-pointer"
+          {/* Age milestone at the bottom */}
+          <motion.div
+            initial={reduced ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 + 7 * 0.35 + 0.2, duration: 0.7 }}
+            className="w-full border-t border-[#dfd0bd]/60 pt-2 flex flex-col items-center text-center mt-3"
           >
-            {purpleVibe && (
-              <span className="absolute inset-0 rounded-full ring-2 ring-violet-400/50 animate-ping pointer-events-none" />
-            )}
-            <motion.span
-              animate={purpleVibe ? { scale: [1, 1.25, 1] } : {}}
-              transition={{ repeat: Infinity, duration: 1.5 }}
-              className="text-xs"
-            >
-              💜
-            </motion.span>
-            <span className="font-serif text-[10px] font-bold uppercase tracking-wider text-violet-700">
-              {purpleVibe ? "Purple Vibe ON" : "Turn Purple Vibe ON"}
+            <span className="font-serif text-[#7c2b22] font-extrabold text-sm md:text-base tracking-widest uppercase">
+              Twenty-one.
             </span>
-          </button>
+            <span className="font-serif italic text-[9px] md:text-[10px] text-[#705646] font-semibold mt-0.5 leading-snug">
+              Yet somehow, every year only makes you more wonderful.
+            </span>
+          </motion.div>
         </div>
 
         {/* RIGHT PAGE: Doodles (Rabbit & Fawn) at the top, Polaroid photo at the bottom */}
@@ -244,10 +255,10 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
             </motion.div>
           </div>
 
-          {/* Polaroid Photo Frame (Fills empty space at bottom right) */}
+          {/* Polaroid Photo Frame (Original proportions, slim bottom border) */}
           <motion.div
             whileHover={{ scale: 1.03, rotate: -1.5 }}
-            className="interactive-target mt-3 p-2 bg-[#fefdfa] border border-[#ebdcb9] shadow-md rounded-[2px] w-[64%] aspect-[4/5] flex flex-col justify-between relative select-none"
+            className="interactive-target mt-1 p-1.5 pb-2 bg-[#fefdfa] border border-[#ebdcb9] shadow-md rounded-[2px] w-[62%] aspect-[4/5] flex flex-col justify-between relative select-none"
           >
             {/* Washi tape sticker on top of polaroid */}
             <WashiTape
@@ -258,15 +269,15 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
               rotate={-6}
               className="absolute -top-2.5 left-1/2 -translate-x-1/2 opacity-90 z-20"
             />
-            {firstPhoto ? (
-              <div className="relative w-full h-[78%] bg-[#ebdcb9]/40 overflow-hidden rounded-[1px] border border-[#f0e4cf]">
-                <img src={firstPhoto.src} className="w-full h-full object-cover" alt="Nicola memory" />
+            {polaroidPhoto ? (
+              <div className="relative w-full flex-1 bg-[#ebdcb9]/40 overflow-hidden rounded-[1px] border border-[#f0e4cf]">
+                <img src={polaroidPhoto.src} className="w-full h-full object-cover" alt="Nicola memory" />
                 <div className="absolute inset-0 bg-[#8b5a2b]/5 mix-blend-overlay" />
               </div>
             ) : (
-              <div className="w-full h-[78%] bg-[#ebdcb9]/30 rounded-[1px] border border-[#f0e4cf]" />
+              <div className="w-full flex-1 bg-[#ebdcb9]/30 rounded-[1px] border border-[#f0e4cf]" />
             )}
-            <span className="font-handwrite text-[9px] text-[#5C3A1E] text-center leading-none mt-1.5 truncate">
+            <span className="font-handwrite text-xs md:text-sm font-bold text-[#4a2b13] text-center leading-none mt-1.5 truncate">
               our favorite memory ✿
             </span>
           </motion.div>

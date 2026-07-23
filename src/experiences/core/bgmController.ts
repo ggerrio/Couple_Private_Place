@@ -35,6 +35,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { setAmplitude } from "./audioAmplitude";
 import { setRotation } from "./vinylRotation";
+import { consumePreArmedCtx } from "../birthday/birthdayGesture";
 
 export interface BgmControllerHandle {
   /** Lead player's currentTime (sec). Updated by internal rAF. */
@@ -88,116 +89,76 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
   const cumulativeTimeRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(false);
 
-  // Persistent refs for the Web Audio graph (refs so we never re-arm
-  // on React re-renders — once the buffer is decoded, it lives until
-  // the effect cleanup runs).
+  // Persistent refs for the Web Audio graph
   const ctxRef = useRef<AudioContext | null>(null);
   const bufferRef = useRef<AudioBuffer | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const dataRef = useRef<Uint8Array | null>(null);
   const fadeRafRef = useRef<number | null>(null);
 
-  // Two gain nodes for crossfade-driven mixing.
-  const playerAGainRef = useRef<GainNode | null>(null);
-  const playerBGainRef = useRef<GainNode | null>(null);
+  const gainRef = useRef<GainNode | null>(null);
+  const targetVolumeRef = useRef<number>(0.7);
 
   useEffect(() => {
     if (opts.disabled) return;
 
-    // Helper: schedule one leapfrog step. `whichIsLeader==true` means
-    // player A is leading and player B is the upcoming partner; false
-    // means B is leading and A is the upcoming partner.
     let cancelled = false;
-    const startTime = { now: 0 };
-    let playerA: AudioBufferSourceNode | null = null;
-    let playerB: AudioBufferSourceNode | null = null;
-    let deferredPlayer: AudioBufferSourceNode | null = null;
-    const crossfadeDuration = opts.crossfadeDuration ?? 4;
+    let player: AudioBufferSourceNode | null = null;
+    let startTime = 0;
 
     const armAudioContext = (): Promise<void> => {
       return new Promise((resolve, reject) => {
         try {
-          const Ctor: typeof AudioContext | undefined =
-            window.AudioContext ??
-            (window as unknown as { webkitAudioContext?: typeof AudioContext })
-              .webkitAudioContext;
-          if (!Ctor) {
-            reject(new Error("AudioContext unavailable"));
-            return;
+          // Reuse pre-armed AudioContext if available
+          let ctx = consumePreArmedCtx();
+          if (!ctx) {
+            const Ctor = window.AudioContext ?? (window as any).webkitAudioContext;
+            if (!Ctor) {
+              reject(new Error("AudioContext unavailable"));
+              return;
+            }
+            ctx = new Ctor();
           }
-          const ctx = new Ctor();
           ctxRef.current = ctx;
 
-          // Two gain nodes that we'll crossfade.
-          const gainA = ctx.createGain();
-          const gainB = ctx.createGain();
-          gainA.gain.value = 0;
-          gainB.gain.value = 0;
-          gainA.connect(ctx.destination);
-          gainB.connect(ctx.destination);
-          playerAGainRef.current = gainA;
-          playerBGainRef.current = gainB;
+          // Single GainNode
+          const gainNode = ctx.createGain();
+          gainNode.gain.value = 0;
+          gainNode.connect(ctx.destination);
+          gainRef.current = gainNode;
 
-          // One analyser — feed off gainA (lead switches don't matter
-          // perceptually since we crossfade continuously).
+          // Analyser
           const analyser = ctx.createAnalyser();
           analyser.fftSize = 256;
           analyser.smoothingTimeConstant = 0.7;
           analyserRef.current = analyser;
           analyser.connect(ctx.destination);
           dataRef.current = new Uint8Array(analyser.frequencyBinCount);
+          gainNode.connect(analyser);
 
-          // Compose(master for amplitude visibility) → analyser.
-          gainA.connect(analyser);
-
-          // Fetch + decode.
+          // Fetch + decode
           fetch(opts.src)
             .then((r) => r.arrayBuffer())
             .then((buf) => ctx.decodeAudioData(buf))
             .then((decoded) => {
-              if (cancelled) {
-                decoded = null as unknown as AudioBuffer;
-                return;
-              }
+              if (cancelled) return;
               bufferRef.current = decoded;
               durationRef.current = decoded.duration;
 
-              // Boot player A SILENT. setVolume (driven by ExperienceMusic
-              // per-scene config) handles the actual user-facing ramp up
-              // to the target. Without this, the copy-ramp would overshoot
-              // to 0.7 and then setVolume(0.35) for "gift-open" would
-              // instrumentally snap gain back down — a tiny but audible
-              // knee-jerk dip on the very first cycle.
-              playerA = ctx.createBufferSource();
-              playerA.buffer = decoded;
-              playerA.loop = false;
-              playerA.connect(gainA);
-              startTime.now = ctx.currentTime;
-              playerA.start(0);
-              gainA.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4);
+              // Create source and set natively to loop
+              player = ctx.createBufferSource();
+              player.buffer = decoded;
+              player.loop = true; // Seamless native loop!
+              player.connect(gainNode);
+              
+              startTime = ctx.currentTime;
+              player.start(0);
+
+              const initVol = targetVolumeRef.current;
+              gainNode.gain.setValueAtTime(initVol, ctx.currentTime);
+              gainNode.gain.linearRampToValueAtTime(initVol, ctx.currentTime + 0.4);
               isPlayingRef.current = true;
 
-              // Schedule player B to start at loopEnd - crossfade.
-              const dur = decoded.duration;
-              const scheduledBStart = dur - crossfadeDuration;
-              playerB = ctx.createBufferSource();
-              playerB.buffer = decoded;
-              playerB.loop = false;
-              playerB.connect(gainB);
-              playerB.start(scheduledBStart);
-
-              // When B's start time hits, ramp gain A down + gain B up.
-              // The crossfade drives the internal "lead" swap; the
-              // user-facing level (whatever setVolume last set) lives
-              // on top via setVolume's own linearRamp scheduling, so
-              // the absolute numbers here are intrinsic and remultiplied
-              // by setVolume at runtime.
-              gainA.gain.setValueAtTime(0.7, ctx.currentTime + scheduledBStart);
-              gainB.gain.setValueAtTime(0, ctx.currentTime + scheduledBStart);
-              gainA.gain.linearRampToValueAtTime(0, ctx.currentTime + scheduledBStart + crossfadeDuration);
-              gainB.gain.linearRampToValueAtTime(0.7, ctx.currentTime + scheduledBStart + crossfadeDuration);
-
-              // rAF amplitude + currentTime tick.
               const tick = () => {
                 if (cancelled) return;
                 const data = dataRef.current;
@@ -208,61 +169,18 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
                   for (let i = 0; i < data.length; i++) sum += data[i];
                   setAmplitude(sum / data.length / 255);
                 }
-                if (ctxRef.current && playerA) {
-                  try {
-                    const t = ctxRef.current.currentTime - startTime.now;
-                    const dur = decoded.duration;
-                    // currentTime wraps inside the loop period.
-                    currentTimeRef.current = (t % dur + dur) % dur;
-                    cumulativeTimeRef.current += 1 / 60;
-                  } catch {
-                    // Source ended; the leapfrog will swap roles.
-                  }
+                if (ctxRef.current && player) {
+                  const t = ctxRef.current.currentTime - startTime;
+                  const dur = decoded.duration;
+                  currentTimeRef.current = t % dur;
+                  cumulativeTimeRef.current += 1 / 60;
                 }
-                // Publish rotation ONLY while the audio graph is
-                // actually playing — the disc naturally freezes when
-                // the user pauses BGM via onPause/, and resumes from
-                // the current angle on resume. 33⅓ RPM = 200°/sec is
-                // the canonical turntable speed; the 0..360 wrap means
-                // the crossfade boundary is invisible to the eye.
                 if (isPlayingRef.current) {
                   setRotation(cumulativeTimeRef.current * 200);
                 }
-
-                // After the scheduled B start + crossfade, schedule A2
-                // as the next leapfrog partner.
-                if (
-                  ctxRef.current &&
-                  playerB &&
-                  ctxRef.current.currentTime >= scheduledBStart + crossfadeDuration &&
-                  !deferredPlayer
-                ) {
-                  deferredPlayer = ctxRef.current.createBufferSource();
-                  deferredPlayer.buffer = decoded;
-                  deferredPlayer.loop = false;
-                  // Pick which gain fades next — if A→B transition
-                  // just happened, schedule next B→A by connecting to
-                  // gainA (so we crossfade back B→A).
-                  deferredPlayer.connect(gainA);
-                  const scheduled = scheduledBStart + dur;
-                  deferredPlayer.start(scheduled);
-                  gainA.gain.setValueAtTime(0, ctxRef.current.currentTime + scheduled);
-                  gainB.gain.setValueAtTime(0.7, ctxRef.current.currentTime + scheduled);
-                  gainA.gain.linearRampToValueAtTime(0.7, ctxRef.current.currentTime + scheduled + crossfadeDuration);
-                  gainB.gain.linearRampToValueAtTime(0, ctxRef.current.currentTime + scheduled + crossfadeDuration);
-                  // Marker: cycle is now self-perpetuating — handlers
-                  // don't need to re-schedule manually beyond this.
-                  // Don't swap roles synchronously — the parent's rAF
-                  // tick reads whichever GainNode is currently `lead`
-                  // based on accumulated time. The above schedule keeps
-                  // playback continuous across multiple cycles.
-                  isPlayingRef.current = true;
-                }
-
                 fadeRafRef.current = requestAnimationFrame(tick);
               };
               fadeRafRef.current = requestAnimationFrame(tick);
-
               resolve();
             })
             .catch(reject);
@@ -272,83 +190,61 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
       });
     };
 
-    // Browser autoplay policy: AudioContext + decodeAudioData must
-    // happen INSIDE a user gesture. Window-level passive listener
-    // fires once on first pointerdown/keydown.
     let armed = false;
     const arm = () => {
-      if (armed || cancelled) return;
+      if (cancelled) return;
+      if (ctxRef.current && ctxRef.current.state === "suspended") {
+        ctxRef.current.resume().catch(() => {});
+      }
+      if (armed) return;
       armed = true;
       armAudioContext().catch((err) => {
         console.warn("[bgmController] arm failed:", err);
       });
       window.removeEventListener("pointerdown", arm);
+      window.removeEventListener("click", arm);
       window.removeEventListener("keydown", arm);
     };
+
+    arm();
     window.addEventListener("pointerdown", arm, { once: true });
+    window.addEventListener("click", arm, { once: true });
     window.addEventListener("keydown", arm, { once: true });
 
     return () => {
       cancelled = true;
       window.removeEventListener("pointerdown", arm);
+      window.removeEventListener("click", arm);
       window.removeEventListener("keydown", arm);
       if (fadeRafRef.current != null) {
         cancelAnimationFrame(fadeRafRef.current);
-        fadeRafRef.current = null;
       }
-      try { playerA?.stop(); } catch { /* ignore */ }
-      try { playerB?.stop(); } catch { /* ignore */ }
-      try { deferredPlayer?.stop(); } catch { /* ignore */ }
-      ctxRef.current?.close().catch(() => { /* ignore */ });
+      try { player?.stop(); } catch {}
+      ctxRef.current?.close().catch(() => {});
       ctxRef.current = null;
       bufferRef.current = null;
       analyserRef.current = null;
       dataRef.current = null;
-      playerAGainRef.current = null;
-      playerBGainRef.current = null;
+      gainRef.current = null;
       isPlayingRef.current = false;
     };
-  }, [opts.src, opts.disabled, opts.crossfadeDuration]);
+  }, [opts.src, opts.disabled]);
 
   const setVolume = (value: number): void => {
+    const target = Math.max(0, Math.min(1, value));
+    targetVolumeRef.current = target;
     const ctx = ctxRef.current;
     if (!ctx) return;
-    const a = playerAGainRef.current;
-    const b = playerBGainRef.current;
+    const gainNode = gainRef.current;
     const now = ctx.currentTime;
-    // clamp 0..1, prevent negative/over-unity
-    const target = Math.max(0, Math.min(1, value));
-    if (a) {
-      a.gain.cancelScheduledValues(now);
-      a.gain.setValueAtTime(a.gain.value, now);
-      a.gain.linearRampToValueAtTime(target, now + 0.7);
-    }
-    if (b) {
-      b.gain.cancelScheduledValues(now);
-      b.gain.setValueAtTime(b.gain.value, now);
-      b.gain.linearRampToValueAtTime(target, now + 0.7);
+    if (gainNode) {
+      gainNode.gain.cancelScheduledValues(now);
+      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+      gainNode.gain.linearRampToValueAtTime(target, now + 0.7);
     }
   };
 
-  // ════════════════════════════════════════════════════════════════════
-  // Memoize the handle so consumers' useEffects keyed on `bgm` don't
-  // re-fire on every parent render. All members are stable refs or
-  // stable inline arrows whose closures capture already-stable refs
-  // — so [] deps are sound. Without this, ExperienceMusic's
-  // `useEffect(() => bgm.setVolume(targetVolume), [targetVolume, bgm])`
-  // would re-run on every render → cancelScheduledValues + restart
-  // the 0.7s ramp on every parent tick → audible gain stutter.
-  // ════════════════════════════════════════════════════════════════════
-  return useMemo<{
-    currentTimeRef: React.MutableRefObject<number>;
-    durationRef: React.MutableRefObject<number>;
-    cumulativeTimeRef: React.MutableRefObject<number>;
-    isPlayingRef: React.MutableRefObject<boolean>;
-    setVolume: (value: number) => void;
-    pause: () => void;
-    resume: () => void;
-    stop: () => void;
-  }>(
+  return useMemo(
     () => ({
       currentTimeRef,
       durationRef,
@@ -358,20 +254,17 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
       pause: () => {
         const ctx = ctxRef.current;
         if (!ctx) return;
-        try { ctx.suspend(); } catch { /* ignore */ }
+        try { ctx.suspend(); } catch {}
         isPlayingRef.current = false;
       },
       resume: () => {
         const ctx = ctxRef.current;
         if (!ctx) return;
-        try { ctx.resume(); } catch { /* ignore */ }
+        try { ctx.resume(); } catch {}
         isPlayingRef.current = true;
       },
-      stop: () => {
-        // Tear down is handled by the effect cleanup on unmount.
-      },
+      stop: () => {},
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally []; all members are refs or stable closures
-    [],
+    []
   );
 }

@@ -32,7 +32,7 @@ export function ClosingSealScene({ content, onAdvance }: BirthdaySceneProps) {
 
   // Both tap AND auto-advance should fire onAdvance exactly once.
   useEffect(() => {
-    const t = window.setTimeout(onAdvance, reduced ? 2200 : 7500);
+    const t = window.setTimeout(onAdvance, reduced ? 2200 : 4500);
     return () => window.clearTimeout(t);
   }, [onAdvance, reduced]);
 
@@ -55,12 +55,16 @@ export function ClosingSealScene({ content, onAdvance }: BirthdaySceneProps) {
         }}
       />
 
-      {/* Top eyebrow */}
+      {/* Top eyebrow — cascades in right as the wax seal lands */}
       <motion.p
-        initial={{ opacity: 0, y: 8 }}
+        initial={reduced ? false : { opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.55 }}
-        className="font-serif italic text-xs md:text-sm uppercase tracking-[0.35em] text-[#705646]"
+        transition={
+          reduced
+            ? { duration: 0 }
+            : { duration: 0.85, delay: 2.05, ease: [0.22, 1, 0.36, 1] }
+        }
+        className="font-serif italic text-xs md:text-sm uppercase tracking-[0.35em] text-[#3a2511] dark:text-[#3a2511] font-bold relative z-10"
       >
         THE COLLECTOR'S SEAL
       </motion.p>
@@ -74,22 +78,22 @@ export function ClosingSealScene({ content, onAdvance }: BirthdaySceneProps) {
           reduced
             ? { y: 0, opacity: 1, rotate: -2, scale: 1 }
             : {
-                y: [-260, 0, 4, -2, 0],
-                scaleY: [0.65, 1, 0.82, 1.05, 1 + amp * 0.06],
-                scaleX: [0.65, 1, 1.15, 0.98, 1 + amp * 0.06],
-                rotate: [-8, -8, 2, -2, -2],
-                opacity: [0, 1, 1, 1, 1],
-              }
+              y: [-260, 0, 4, -2, 0],
+              scaleY: [0.65, 1, 0.82, 1.05, 1 + amp * 0.06],
+              scaleX: [0.65, 1, 1.15, 0.98, 1 + amp * 0.06],
+              rotate: [-8, -8, 2, -2, -2],
+              opacity: [0, 1, 1, 1, 1],
+            }
         }
         transition={
           reduced
             ? { duration: 0.5 }
             : {
-                duration: 1.8,
-                times: [0, 0.22, 0.3, 0.42, 1],
-                ease: "easeOut",
-                delay: 0.25,
-              }
+              duration: 1.8,
+              times: [0, 0.22, 0.3, 0.42, 1],
+              ease: "easeOut",
+              delay: 0.25,
+            }
         }
         className="relative mt-2 z-10"
       >
@@ -131,21 +135,29 @@ export function ClosingSealScene({ content, onAdvance }: BirthdaySceneProps) {
         </motion.div>
       )}
 
-      {/* Closing message — celebrant's first name resolves softly */}
+      {/* Closing lines — celebrant's name resolves softly, then the flourish lands. */}
       <motion.h2
-        initial={{ opacity: 0, y: 14 }}
+        initial={reduced ? false : { opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8, duration: 0.7 }}
-        className="font-serif italic text-3xl md:text-5xl text-[#3a2511] text-center leading-tight"
+        transition={
+          reduced
+            ? { duration: 0 }
+            : { duration: 0.85, delay: 2.2, ease: [0.22, 1, 0.36, 1] }
+        }
+        className="font-serif italic text-3xl md:text-5xl text-[#2A1B0E] dark:text-[#2A1B0E] font-extrabold text-center leading-tight drop-shadow-xs relative z-10"
       >
         For {content.recipientName}
       </motion.h2>
 
       <motion.p
-        initial={{ opacity: 0, y: 8 }}
+        initial={reduced ? false : { opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.4, duration: 0.7 }}
-        className="font-handwrite text-base md:text-lg text-[#5c3a1e] italic text-center max-w-[80%]"
+        transition={
+          reduced
+            ? { duration: 0 }
+            : { duration: 0.9, delay: 2.35, ease: [0.22, 1, 0.36, 1] }
+        }
+        className="font-handwrite text-2xl md:text-3xl text-[#2A1B0E] dark:text-[#2A1B0E] font-bold italic text-center max-w-[85%] relative z-10"
       >
         sealed with love — today and always ✿
       </motion.p>
@@ -167,11 +179,12 @@ export function ClosingSealScene({ content, onAdvance }: BirthdaySceneProps) {
       {/* Auto-advance hint copy — gently pulses to BGM amplitude */}
       <motion.p
         animate={{
-          opacity: [0.42, 0.42 + amp * 0.55, 0.42],
+          opacity: [0.7, 0.7 + amp * 0.3, 0.7],
           scale: [1, 1 + amp * 0.14, 1],
         }}
         transition={{ repeat: Infinity, duration: 2.4 }}
-        className="absolute bottom-[6%] left-0 right-0 text-center text-[10px] uppercase tracking-[0.4em] text-[#5b3a32] font-bold"
+        className="absolute bottom-[4%] left-0 right-0 text-center text-[10px] uppercase tracking-[0.4em] text-[#5b3a32] dark:text-[#5b3a32] font-bold"
+        style={{ color: "#5b3a32" }}
       >
         one last postcard — almost there ✦
       </motion.p>

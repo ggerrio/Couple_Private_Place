@@ -30,7 +30,7 @@
 import React, { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import {
-  BirthdayBalloon,
+  WashiTape,
   CakeWithCandles,
   CelebrationSparkle,
   ConfettiScatter,
@@ -58,26 +58,25 @@ const TOTAL_CANDLES = 16;
  */
 const LIT_PLATEAUS = [1, 0.7, 0.35, 0] as const;
 
-/** UI copy that walks the user through the 3-tap arc. */
 const STAGE_COPY: Array<{ eyebrow: string; hint: string; sub: string }> = [
   {
     eyebrow: "✿ NICOLA · A BOOK MADE FOR YOU ✿",
-    sub:     "16 candles · 3 breaths to open your book",
-    hint:    "Tap the cake to take your first breath",
+    sub:     "Every birthday deserves a wish.",
+    hint:    "Tonight, this one belongs to you.",
   },
   {
     eyebrow: "💨 breath one",
-    sub:     "1 of 3 breaths in",
-    hint:    "Tap again — a little harder",
+    sub:     "Every birthday deserves a wish.",
+    hint:    "Tonight, this one belongs to you.",
   },
   {
     eyebrow: "💨 breath two",
-    sub:     "2 of 3 breaths in",
-    hint:    "One last breath to unlatch the book",
+    sub:     "Every birthday deserves a wish.",
+    hint:    "Tonight, this one belongs to you.",
   },
   {
-    eyebrow: "🎉 Make a wish, Nicola! 🎉",
-    sub:     "All candles extinguished · Opening your book",
+    eyebrow: "Close your eyes for just a moment...",
+    sub:     "There's something I've been keeping for you.",
     hint:    "Opening…",
   },
 ];
@@ -194,7 +193,7 @@ export function CakeCuttingScene({ onAdvance }: CakeCuttingSceneProps) {
         }}
         className="absolute top-[12%] left-[5%]"
       >
-        <BirthdayBalloon size={60} color="pink" />
+        <WashiTape color="rose" pattern="dots" width={70} height={20} rotate={-12} />
       </motion.div>
       <motion.div
         initial={{ y: -20, opacity: 0 }}
@@ -205,7 +204,7 @@ export function CakeCuttingScene({ onAdvance }: CakeCuttingSceneProps) {
         }}
         className="absolute top-[16%] right-[7%]"
       >
-        <BirthdayBalloon size={54} color="mint" />
+        <WashiTape color="sage" pattern="stripes" width={62} height={18} rotate={10} />
       </motion.div>
       <motion.div
         initial={{ y: 20, opacity: 0 }}
@@ -219,7 +218,7 @@ export function CakeCuttingScene({ onAdvance }: CakeCuttingSceneProps) {
         }}
         className="absolute top-[20%] right-[16%]"
       >
-        <BirthdayBalloon size={48} color="yellow" />
+        <WashiTape color="gold" pattern="dots" width={56} height={16} rotate={-6} />
       </motion.div>
 
       {/* Eyebrow + sub copy that walks the user through. Swaps on
@@ -320,14 +319,18 @@ export function CakeCuttingScene({ onAdvance }: CakeCuttingSceneProps) {
           BGM amplitude via the audioAmplitude bus. */}
       <motion.p
         key={`hint-${blowCount}`}
-        animate={
-          allBlown
-            ? { opacity: 0 }
-            : {
-                opacity: [0.55, 1, 0.55],
-                scaleY: [1, 1 + amp * 0.16, 1],
-              }
+  animate={
+    allBlown
+      ? { opacity: 0 }
+      : {
+          opacity: [0.55, 1, 0.55],
+          textShadow: [
+            "0 0 0px rgba(125,90,54,0)",
+            "0 0 12px rgba(125,90,54,0.50)",
+            "0 0 0px rgba(125,90,54,0)",
+          ],
         }
+  }
         transition={
           allBlown
             ? { duration: 0.3 }

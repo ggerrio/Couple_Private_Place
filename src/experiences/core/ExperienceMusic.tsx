@@ -74,7 +74,7 @@ export const ExperienceMusic = forwardRef<
 
   const bgm = useBgmController({
     src,
-    disabled: !autoPlay || !!reduced,
+    disabled: !autoPlay,
   });
 
   // Per-scene volume fade — re-target BOTH gain nodes whenever the

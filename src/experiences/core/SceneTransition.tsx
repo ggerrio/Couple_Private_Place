@@ -24,7 +24,8 @@ export type SceneTransitionVariant =
   | "slide"
   | "cinematic"
   | "paper"
-  | "flip";
+  | "flip"
+  | "none";
 
 export interface SceneTransitionProps {
   variant: SceneTransitionVariant;
@@ -68,6 +69,11 @@ function buildVariants(direction: 1 | -1): Record<SceneTransitionVariant, Varian
       animate: { opacity: 1, rotateY: 0 },
       exit: { opacity: 0, rotateY: 90 * f },
     },
+    none: {
+      initial: { opacity: 1 },
+      animate: { opacity: 1 },
+      exit: { opacity: 1 },
+    },
   };
 }
 
@@ -89,6 +95,8 @@ function transitionFor(variant: SceneTransitionVariant) {
       return { duration: 0.75, ease: [0.65, 0, 0.35, 1] as const };
     case "cinematic":
       return { duration: 0.7, ease: [0.22, 1, 0.36, 1] as const };
+    case "none":
+      return { duration: 0 };
     default:
       return { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const };
   }
@@ -102,6 +110,19 @@ export function SceneTransition({
   children,
   className,
 }: SceneTransitionProps) {
+  // "none" variant: instant mount/unmount with no opacity/motion/animation.
+  // Used by breath-beat chapter dividers so dark text on cream parchment
+  // is rendered at full contrast from frame 0 (no fade-in wash-out).
+  // AnimatePresence's mode="wait" handles scene swap timing via the
+  // outgoing scene's own transition config; "none" itself doesn't block.
+  if (variant === "none") {
+    return (
+      <div key={sceneKey} className={className}>
+        {children}
+      </div>
+    );
+  }
+
   if (reducedMotion) {
     return (
       <motion.div

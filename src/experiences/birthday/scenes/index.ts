@@ -15,3 +15,4 @@ export { ClosingSealScene } from "./ClosingSealScene";
 export { EndingScene } from "./EndingScene";
 export { StatsFavoritesScene } from "./StatsFavoritesScene";
 export { StatsTimelineScene } from "./StatsTimelineScene";
+export { ChapterDividerScene } from "./ChapterDividerScene";

@@ -17,21 +17,31 @@ import type { BirthdaySceneProps } from "../birthday.types";
 import { BIRTHDAY_CONTENT, LITTLE_THINGS_ITEMS } from "../birthday.data";
 import { useAudioAmplitude } from "../../core/audioAmplitude";
 
-export interface CityMapSceneProps extends BirthdaySceneProps {}
+export interface CityMapSceneProps extends BirthdaySceneProps { }
 
 export function CityMapScene(props: CityMapSceneProps) {
-  const { content, onJumpTo } = props;
+  const { content, onJumpTo, onAdvance } = props;
   const amp = useAudioAmplitude();
   const reduced = useReducedMotion();
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  // Touch devices don't have hover — `whileHover` would otherwise
+  // get stuck in the lifted state once a tap lifts, then never
+  // settle. Gate hover-only affordances to (hover: hover) query so
+  // phones / tablets never enter the hover branch.
+  const supportsHover =
+    typeof window !== "undefined" &&
+      typeof window.matchMedia === "function"
+      ? window.matchMedia("(hover: hover)").matches
+      : false;
 
   const recipientName = content?.recipientName ?? BIRTHDAY_CONTENT.recipientName;
 
   return (
-    <div
-      role="region"
+    <button
+      type="button"
+      onClick={onAdvance}
       aria-label="Chapter II: Little Things I Love About You"
-      className="relative w-full h-full flex flex-col items-center justify-center px-4 py-8 md:py-10 select-none overflow-hidden"
+      className="relative w-full h-full flex flex-col items-center justify-center px-4 py-8 md:py-10 select-none overflow-hidden cursor-pointer text-left outline-none"
     >
       {/* Soft warm ambient halo */}
       <div
@@ -103,19 +113,19 @@ export function CityMapScene(props: CityMapSceneProps) {
                   duration: 0.5,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                whileHover={reduced ? {} : { y: -3, scale: 1.02 }}
+                whileHover={reduced || !supportsHover ? {} : { y: -3, scale: 1.02 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   setSelectedId(isSelected ? null : item.id);
                   if (isSelected && onJumpTo) {
                     onJumpTo(`photo-${(idx % 16) + 1}`);
                   }
                 }}
-                className={`relative flex flex-col justify-between p-3 md:p-4 rounded-[3px] border text-left transition-all duration-300 cursor-pointer outline-none focus:ring-2 focus:ring-[#705646]/40 ${
-                  isSelected
-                    ? "bg-[#FAF8F5] border-[#705646] shadow-md ring-1 ring-[#705646]/30"
-                    : "bg-[#FAF8F5]/80 border-[#E5DEC9] hover:border-[#705646]/50 shadow-sm"
-                }`}
+                className={`relative flex flex-col justify-between p-3 md:p-4 rounded-[3px] border text-left transition-all duration-300 cursor-pointer outline-none focus:ring-2 focus:ring-[#705646]/40 ${isSelected
+                  ? "bg-[#FAF8F5] border-[#705646] shadow-md ring-1 ring-[#705646]/30"
+                  : "bg-[#FAF8F5]/80 border-[#E5DEC9] hover:border-[#705646]/50 shadow-sm"
+                  }`}
               >
                 <div className="flex items-center justify-between w-full mb-1.5">
                   <span className="text-base md:text-lg">{item.icon}</span>
@@ -155,7 +165,7 @@ export function CityMapScene(props: CityMapSceneProps) {
         {/* Footer info */}
         <div className="relative z-10 flex items-center justify-between border-t border-[#E5DEC9] pt-2 mt-2 px-2 text-[#705646]/70">
           <span className="font-serif italic text-[10px] tracking-wider">
-            dedicated to {recipientName}
+            dedicated to my Sweetheart
           </span>
           <span className="font-serif italic text-[10px] tracking-wider">
             6 of endless reasons
@@ -174,7 +184,7 @@ export function CityMapScene(props: CityMapSceneProps) {
       >
         Tap any card to reveal • Tap screen to advance
       </motion.p>
-    </div>
+    </button>
   );
 }
 

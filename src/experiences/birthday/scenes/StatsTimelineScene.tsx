@@ -101,8 +101,8 @@ export function StatsTimelineScene({ onAdvance }: BirthdaySceneProps) {
         />
 
         {/* Card Header text */}
-        <div className="absolute top-3 left-0 right-0 text-center font-serif italic text-[10px] tracking-[0.3em] text-[#705646] z-10">
-          CHAPTER III · OUR JOURNEY IN NUMBERS
+        <div className="absolute top-3 left-0 right-0 text-center font-serif italic text-[10px] tracking-[0.3em] text-[#3a2511] font-bold z-10">
+          OUR STORY
         </div>
 
         {/* Vertical divider */}
@@ -138,61 +138,54 @@ export function StatsTimelineScene({ onAdvance }: BirthdaySceneProps) {
               />
 
               {/* Glowing Line flow */}
-              {!reduced && (
-                <motion.path
-                  d="M 50 130 Q 150 20 250 70"
-                  fill="none"
-                  stroke="#a78bfa"
-                  strokeWidth="2.2"
-                  strokeDasharray="18 120"
-                  animate={{
-                    strokeDashoffset: [200, -200],
-                  }}
-                  transition={{
-                    repeat: Infinity,
-                    duration: 3.8,
-                    ease: "linear",
-                  }}
-                />
-              )}
+              <motion.path
+                d="M 50 130 Q 150 20 250 70"
+                fill="none"
+                stroke="#7c2b22"
+                strokeWidth="1.6"
+                strokeDasharray="8 12"
+                animate={{ strokeDashoffset: [0, -40] }}
+                transition={{ repeat: Infinity, duration: 4.5, ease: "linear" }}
+              />
 
-              {/* Jakarta Node */}
-              <circle cx="50" cy="130" r="5" fill="#7c2b22" />
+              {/* Jakarta Node (HOME — user lives here, accent focal) */}
+              <circle cx="50" cy="130" r="14" fill="none" stroke="#7c2b22" strokeWidth="0.6" opacity="0.3" />
+              <circle cx="50" cy="130" r="8" fill="#7c2b22" stroke="#3a1f0f" strokeWidth="1.2" />
               <motion.circle
                 cx="50"
                 cy="130"
-                r="10"
+                r="13"
                 fill="none"
                 stroke="#7c2b22"
-                strokeWidth="1"
-                animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
-                transition={{ repeat: Infinity, duration: 2.0 }}
+                strokeWidth="1.5"
+                animate={{ scale: [1, 1.6, 1], opacity: [0.65, 0, 0.65] }}
+                transition={{ repeat: Infinity, duration: 3.0, ease: "easeInOut" }}
               />
-              <text x="50" y="150" textAnchor="middle" className="font-serif italic text-[8px] fill-[#5C3A1E] font-bold">
-                Jakarta, ID
+              <text x="50" y="158" textAnchor="middle" className="font-serif text-[10px] fill-[#3a1f0f] font-bold tracking-wider">
+                JAKARTA · ID
               </text>
 
-              {/* Reseda, LA Node */}
-              <circle cx="250" cy="70" r="5" fill="#6d28d9" />
+              {/* Reseda, LA Node (THEIRS — secondary, gentler pulse) */}
+              <circle cx="250" cy="70" r="4" fill="#6d28d9" opacity="0.85" />
               <motion.circle
                 cx="250"
                 cy="70"
-                r="10"
+                r="7"
                 fill="none"
                 stroke="#6d28d9"
-                strokeWidth="1"
-                animate={{ scale: [1, 1.8, 1], opacity: [0.6, 0, 0.6] }}
-                transition={{ repeat: Infinity, duration: 2.0, delay: 0.5 }}
+                strokeWidth="0.7"
+                animate={{ scale: [1, 1.4, 1], opacity: [0.4, 0, 0.4] }}
+                transition={{ repeat: Infinity, duration: 2.6, ease: "easeInOut", delay: 0.5 }}
               />
-              <text x="250" y="55" textAnchor="middle" className="font-serif italic text-[8px] fill-[#5C3A1E] font-bold">
-                Reseda, LA
+              <text x="250" y="56" textAnchor="middle" className="font-serif italic text-[7px] fill-[#5C3A1E]/75 tracking-wider">
+                Reserve, USA
               </text>
             </svg>
 
-            {/* Distance statistics label */}
+            {/* Distance statistics label — user-centric ordering (Jakarta first, since user lives there) */}
             <div className="absolute bottom-2.5 left-3 right-3 flex justify-between items-center bg-[#8b5a2b]/5 rounded px-2 py-0.5 border border-[#dfd0bd]/40">
-              <span className="font-serif italic text-[8px] text-[#5C3A1E]">
-                Reseda, LA ── Jakarta
+              <span className="font-serif italic text-[8px] text-[#3a2511] font-bold">
+                Jakarta, ID ── Reserve, USA
               </span>
               <span className="font-serif font-bold text-[9.5px] text-[#7c2b22] tracking-wider">
                 14,400+ KM
@@ -201,53 +194,22 @@ export function StatsTimelineScene({ onAdvance }: BirthdaySceneProps) {
           </div>
         </div>
 
-        {/* RIGHT PAGE: Live dating counter & bottom description */}
+        {/* RIGHT PAGE: Poetic quote instead of the live clock grid */}
         <div className="relative flex-1 px-6 pt-10 pb-6 flex flex-col justify-center items-center text-center overflow-hidden">
-          <span className="font-serif italic text-[10px] uppercase tracking-[0.25em] text-[#8a6552]/70 mb-4 block">
-            Dating Since Dec 14, 2025
-          </span>
+          <div className="flex flex-col items-center gap-4 text-center px-4 max-w-[95%] select-none z-10">
+            {/* Title */}
+            <h2 className="font-serif italic text-xl md:text-2xl text-[#7c2b22] font-extrabold leading-snug tracking-wide">
+              "Our Story Isn't Counted In Days"
+            </h2>
 
-          <div className="grid grid-cols-2 gap-3 w-full max-w-[85%] mb-4">
-            <div className="border border-[#dfd0bd] bg-[#faf4e6]/50 rounded px-2 py-3 flex flex-col items-center shadow-sm">
-              <span className="font-serif text-[#7c2b22] text-2xl font-bold tracking-tight">
-                {timePassed.days}
-              </span>
-              <span className="font-serif italic text-[8.5px] uppercase tracking-wider text-[#8a6552]/70 mt-0.5">
-                Days
-              </span>
-            </div>
+            <div className="w-12 h-px bg-[#E5DEC9] my-1" />
 
-            <div className="border border-[#dfd0bd] bg-[#faf4e6]/50 rounded px-2 py-3 flex flex-col items-center shadow-sm">
-              <span className="font-serif text-[#3a2511] text-2xl font-bold tracking-tight">
-                {String(timePassed.hours).padStart(2, "0")}
-              </span>
-              <span className="font-serif italic text-[8.5px] uppercase tracking-wider text-[#8a6552]/70 mt-0.5">
-                Hours
-              </span>
-            </div>
-
-            <div className="border border-[#dfd0bd] bg-[#faf4e6]/50 rounded px-2 py-3 flex flex-col items-center shadow-sm">
-              <span className="font-serif text-[#3a2511] text-2xl font-bold tracking-tight">
-                {String(timePassed.minutes).padStart(2, "0")}
-              </span>
-              <span className="font-serif italic text-[8.5px] uppercase tracking-wider text-[#8a6552]/70 mt-0.5">
-                Mins
-              </span>
-            </div>
-
-            <div className="border border-[#dfd0bd] bg-[#faf4e6]/50 rounded px-2 py-3 flex flex-col items-center shadow-sm">
-              <span className="font-serif text-violet-600 text-2xl font-bold tracking-tight w-[3ch] text-center">
-                {String(timePassed.seconds).padStart(2, "0")}
-              </span>
-              <span className="font-serif italic text-[8.5px] uppercase tracking-wider text-[#8a6552]/70 mt-0.5">
-                Secs
-              </span>
-            </div>
-          </div>
-
-          <div className="mt-4 text-center px-4 max-w-[90%] select-none z-10">
-            <p className="font-handwrite text-base md:text-lg text-[#7c2b22] italic leading-relaxed tracking-wide">
-              "distance is just a number when the destination is you. ✿"
+            {/* Paragraphs */}
+            <p className="font-handwrite text-lg md:text-xl text-[#3a2511] font-bold italic leading-relaxed">
+              It was never about how long we've been together.
+            </p>
+            <p className="font-handwrite text-lg md:text-xl text-[#3a2511] font-bold italic leading-relaxed">
+              It was always about how every day with you became worth remembering.
             </p>
           </div>
         </div>

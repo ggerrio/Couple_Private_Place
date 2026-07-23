@@ -16,6 +16,8 @@ interface GreetingNotificationProps {
   temp: number;
   isVisible: boolean;
   onClose: () => void;
+  onSwitchToForecast?: () => void;
+  hasForecast?: boolean;
 }
 
 function getWeatherCategory(code: number): 'sunny' | 'rainy' | 'stormy' | 'foggy' | 'cloudy' {
@@ -38,7 +40,15 @@ function getTimeOfDay(): 'morning' | 'afternoon' | 'evening' | 'night' {
   return 'night';
 }
 
-export default function GreetingNotification({ weatherCode, city, temp, isVisible, onClose }: GreetingNotificationProps) {
+export default function GreetingNotification({ 
+  weatherCode, 
+  city, 
+  temp, 
+  isVisible, 
+  onClose,
+  onSwitchToForecast,
+  hasForecast = false,
+}: GreetingNotificationProps) {
   const { currentUser, userA, userB } = useCouple();
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -205,12 +215,11 @@ export default function GreetingNotification({ weatherCode, city, temp, isVisibl
     <AnimatePresence>
       <motion.div
         id="greeting-notification-scrapbook"
-        initial={{ opacity: 0, y: 100, x: -50, scale: 0.9, rotate: -2 }}
-        animate={{ opacity: 1, y: 0, x: 0, scale: 1, rotate: 0 }}
-        exit={{ opacity: 0, y: 100, scale: 0.9, transition: { duration: 0.3 } }}
+        initial={{ opacity: 0, y: -30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -30, scale: 0.95, transition: { duration: 0.25 } }}
         transition={{ type: "spring", stiffness: 180, damping: 18 }}
-        className="fixed z-50 overflow-visible max-h-[80vh] max-sm:overflow-y-auto max-sm:bottom-0 max-sm:left-0 max-sm:right-0 max-sm:w-full sm:bottom-6 sm:left-6 sm:w-full sm:max-w-[340px]"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 0px)' }}
+        className="fixed z-40 overflow-visible max-h-[85vh] max-sm:top-16 max-sm:left-3 max-sm:right-3 max-sm:w-auto max-sm:bottom-auto sm:bottom-6 sm:left-6 sm:w-full sm:max-w-[340px]"
       >
         {/* Washi Tape Accent */}
         <div className="absolute -top-3.5 left-12 z-20 rotate-[-4deg]">
@@ -219,10 +228,26 @@ export default function GreetingNotification({ weatherCode, city, temp, isVisibl
 
         {/* Paper Container with Warm Scrapbook style */}
         <div 
-          className="relative overflow-visible bg-[#FDFBF7] dark:bg-[#1E1E38] p-5 shadow-[0_8px_30px_rgb(78,59,36,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-[16px] max-sm:rounded-b-none max-sm:rounded-t-3xl border-2 border-[#4E3B24]/15 dark:border-white/10 text-[#4E3B24] dark:text-[#FAF6F0] font-sans"
+          className="relative overflow-visible bg-[#FDFBF7] dark:bg-[#1E1E38] p-5 shadow-[0_8px_30px_rgb(78,59,36,0.15)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-[16px] border-2 border-[#4E3B24]/15 dark:border-white/10 text-[#4E3B24] dark:text-[#FAF6F0] font-sans"
         >
-          {/* Mobile bottom sheet drag handle */}
-          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-[#4E3B24]/15 dark:bg-white/20 sm:hidden" />
+          {/* Optional Tab Switcher when both notifications exist */}
+          {hasForecast && onSwitchToForecast && (
+            <div className="flex items-center gap-1 mb-3 bg-[#4E3B24]/10 dark:bg-white/10 p-1 rounded-lg text-xs font-bold font-serif select-none">
+              <button
+                type="button"
+                className="flex-1 py-1 px-2.5 rounded-md bg-[#FAF8F5] dark:bg-[#1E1E38] text-[#4E3B24] dark:text-[#FAF6F0] shadow-sm text-center"
+              >
+                ☀️ Greeting
+              </button>
+              <button
+                type="button"
+                onClick={onSwitchToForecast}
+                className="flex-1 py-1 px-2.5 rounded-md text-[#4E3B24]/60 dark:text-white/60 hover:text-[#4E3B24] dark:hover:text-white transition-colors text-center"
+              >
+                📅 3-Day Forecast
+              </button>
+            </div>
+          )}
 
           {/* Close button */}
           <button 

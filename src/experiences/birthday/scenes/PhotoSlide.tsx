@@ -48,6 +48,14 @@ export function PhotoSlide(props: BirthdaySceneProps) {
   const nextPhoto = photos[(photoIdx + 1) % photos.length];
   const reduced = useReducedMotion();
   const amp = useAudioAmplitude();
+  // Touch devices don't track mouse-move the way desktop does, so the
+  // 3D tilt fought scroll inertia. Gate to `hover: hover` so only
+  // desktop / laptops with a real pointer ever run the spring track.
+  const supportsHover =
+    typeof window !== "undefined" &&
+      typeof window.matchMedia === "function"
+      ? window.matchMedia("(hover: hover)").matches
+      : false;
 
   // Physical Interactive States
   const [isPhotoLifted, setIsPhotoLifted] = useState(false);
@@ -63,7 +71,7 @@ export function PhotoSlide(props: BirthdaySceneProps) {
   const rotateY = useSpring(useTransform(mouseX, [-0.5, 0.5], [-5, 5]), springConfig);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (reduced) return;
+    if (reduced || !supportsHover) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
@@ -126,17 +134,19 @@ export function PhotoSlide(props: BirthdaySceneProps) {
       {/* Main Page Container */}
       <motion.div
         key={`${photoIdx}-${layoutType}`}
-        initial={{ opacity: 0, y: 22, scale: 0.97 }}
+        initial={{ opacity: 0, y: 28, scale: 0.96 }}
         animate={{
           opacity: 1,
           y: 0,
           scale: 1,
         }}
         transition={{
-          opacity: { delay: 0.15, duration: 0.8, ease: [0.22, 1, 0.36, 1] },
-          y: { delay: 0.15, duration: 0.8, ease: [0.22, 1, 0.36, 1] },
+          type: "spring",
+          stiffness: 150,
+          damping: 18,
+          mass: 0.8,
         }}
-        style={reduced ? {} : { rotateX, rotateY, transformStyle: "preserve-3d" }}
+        style={reduced || !supportsHover ? {} : { rotateX, rotateY, transformStyle: "preserve-3d" }}
         className="relative w-[92vw] max-w-[840px] aspect-[4/3] md:aspect-[16/10] max-h-[72vh] rounded-[4px] p-6 md:p-8 flex flex-col justify-between overflow-hidden shadow-[0_24px_48px_rgba(44,38,35,0.12),0_4px_12px_rgba(44,38,35,0.06)]"
       >
         {/* Fine paper background */}
@@ -151,10 +161,10 @@ export function PhotoSlide(props: BirthdaySceneProps) {
 
         {/* Page Top Header */}
         <div className="relative z-10 flex items-center justify-between border-b border-[#E5DEC9] pb-2 mb-3">
-          <span className="font-serif italic text-[10px] md:text-xs uppercase tracking-[0.25em] text-[#705646]">
-            PLATE {romanNum} · {variant.postcardCity}
+          <span className="font-serif italic text-xs md:text-sm uppercase tracking-[0.25em] text-[#5c3a21] font-bold">
+            MEMORIES · {variant.postcardCity}
           </span>
-          <span className="font-mono text-[9px] md:text-[10px] tracking-widest text-[#705646]/70">
+          <span className="font-mono text-xs tracking-widest text-[#5c3a21] font-bold">
             {variant.postcardDate}
           </span>
         </div>
@@ -171,13 +181,13 @@ export function PhotoSlide(props: BirthdaySceneProps) {
                   className="absolute inset-0 w-full h-full object-cover"
                 />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#2C2623]/80 via-[#2C2623]/20 to-transparent" />
-              <div className="relative p-6 max-w-[85%] text-left">
-                <p className="font-serif italic text-white/90 text-sm md:text-lg leading-relaxed">
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1f1712]/90 via-[#1f1712]/30 to-transparent" />
+              <div className="relative p-6 max-w-[90%] text-left">
+                <p className="font-serif italic text-white text-base md:text-xl font-medium leading-relaxed drop-shadow-md">
                   "{caption}"
                 </p>
-                <span className="font-mono text-[9px] uppercase tracking-widest text-white/60 mt-1 block">
-                  {variant.postcardCity}
+                <span className="font-mono text-xs uppercase tracking-widest text-amber-200/90 font-bold mt-2 block">
+                  {variant.postcardCity} · {variant.postcardCountry}
                 </span>
               </div>
             </div>
@@ -186,53 +196,79 @@ export function PhotoSlide(props: BirthdaySceneProps) {
           {/* LAYOUT 2: The Folded Letter Note */}
           {layoutType === "asymmetric-portrait" && (
             <div className="relative w-full h-full grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-              <div className="md:col-span-5 h-full max-h-[90%] rounded-[2px] overflow-hidden shadow-sm relative">
+              <div className="md:col-span-5 h-full max-h-[95%] flex items-center justify-center relative">
                 {photo && (
-                  <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
+                  <img
+                    src={photo.src}
+                    alt={caption}
+                    className="max-w-full max-h-full w-auto h-auto object-contain rounded-[2px] border border-[#E5DEC9] shadow-md"
+                  />
                 )}
-                <WashiTape color="rose" pattern="dots" width={80} height={18} rotate={-15} className="absolute -top-2 -left-2 opacity-80" />
+                <WashiTape color="rose" pattern="dots" width={80} height={18} rotate={-15} className="absolute -top-2 -left-2 opacity-80 z-10" />
               </div>
-              <div className="md:col-span-7 text-left pl-2 md:pl-4">
+              <div className="md:col-span-7 flex items-center justify-center text-left pl-2 md:pl-4">
                 <div
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsNoteUnfolded(!isNoteUnfolded);
                   }}
-                  className="p-4 bg-[#FAF8F5] border border-[#E5DEC9] rounded-[3px] shadow-sm cursor-pointer hover:border-[#705646]/50 transition-all"
+                  className="relative p-4 bg-[#FAF8F5] border border-[#E5DEC9] rounded-[3px] shadow-sm cursor-pointer hover:border-[#705646]/50 transition-all"
                 >
-                  <span className="font-serif italic text-xs uppercase tracking-widest text-[#705646] block mb-1">
+                  {!isNoteUnfolded && !reduced && (
+                    <motion.span
+                      key={`dog-ear-note-${photoIdx}`}
+                      aria-hidden
+                      className="absolute top-0 right-0 z-30 pointer-events-none block"
+                      style={{ transformOrigin: "top right" }}
+                      initial={false}
+                      animate={{ opacity: [0.65, 1, 0.65], rotate: [-2, 4, -2] }}
+                      transition={{ repeat: Infinity, duration: 2.6, ease: "easeInOut" }}
+                    >
+                      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+                        <path
+                          d="M0 0 L24 0 L24 24 Q14 18 0 0 Z"
+                          fill="#F4E8D2"
+                          stroke="rgba(120,80,30,0.55)"
+                          strokeWidth="0.6"
+                        />
+                      </svg>
+                    </motion.span>
+                  )}
+                  <span className="font-serif italic text-xs md:text-sm uppercase tracking-widest text-[#705646] font-bold block mb-1">
                     ✉ Folded Letter Note {isNoteUnfolded ? "(Open)" : "(Tap to Unfold)"}
                   </span>
                   {isNoteUnfolded ? (
                     <motion.p
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
-                      className="font-handwrite text-base md:text-lg text-[#2C2623] leading-relaxed mt-2 pt-2 border-t border-[#E5DEC9]"
+                      className="font-handwrite text-lg md:text-xl text-[#2C2623] font-bold leading-relaxed mt-2 pt-2 border-t border-[#E5DEC9]"
                     >
                       "{caption}"
                     </motion.p>
                   ) : (
-                    <p className="font-serif italic text-sm text-[#705646]/70 truncate">
-                      "{caption.slice(0, 35)}..."
-                    </p>
+                    <>
+                      <p className="font-handwrite text-[10px] md:text-[11px] text-[#7c2b22]/70 italic tracking-wide mb-1.5 leading-snug">
+                        tucked in your pocket since that day ✉
+                      </p>
+                      <p className="font-serif italic text-base text-[#3a2511] font-semibold truncate">
+                        "{caption.slice(0, 35)}..."
+                      </p>
+                    </>
                   )}
                 </div>
               </div>
             </div>
           )}
 
-          {/* LAYOUT 3: Editorial Two-Column */}
+          {/* LAYOUT 3: Editorial Two-Column (Slide 7 Fix) */}
           {layoutType === "editorial-two-column" && (
             <div className="relative w-full h-full grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-              <div className="text-left pr-4">
-                <p className="font-serif text-sm md:text-base text-[#2C2623] leading-relaxed">
-                  <span className="float-left text-3xl md:text-4xl font-serif font-bold text-[#705646] mr-2 leading-none">
-                    {caption.charAt(0)}
-                  </span>
-                  {caption.slice(1)}
+              <div className="text-left pr-2">
+                <p className="font-serif text-base md:text-xl text-[#2A1B0E] font-semibold leading-relaxed">
+                  "{caption}"
                 </p>
               </div>
-              <div className="h-full max-h-[90%] rounded-[2px] overflow-hidden shadow-sm relative">
+              <div className="h-full max-h-[92%] rounded-[2px] overflow-hidden shadow-sm relative border border-[#E5DEC9]">
                 {photo && (
                   <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                 )}
@@ -244,10 +280,10 @@ export function PhotoSlide(props: BirthdaySceneProps) {
           {/* LAYOUT 4: The Liftable Photograph */}
           {layoutType === "floating-tilt" && (
             <div className="relative flex flex-col items-center justify-center w-full h-full">
-              <div className="relative max-w-[65%] aspect-[4/3] w-full">
+              <div className="relative max-w-[70%] aspect-[4/3] w-full">
                 {/* Secret Note underneath photo */}
                 <div className="absolute inset-0 p-6 bg-[#FAF8F5] border border-[#E5DEC9] rounded-[2px] flex items-center justify-center text-center">
-                  <p className="font-handwrite text-base md:text-xl text-[#705646] leading-relaxed">
+                  <p className="font-handwrite text-lg md:text-2xl text-[#3a2511] font-bold leading-relaxed">
                     "{caption}"
                   </p>
                 </div>
@@ -257,15 +293,35 @@ export function PhotoSlide(props: BirthdaySceneProps) {
                     e.stopPropagation();
                     setIsPhotoLifted(!isPhotoLifted);
                   }}
-                  animate={isPhotoLifted ? { y: -80, rotate: 6, scale: 1.04 } : { y: 0, rotate: -3 }}
+                  animate={isPhotoLifted ? { y: -85, rotate: 6, scale: 1.04 } : { y: 0, rotate: -3 }}
                   transition={{ type: "spring", stiffness: 200, damping: 20 }}
                   className="absolute inset-0 bg-stone-100 rounded-[2px] overflow-hidden shadow-md cursor-pointer border border-[#E5DEC9]"
                   title="Click to lift photograph"
                 >
+                  {!isPhotoLifted && !reduced && (
+                    <motion.span
+                      key={`dog-ear-photo-${photoIdx}`}
+                      aria-hidden
+                      className="absolute top-0 right-0 z-30 pointer-events-none block"
+                      style={{ transformOrigin: "top right" }}
+                      initial={false}
+                      animate={{ opacity: [0.65, 1, 0.65], rotate: [-2, 4, -2] }}
+                      transition={{ repeat: Infinity, duration: 2.6, ease: "easeInOut" }}
+                    >
+                      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+                        <path
+                          d="M0 0 L24 0 L24 24 Q14 18 0 0 Z"
+                          fill="#F4E8D2"
+                          stroke="rgba(120,80,30,0.55)"
+                          strokeWidth="0.6"
+                        />
+                      </svg>
+                    </motion.span>
+                  )}
                   {photo && (
                     <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                   )}
-                  <span className="absolute bottom-2 right-2 bg-black/60 text-white font-mono text-[9px] px-2 py-0.5 rounded">
+                  <span className="absolute bottom-2 right-2 bg-black/80 text-white font-mono text-xs px-2.5 py-1 rounded font-bold">
                     {isPhotoLifted ? "Tap to lower" : "Tap to lift photo ⬆"}
                   </span>
                 </motion.div>
@@ -276,18 +332,18 @@ export function PhotoSlide(props: BirthdaySceneProps) {
           {/* LAYOUT 5: Magazine Gallery */}
           {layoutType === "magazine-gallery" && (
             <div className="relative w-full flex flex-col items-center">
-              <div className="w-[85%] aspect-[16/9] max-h-[60vh] rounded-[2px] overflow-hidden shadow-sm">
+              <div className="w-[88%] aspect-[16/9] max-h-[62vh] rounded-[2px] overflow-hidden shadow-sm">
                 {photo && (
                   <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                 )}
               </div>
-              <p className="font-serif italic text-xs md:text-sm text-[#705646] tracking-wider mt-3 uppercase text-center">
+              <p className="font-serif italic text-sm md:text-base text-[#3a2511] font-bold tracking-wider mt-3 uppercase text-center">
                 — {caption} —
               </p>
             </div>
           )}
 
-          {/* LAYOUT 6: Polaroid Stack Swap */}
+          {/* LAYOUT 6: Polaroid Stack Swap (Slide 10 Fix) */}
           {layoutType === "polaroid-stack" && (
             <div
               onClick={(e) => {
@@ -297,19 +353,42 @@ export function PhotoSlide(props: BirthdaySceneProps) {
               className="relative flex items-center justify-center w-full h-full cursor-pointer"
               title="Click to swap polaroids"
             >
+              {!stackFlipped && !reduced && (
+                <motion.span
+                  key={`dog-ear-stack-${photoIdx}`}
+                  aria-hidden
+                  className="absolute top-3 left-3 z-30 pointer-events-none block"
+                  style={{ transformOrigin: "top left" }}
+                  initial={false}
+                  animate={{ opacity: [0.65, 1, 0.65], rotate: [-2, 4, -2] }}
+                  transition={{ repeat: Infinity, duration: 2.6, ease: "easeInOut" }}
+                >
+                  <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
+                    <path
+                      d="M0 0 L24 0 L24 24 Q14 18 0 0 Z"
+                      fill="#F4E8D2"
+                      stroke="rgba(120,80,30,0.55)"
+                      strokeWidth="0.6"
+                    />
+                  </svg>
+                </motion.span>
+              )}
               {/* Secondary Polaroid (Bottom) */}
               <motion.div
                 animate={stackFlipped ? { x: -40, rotate: -6, zIndex: 20 } : { x: 30, rotate: 8, zIndex: 10 }}
                 transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                className="absolute p-3 pb-7 bg-white border border-[#E5DEC9] shadow-md rounded-[2px] w-[200px] aspect-[3/4]"
+                className="absolute p-3 pb-7 bg-[#FCFAF7] border-2 border-[#E5DEC9] shadow-md rounded-[2px] w-[210px] aspect-[3/4]"
               >
-                <div className="w-full h-[80%] overflow-hidden bg-stone-100">
+                <div className="w-full h-[78%] overflow-hidden bg-stone-100 rounded-[1px]">
                   {nextPhoto && (
                     <img src={nextPhoto.src} alt="Memory Stack" className="w-full h-full object-cover" />
                   )}
                 </div>
-                <span className="font-handwrite text-[10px] text-[#2C2623] block text-center mt-1">
-                  Next Snap ✿
+                <span className="font-handwrite text-[8px] text-[#705646]/70 italic uppercase tracking-widest block text-center mt-1 font-semibold">
+                  sneak peek ✿
+                </span>
+                <span className="font-handwrite text-xs font-bold text-[#3a2511] block text-center mt-1 truncate leading-snug">
+                  "{(nextPhoto?.caption ?? "next moment").slice(0, 24)}…"
                 </span>
               </motion.div>
 
@@ -317,14 +396,14 @@ export function PhotoSlide(props: BirthdaySceneProps) {
               <motion.div
                 animate={stackFlipped ? { x: 30, rotate: 8, zIndex: 10 } : { x: -20, rotate: -3, zIndex: 20 }}
                 transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                className="absolute p-3 pb-7 bg-white border border-[#E5DEC9] shadow-lg rounded-[2px] w-[210px] aspect-[3/4]"
+                className="absolute p-3 pb-7 bg-[#FCFAF7] border-2 border-[#E5DEC9] shadow-lg rounded-[2px] w-[220px] aspect-[3/4]"
               >
-                <div className="w-full h-[80%] overflow-hidden bg-stone-100">
+                <div className="w-full h-[78%] overflow-hidden bg-stone-100 rounded-[1px]">
                   {photo && (
                     <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                   )}
                 </div>
-                <span className="font-handwrite text-xs text-[#2C2623] block text-center mt-1 truncate">
+                <span className="font-handwrite text-xs md:text-sm font-extrabold text-[#3a2511] block text-center mt-1.5 truncate">
                   {caption}
                 </span>
               </motion.div>
@@ -334,16 +413,16 @@ export function PhotoSlide(props: BirthdaySceneProps) {
           {/* LAYOUT 7: Centered Portrait */}
           {layoutType === "centered-portrait" && (
             <div className="relative w-full h-full flex items-center justify-center gap-6">
-              <div className="h-[90%] aspect-[3/4] rounded-[2px] overflow-hidden shadow-sm border border-[#E5DEC9]">
+              <div className="h-[92%] aspect-[3/4] rounded-[2px] overflow-hidden shadow-sm border border-[#E5DEC9]">
                 {photo && (
                   <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                 )}
               </div>
-              <div className="max-w-[35%] text-left hidden md:block border-l border-[#E5DEC9] pl-4">
-                <span className="font-serif italic text-[10px] text-[#705646]/70 uppercase tracking-widest block mb-1">
-                  Pencil Note
+              <div className="max-w-[40%] text-left hidden md:block border-l-2 border-[#E5DEC9] pl-4">
+                <span className="font-serif italic text-xs text-[#705646] uppercase tracking-widest font-bold block mb-1">
+                  Love Note
                 </span>
-                <p className="font-serif text-sm text-[#2C2623] leading-relaxed">
+                <p className="font-serif text-base md:text-lg font-medium text-[#2A1B0E] leading-relaxed">
                   {caption}
                 </p>
               </div>
@@ -353,13 +432,13 @@ export function PhotoSlide(props: BirthdaySceneProps) {
           {/* LAYOUT 8: Diagonal Pair */}
           {layoutType === "diagonal-pair" && (
             <div className="relative w-full h-full flex items-center justify-between px-4">
-              <div className="w-[50%] h-[80%] rounded-[2px] overflow-hidden shadow-sm">
+              <div className="w-[52%] h-[85%] rounded-[2px] overflow-hidden shadow-sm border border-[#E5DEC9]">
                 {photo && (
                   <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                 )}
               </div>
-              <div className="w-[42%] p-4 bg-[#FAF8F5] border border-[#E5DEC9] rounded-[2px] shadow-sm text-left">
-                <p className="font-serif italic text-xs md:text-sm text-[#2C2623] leading-relaxed">
+              <div className="w-[44%] p-4 bg-[#FAF8F5] border border-[#E5DEC9] rounded-[2px] shadow-sm text-left">
+                <p className="font-serif italic text-sm md:text-lg text-[#2A1B0E] font-medium leading-relaxed">
                   "{caption}"
                 </p>
               </div>
@@ -370,46 +449,33 @@ export function PhotoSlide(props: BirthdaySceneProps) {
           {/* LAYOUT 9: Full-Width Landscape */}
           {layoutType === "full-width-landscape" && (
             <div className="relative w-full flex flex-col items-center">
-              <div className="w-full aspect-[21/9] max-h-[55vh] rounded-[2px] overflow-hidden shadow-sm">
+              <div className="w-full aspect-[21/9] max-h-[58vh] rounded-[2px] overflow-hidden shadow-sm border border-[#E5DEC9]">
                 {photo && (
                   <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                 )}
               </div>
               <div className="flex items-center justify-between w-full mt-3 px-2">
-                <span className="font-serif italic text-xs text-[#705646]">
+                <span className="font-serif italic text-sm md:text-base font-bold text-[#3a2511]">
                   {caption}
                 </span>
-                <PostmarkReal city={variant.postcardCity} date={variant.postcardDate} size={48} rotate={-6} />
+                <PostmarkReal city={variant.postcardCity} date={variant.postcardDate} size={54} rotate={-6} />
               </div>
             </div>
           )}
 
-          {/* LAYOUT 10: Memory Envelope Slide Out */}
+          {/* LAYOUT 10: Upgraded Memory Photo Showcase (Slide 15 Redesign) */}
           {layoutType === "double-page-spread" && (
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                playEnvelopeSound();
-                setEnvelopeOpen(!envelopeOpen);
-              }}
-              className="relative w-full h-full flex items-center justify-center cursor-pointer"
-            >
-              {/* Envelope frame */}
-              <div className="relative w-[300px] h-[200px] bg-[#EFE8DC] border border-[#E5DEC9] shadow-md rounded-[2px] flex items-center justify-center p-4">
-                <span className="font-serif italic text-xs text-[#705646]">
-                  {envelopeOpen ? "Tap to close envelope" : "✉ Tap envelope to open"}
-                </span>
-
-                {/* Photo sliding out */}
-                <motion.div
-                  animate={envelopeOpen ? { y: -70, scale: 1.05 } : { y: 0, scale: 0.9 }}
-                  transition={{ type: "spring", stiffness: 180, damping: 18 }}
-                  className="absolute inset-x-4 top-2 bottom-2 bg-stone-100 rounded-[2px] overflow-hidden shadow-lg border border-[#E5DEC9] z-20"
-                >
+            <div className="relative w-full h-full flex items-center justify-center p-2">
+              <div className="relative w-[85%] max-w-[500px] h-[92%] bg-[#FAF8F5] border border-[#E5DEC9] shadow-lg rounded-[3px] p-4 flex flex-col justify-between items-center overflow-hidden">
+                <WashiTape color="rose" pattern="dots" width={90} height={18} rotate={-3} className="absolute -top-2 left-1/2 -translate-x-1/2 opacity-90 z-20" />
+                <div className="relative w-full flex-1 rounded-[2px] overflow-hidden border border-[#E5DEC9] bg-stone-100">
                   {photo && (
                     <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                   )}
-                </motion.div>
+                </div>
+                <p className="font-handwrite text-base md:text-xl font-bold text-[#3a2511] text-center mt-3 leading-relaxed">
+                  "{caption}"
+                </p>
               </div>
             </div>
           )}
@@ -417,107 +483,127 @@ export function PhotoSlide(props: BirthdaySceneProps) {
           {/* LAYOUT 11: Square Focus */}
           {layoutType === "square-focus" && (
             <div className="relative flex flex-col items-center justify-center">
-              <div className="w-[50%] aspect-[1/1] max-h-[55vh] rounded-[2px] overflow-hidden shadow-sm border border-[#E5DEC9]">
+              <div className="w-[55%] aspect-[1/1] max-h-[55vh] rounded-[2px] overflow-hidden shadow-sm border border-[#E5DEC9]">
                 {photo && (
                   <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                 )}
               </div>
-              <p className="font-serif italic text-xs md:text-sm text-[#705646] mt-3">
+              <p className="font-serif italic text-sm md:text-base text-[#3a2511] font-bold mt-3">
                 {caption}
               </p>
               <PaperClip tint="warm" size={28} className="absolute -top-2 left-1/4" />
             </div>
           )}
 
-          {/* LAYOUT 12: Editorial Offset Story */}
+          {/* LAYOUT 12: Editorial Offset Story (Slide 17) */}
           {layoutType === "editorial-offset-story" && (
-            <div className="relative w-full h-full grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-              <div className="md:col-span-6 text-left pr-2">
-                <span className="font-serif italic text-xs uppercase tracking-widest text-[#705646]/70 block mb-2">
-                  Prologue Snippet
+            <div className="relative w-full h-full flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-6 items-center justify-center my-auto">
+              <div className="md:col-span-6 text-left pr-2 flex flex-col justify-center">
+                <span className="font-serif italic text-xs md:text-sm uppercase tracking-widest text-[#705646] font-bold block mb-2">
+                  Words I Couldn't Say Out Loud
                 </span>
-                <p className="font-handwrite text-base md:text-lg text-[#2C2623] leading-relaxed">
+                <p className="font-handwrite text-lg md:text-xl text-[#2A1B0E] font-bold leading-relaxed">
                   {caption}
                 </p>
               </div>
-              <div className="md:col-span-6 h-full max-h-[90%] rounded-[2px] overflow-hidden shadow-sm">
+              <div className="md:col-span-6 h-full max-h-[85vh] flex items-center justify-center relative">
                 {photo && (
-                  <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
+                  <img
+                    src={photo.src}
+                    alt={caption}
+                    className="max-w-full max-h-full w-auto h-auto object-contain rounded-[2px] border border-[#E5DEC9] shadow-md"
+                  />
                 )}
               </div>
             </div>
           )}
 
-          {/* LAYOUT 13: Framed Art Print */}
+          {/* LAYOUT 13: Framed Art Print (Slide 18) */}
           {layoutType === "framed-art-print" && (
-            <div className="relative flex flex-col items-center justify-center">
-              <div className="p-4 bg-white border border-[#E5DEC9] shadow-md rounded-[2px] max-w-[60%] aspect-[3/4]">
-                <div className="w-full h-full overflow-hidden">
-                  {photo && (
-                    <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2 mt-3">
-                <VintageStamp motif="rose" color="muted-red" size={32} />
-                <span className="font-serif italic text-xs text-[#705646]">
+            <div className="relative flex flex-col items-center justify-center w-full h-full py-2 gap-3">
+              {/* Caption pill — moved above the image so it doesn't pin to bottom */}
+              <div className="flex items-center gap-2 bg-[#FAF8F5]/80 px-3.5 py-1.5 rounded-full border border-amber-900/10 shadow-xs">
+                <VintageStamp motif="rose" color="muted-red" size={26} />
+                <span className="font-serif italic text-xs md:text-sm text-[#3a2511] font-bold">
                   {caption}
                 </span>
+                <Sparkle size={14} className="text-amber-500/80" />
+              </div>
+              <div className="relative p-3 bg-white/50 backdrop-blur-xs border border-amber-900/15 shadow-sm rounded-xl max-w-[85%] max-h-[68vh] flex items-center justify-center">
+                <PaperClip tint="warm" size={32} className="absolute -top-3 left-4 z-20" />
+                <WashiTape color="rose" pattern="dots" width={75} height={16} rotate={5} className="absolute -top-2 right-4 opacity-90 z-20" />
+                {photo && (
+                  <img
+                    src={photo.src}
+                    alt={caption}
+                    className="max-w-full max-h-[60vh] w-auto h-auto object-contain rounded-lg shadow-xs"
+                  />
+                )}
               </div>
             </div>
           )}
 
           {/* LAYOUT 14: Overlapping Strip */}
           {layoutType === "overlapping-strip" && (
-            <div className="relative w-full h-full flex items-center justify-center">
-              <div className="w-[75%] h-[85%] rounded-[2px] overflow-hidden shadow-sm relative">
-                {photo && (
-                  <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
-                )}
-                <div className="absolute bottom-4 left-4 p-3 bg-[#FAF8F5] border border-[#E5DEC9] max-w-[70%] shadow-md rounded-[2px]">
-                  <p className="font-handwrite text-xs md:text-sm text-[#2C2623]">
-                    {caption}
-                  </p>
+            <div className="relative w-full h-full flex flex-col items-center justify-center gap-3">
+              {/* Sticker-style mini-title above the photo — adds complementary text per slide */}
+              <p className="font-serif italic text-[10px] md:text-[11px] uppercase tracking-[0.3em] text-[#3a2511] font-bold text-center">
+                No checkpoint could save a moment like this ✿
+              </p>
+              <div className="relative w-[78%] h-[80%]">
+                <div className="w-full h-full rounded-[2px] overflow-hidden shadow-sm relative border border-[#E5DEC9]">
+                  {photo && (
+                    <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
+                  )}
+                  <div className="absolute bottom-4 left-4 p-3.5 bg-[#FAF8F5] border border-[#E5DEC9] max-w-[75%] shadow-md rounded-[2px]">
+                    <p className="font-handwrite text-sm md:text-base text-[#2C2623] font-bold">
+                      {caption}
+                    </p>
+                  </div>
                 </div>
+                <WashiTape color="gold" pattern="dots" width={80} height={18} rotate={6} className="absolute top-2 right-1/4 opacity-80" />
               </div>
-              <WashiTape color="gold" pattern="dots" width={80} height={18} rotate={6} className="absolute top-2 right-1/4 opacity-80" />
             </div>
           )}
 
           {/* LAYOUT 15: Quiet Minimal */}
           {layoutType === "quiet-minimal" && (
             <div className="relative flex flex-col items-center justify-center">
-              <div className="w-[40%] aspect-[3/4] max-h-[50vh] rounded-[2px] overflow-hidden shadow-sm border border-[#E5DEC9]">
+              <div className="w-[48%] aspect-[3/4] max-h-[54vh] rounded-[2px] overflow-hidden shadow-sm border border-[#E5DEC9]">
                 {photo && (
                   <img src={photo.src} alt={caption} className="w-full h-full object-cover" />
                 )}
               </div>
-              <p className="font-serif italic text-xs text-[#705646] tracking-widest mt-4">
+              <p className="font-serif italic text-sm md:text-base text-[#3a2511] font-semibold tracking-wide mt-4">
                 "{caption}"
               </p>
-              <Sparkle size={14} className="text-[#705646]/40 mt-2" />
+              <Sparkle size={14} className="text-[#705646]/60 mt-2" />
             </div>
           )}
 
-          {/* LAYOUT 16: Finale Hero */}
+          {/* LAYOUT 16: Finale Hero (Slide 21) */}
           {layoutType === "finale-hero" && (
             <div className="relative w-full h-full flex flex-col justify-end rounded-[2px] overflow-hidden shadow-md">
               {photo && (
-                <img src={photo.src} alt={caption} className="absolute inset-0 w-full h-full object-cover" />
+                <img
+                  src={photo.src}
+                  alt={caption}
+                  className="absolute inset-0 w-full h-full object-cover rounded-[2px]"
+                />
               )}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#2C2623]/85 via-[#2C2623]/30 to-transparent" />
-              <div className="relative p-6 md:p-8 max-w-[85%] text-left">
-                <span className="font-serif italic text-xs uppercase tracking-[0.3em] text-white/70 block mb-1">
+              <div className="absolute inset-0 bg-gradient-to-t from-[#1f1712]/90 via-[#1f1712]/20 to-transparent pointer-events-none" />
+              <div className="relative p-6 md:p-8 max-w-[90%] text-left z-10">
+                <span className="font-serif italic text-xs md:text-sm uppercase tracking-[0.3em] text-amber-200/90 font-bold block mb-1">
                   Grand Finale
                 </span>
-                <h3 className="font-serif font-bold text-xl md:text-3xl text-white leading-tight">
+                <h3 className="font-serif font-bold text-lg md:text-2xl text-white leading-tight">
                   {caption}
                 </h3>
-                <p className="font-serif italic text-xs md:text-sm text-white/80 mt-2">
+                <p className="font-serif italic text-xs md:text-sm text-white/90 font-medium mt-1.5">
                   Sixteen memories mapped · For you, always ✿
                 </p>
               </div>
-              <WaxSeal initial="N" size={48} className="absolute top-4 right-4" />
+              <WaxSeal initial="N" size={48} className="absolute top-4 right-4 z-20" />
             </div>
           )}
         </div>

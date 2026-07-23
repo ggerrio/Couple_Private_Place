@@ -61,14 +61,14 @@ export interface PresentationScene<TMeta = unknown> {
   durationMs?: number;
   meta?: TMeta;
   /** Per-scene transition override. Falls back to the engine-level default if omitted. */
-  transitionVariant?: "fade" | "slide" | "cinematic" | "paper" | "flip";
+  transitionVariant?: "fade" | "slide" | "cinematic" | "paper" | "flip" | "none";
 }
 
 export interface PresentationEngineProps<TMeta = unknown> {
   scenes: PresentationScene<TMeta>[];
   initialSceneId?: string;
   /** Default variant for inter-scene transition; each scene can override. */
-  transitionVariant?: "fade" | "slide" | "cinematic" | "paper" | "flip";
+  transitionVariant?: "fade" | "slide" | "cinematic" | "paper" | "flip" | "none";
   /** Called when the final scene is dismissed. */
   onComplete?: () => void;
   /** Called when Escape is pressed (or close button). */

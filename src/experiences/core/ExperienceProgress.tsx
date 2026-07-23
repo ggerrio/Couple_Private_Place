@@ -42,18 +42,18 @@ export function ExperienceProgress({
       initial={{ opacity: 0, y: -8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="fixed left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-3.5 py-2 rounded-full bg-white/50 dark:bg-stone-900/50 backdrop-blur-md border border-white/50 dark:border-white/10 shadow-sm"
+      className="fixed left-1/2 -translate-x-1/2 z-[100] flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#1A1412]/90 dark:bg-black/90 backdrop-blur-md border border-white/30 shadow-lg"
       style={{ top: "max(0.75rem, env(safe-area-inset-top))" }}
       data-experience-progress
       data-variant={variant}
     >
       {/* Thin progress bar */}
-      <div className="relative w-[100px] md:w-[160px] h-[3px] rounded-full bg-[#5b3a32]/12 overflow-hidden">
+      <div className="relative w-[100px] md:w-[160px] h-[4px] rounded-full bg-white/20 overflow-hidden">
         <motion.div
           className="absolute inset-y-0 left-0 rounded-full"
           style={{
             background:
-              "linear-gradient(90deg, #c1476b 0%, #e88da0 100%)",
+              "linear-gradient(90deg, #f43f5e 0%, #fb7185 100%)",
           }}
           initial={{ width: 0 }}
           animate={{ width: `${progressPct}%` }}
@@ -65,9 +65,9 @@ export function ExperienceProgress({
         />
         {/* Heart marker at fill position — gently pulses */}
         <motion.span
-          className="absolute top-1/2 -translate-y-1/2 text-[8px] leading-none select-none pointer-events-none"
+          className="absolute top-1/2 -translate-y-1/2 text-[10px] text-rose-400 leading-none select-none pointer-events-none"
           style={{ left: `${progressPct}%`, transform: `translateX(-50%) translateY(-50%)` }}
-          animate={{ scale: [1, 1.3, 1], opacity: [0.8, 1, 0.8] }}
+          animate={{ scale: [1, 1.3, 1], opacity: [0.9, 1, 0.9] }}
           transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
           aria-hidden
         >
@@ -77,11 +77,11 @@ export function ExperienceProgress({
 
       {/* Fraction counter */}
       <span
-        className="font-mono text-[9px] tracking-[0.12em] text-[#5b3a32]/55 tabular-nums select-none min-w-[2.5em] text-center"
+        className="font-mono text-xs font-bold tracking-[0.14em] text-white tabular-nums select-none min-w-[2.5em] text-center drop-shadow-sm"
         aria-label={`Scene ${currentIndex + 1} of ${computedTotal}`}
       >
         {currentIndex + 1}
-        <span className="text-[#5b3a32]/30"> / </span>
+        <span className="text-white/70 font-semibold"> / </span>
         {computedTotal}
       </span>
     </motion.div>

@@ -22,6 +22,7 @@ export type BirthdaySceneId =
   | "photo-1"
   | "photo-2"
   | "photo-3"
+  | "chapter-end-1"
   | "photo-4"
   | "photo-5"
   | "photo-6"
@@ -30,6 +31,7 @@ export type BirthdaySceneId =
   | "photo-8"
   | "photo-9"
   | "photo-10"
+  | "chapter-end-2"
   | "photo-11"
   | "photo-12"
   | "photo-13"
@@ -57,7 +59,7 @@ export interface BirthdaySceneConfig {
   durationMs?: number;
   bgmVolume?: number;
   /** Per-scene transition override. Falls back to PresentationEngine's default if omitted. */
-  transitionVariant?: "fade" | "slide" | "cinematic" | "paper" | "flip";
+  transitionVariant?: "fade" | "slide" | "cinematic" | "paper" | "flip" | "none";
 }
 
 export interface BirthdayPhoto {

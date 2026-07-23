@@ -25,7 +25,7 @@ import { useAudioAmplitude } from "../../core/audioAmplitude";
 
 const Botanical = BotanyImport;
 
-export interface IntroSceneProps extends BirthdaySceneProps {}
+export interface IntroSceneProps extends BirthdaySceneProps { }
 
 export function IntroScene({ content, onAdvance }: BirthdaySceneProps) {
   const nameLetters = (content.heroText || "").split("");
@@ -59,41 +59,27 @@ export function IntroScene({ content, onAdvance }: BirthdaySceneProps) {
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6, duration: 0.7 }}
-        className="font-serif italic text-xs md:text-sm uppercase tracking-[0.35em] text-[#705646] text-center"
+        className="font-serif italic text-xs md:text-sm uppercase tracking-[0.35em] text-[#3a2511] font-bold text-center"
       >
         PREFACE · A BOOK FOR {content.recipientName?.toUpperCase()}
       </motion.p>
 
-      {/* Big recipient name */}
+      {/* Big title */}
       <motion.h1
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.8, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        className="relative flex justify-center items-baseline gap-0 font-serif text-[clamp(48px,9vw,120px)] leading-none text-[#2C2623] tracking-tight text-center"
+        className="font-serif text-[clamp(32px,6vw,64px)] leading-tight text-[#2C2623] tracking-tight text-center max-w-[90%] font-extrabold italic"
       >
-        {nameLetters.map((ch, i) => (
-          <motion.span
-            key={`${ch}-${i}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              delay: 0.95 + i * 0.08,
-              duration: 0.6,
-              ease: [0.22, 1, 0.36, 1],
-            }}
-            className="inline-block px-[0.04em]"
-          >
-            {ch === " " ? "\u00A0" : ch}
-          </motion.span>
-        ))}
+        A Book Made Only For You
       </motion.h1>
 
       {/* Book Title Card / Preface Frame */}
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ delay: 1.6, duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-[84vw] max-w-[560px] aspect-[16/10] mt-2 p-6 md:p-8 rounded-[4px] shadow-[0_20px_40px_rgba(44,38,35,0.10)] flex flex-col justify-between"
+        transition={{ delay: 1.4, duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+        className="relative w-[88vw] max-w-[560px] p-6 md:p-8 rounded-[4px] shadow-[0_20px_40px_rgba(44,38,35,0.10)] flex flex-col justify-between"
       >
         <div
           aria-hidden
@@ -103,7 +89,7 @@ export function IntroScene({ content, onAdvance }: BirthdaySceneProps) {
           }}
         />
 
-        <div className="relative z-10 h-full flex flex-col justify-between">
+        <div className="relative z-10 h-full flex flex-col justify-between gap-4">
           <div className="flex items-baseline justify-between border-b border-[#E5DEC9] pb-2">
             <span className="font-serif italic text-[10px] uppercase tracking-[0.25em] text-[#705646]">
               {BIRTHDAY_BADGE.UPPER}
@@ -113,15 +99,21 @@ export function IntroScene({ content, onAdvance }: BirthdaySceneProps) {
             </span>
           </div>
 
-          <div className="flex-1 flex items-center justify-center py-4">
-            <p className="font-serif italic text-[#2C2623] text-base md:text-xl leading-relaxed text-center max-w-[88%]">
-              "{openingLine(content.recipientName)}"
+          <div className="flex-grow flex flex-col items-center justify-center py-2 gap-2.5 text-center">
+            <p className="font-serif italic text-[#3a2511] text-sm md:text-base leading-relaxed max-w-[92%] font-medium">
+              "Not every memory fits inside a photograph."
+            </p>
+            <p className="font-serif italic text-[#3a2511] text-sm md:text-base leading-relaxed max-w-[92%] font-medium">
+              "Some quietly stay inside the heart."
+            </p>
+            <p className="font-serif italic text-[#3a2511] text-sm md:text-base leading-relaxed max-w-[92%] font-medium">
+              "Tonight, I'd like to share a few of mine with you."
             </p>
           </div>
 
           <div className="border-t border-[#E5DEC9] pt-2 text-center">
             <span className="font-serif italic text-[10px] tracking-[0.3em] text-[#705646]/60 uppercase">
-              ✿ dedicated to {content.recipientName} ✿
+              ✿ dedicated to my Sweetheart ✿
             </span>
           </div>
         </div>

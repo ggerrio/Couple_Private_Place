@@ -27,6 +27,7 @@ export default function LettersPanel() {
   const [lSchedule, setLSchedule] = useState("");
   const [isComposing, setIsComposing] = useState(false);
   const [openedLetterId, setOpenedLetterId] = useState<string | null>(null);
+  const [openedCapsuleId, setOpenedCapsuleId] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [capsuleMessage, setCapsuleMessage] = useState("");
   const [capsuleOpenDate, setCapsuleOpenDate] = useState("");
@@ -321,6 +322,15 @@ export default function LettersPanel() {
                   <motion.div 
                     key={capsule.id}
                     whileHover={{ scale: 1.05, y: -4 }}
+                    onClick={() => {
+                      triggerHaptic("light");
+                      if (!capsule.isOpened && unlockable) {
+                        setWaxSealCapsuleId(capsule.id);
+                        setWaxSealStatus("sealed");
+                      } else {
+                        setOpenedCapsuleId(capsule.id);
+                      }
+                    }}
                     className="relative w-full aspect-[3/4] p-4 flex flex-col justify-between items-center text-center transition-all duration-300 group select-none cursor-pointer"
                   >
                     {/* The Wood Lid */}
@@ -483,6 +493,140 @@ export default function LettersPanel() {
         })()}
       </AnimatePresence>
 
+      {/* ─── TIME CAPSULE OVERLAY MODAL ─── */}
+      <AnimatePresence>
+        {openedCapsuleId && (() => {
+          const activeCapsule = timeCapsules.find((c: any) => c.id === openedCapsuleId);
+          if (!activeCapsule) return null;
+          const creator = activeCapsule.senderId === "user_a" ? userA : userB;
+          const unlockable = canOpenCapsule(activeCapsule);
+          const locked = !activeCapsule.isOpened && !unlockable;
+          const daysLeft = Math.ceil((new Date(activeCapsule.openDate).getTime() - Date.now()) / 86400000);
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Time Capsule: ${activeCapsule.id}`}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  setOpenedCapsuleId(null);
+                }
+                if (e.key === 'Tab') {
+                  const modal = e.currentTarget;
+                  const focusable = modal.querySelectorAll<HTMLElement>(
+                    'button, [href], input, select, textarea, [tabindex]:not-[tabindex="-1"])'
+                  );
+                  if (focusable.length === 0) {
+                    e.preventDefault();
+                    return;
+                  }
+                  const first = focusable[0];
+                  const last = focusable[focusable.length - 1];
+                  if (e.shiftKey) {
+                    if (document.activeElement === first) {
+                      e.preventDefault();
+                      last.focus();
+                    }
+                  } else {
+                    if (document.activeElement === last) {
+                      e.preventDefault();
+                      first.focus();
+                    }
+                  }
+                }
+              }}
+            >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                onClick={() => setOpenedCapsuleId(null)} className="absolute inset-0 bg-black/60 backdrop-blur-sm z-0" />
+              <motion.div
+                initial={{ y: 40, opacity: 0, scale: 0.96 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: 20, opacity: 0, scale: 0.97 }}
+                transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                role="document"
+                tabIndex={-1}
+                className="bg-[var(--fabric-cream)] dark:bg-zinc-900 rounded-3xl border-2 border-amber-900/40 shadow-2xl w-full max-w-xl z-10 overflow-hidden relative flex flex-col max-h-[85vh] text-left"
+              >
+                <div className="h-10 bg-amber-900/20 relative overflow-hidden flex items-center justify-center border-b border-amber-900/10">
+                  <div className="absolute top-0 w-full h-full bg-gradient-to-b from-amber-900/30 to-transparent" />
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: 0.25, type: "spring" }}
+                    className="w-7 h-7 bg-amber-700 rounded-full border border-white/85 flex items-center justify-center shadow-md absolute -bottom-3.5 cursor-pointer z-20"
+                    onClick={() => setOpenedCapsuleId(null)}>
+                    <Clock className="w-3.5 h-3.5 text-amber-100 animate-pulse" />
+                  </motion.div>
+                </div>
+                <div className="p-8 pb-3 border-b border-amber-900/10 flex justify-between items-center pr-12 pt-8 flex-shrink-0">
+                  <div>
+                    <h3 className="text-base font-serif font-bold text-[var(--text-main)] dark:text-amber-100 flex items-center gap-2">
+                      ⏳ Sealed Time Capsule
+                    </h3>
+                    <p className="text-[10px] text-[var(--text-muted)] font-mono mt-0.5">
+                      Sealed on {new Date(activeCapsule.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button onClick={() => setOpenedCapsuleId(null)} className="p-1.5 hover:bg-black/5 rounded-full text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors cursor-pointer absolute top-4 right-4">
+                    <X className="w-4.5 h-4.5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-8 space-y-4">
+                  <div className="text-xs text-[var(--text-muted)] font-mono flex items-center justify-between pb-3 border-b border-amber-900/10">
+                    <span>From: {creator?.name ? creator.name.split(" ")[0] : (activeCapsule.senderId === "user_a" ? "User A" : "User B")} ⏳</span>
+                    <span>Target Date: {new Date(activeCapsule.openDate).toLocaleDateString()}</span>
+                  </div>
+
+                  {activeCapsule.isOpened ? (
+                    <div className="space-y-4">
+                      <div className="p-3 bg-amber-500/10 rounded-2xl border border-amber-500/20 text-xs font-mono text-amber-800 dark:text-amber-300 flex items-center gap-2">
+                        <span>🔓</span>
+                        <span>This capsule has been unsealed and revealed!</span>
+                      </div>
+                      <p className="text-sm text-[var(--text-main)] dark:text-amber-50 leading-relaxed whitespace-pre-wrap font-serif bg-amber-50/50 dark:bg-amber-950/20 p-6 rounded-2xl border border-amber-900/10">
+                        {activeCapsule.message}
+                      </p>
+                    </div>
+                  ) : locked ? (
+                    <div className="text-center py-6 space-y-4">
+                      <div className="w-14 h-14 rounded-full bg-amber-900/10 dark:bg-white/10 flex items-center justify-center mx-auto text-amber-700 dark:text-amber-300">
+                        <Lock className="w-7 h-7 animate-pulse" />
+                      </div>
+                      <h4 className="font-bold text-sm text-[var(--text-main)] dark:text-amber-100">This Time Capsule is Magically Sealed</h4>
+                      <p className="text-xs text-[var(--text-muted)] max-w-sm mx-auto leading-relaxed">
+                        It cannot be opened until <strong className="text-amber-700 dark:text-amber-400">{new Date(activeCapsule.openDate).toLocaleDateString()}</strong>.
+                      </p>
+                      <div className="inline-block bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-xs font-mono font-bold px-4 py-2 rounded-full border border-amber-900/20">
+                        ⏳ {daysLeft > 0 ? `${daysLeft} days remaining` : "Unlocking soon..."}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6 space-y-4">
+                      <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center mx-auto text-emerald-600">
+                        <Sparkles className="w-7 h-7 animate-bounce" />
+                      </div>
+                      <h4 className="font-bold text-sm text-[var(--text-main)] dark:text-amber-100">Ready to Reveal!</h4>
+                      <p className="text-xs text-[var(--text-muted)] max-w-sm mx-auto">
+                        The time has come to unseal this memory. Tap below to break the wax seal!
+                      </p>
+                      <button
+                        onClick={() => {
+                          setOpenedCapsuleId(null);
+                          setWaxSealCapsuleId(activeCapsule.id);
+                          setWaxSealStatus("sealed");
+                          triggerHaptic("medium");
+                        }}
+                        className="px-6 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-full shadow-md transition-all cursor-pointer animate-pulse"
+                      >
+                        Melt Wax & Open 📬
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+      </AnimatePresence>
+
       {/* Paper Airplane Animation */}
       <AnimatePresence>
         {isSending && (
@@ -561,7 +705,9 @@ export default function LettersPanel() {
                         openTimeCapsule(waxSealCapsuleId);
                         toast.success("The seal has melted! Message unlocked 📬");
                         setTimeout(() => {
+                          const unlockedId = waxSealCapsuleId;
                           setWaxSealCapsuleId(null);
+                          if (unlockedId) setOpenedCapsuleId(unlockedId);
                         }, 1200);
                       }, 1800);
                     }}

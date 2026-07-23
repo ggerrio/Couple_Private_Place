@@ -35,25 +35,167 @@ import type {
   BirthdaySceneConfig,
 } from "./birthday.types";
 
-// ── Photo collection ─────────────────────────────────────────────────
-const photoModules = import.meta.glob<{ default: string }>(
-  "../../assets/birthday/photos/*.jpeg",
-  { eager: true },
-);
+// ── Photo Imports ───────────────────────────────────────────────────
+import photo1 from "../../assets/birthday/photos/roblox_1.png";
+import photo2 from "../../assets/birthday/photos/sweet_heart_(2).jpeg";
+import photo3 from "../../assets/birthday/photos/sweet_heart_(11).jpeg";
+import photo4 from "../../assets/birthday/photos/Our_Sketch_Masterpiece.jpg";
+import photo5 from "../../assets/birthday/photos/heartopia_2.jpg";
+import photo6 from "../../assets/birthday/photos/sweet_heart_(6).jpeg";
+import photo7 from "../../assets/birthday/photos/sweet_heart_(7).jpeg";
+import photo8 from "../../assets/birthday/photos/sweet_heart_(16).jpeg";
+import photo9 from "../../assets/birthday/photos/It_Takes_Two_7_23_2026.png";
+import photo10 from "../../assets/birthday/photos/sweet_heart_(19).jpeg";
+import photo11 from "../../assets/birthday/photos/sweet_heart_(5).jpeg";
+import photo12 from "../../assets/birthday/photos/sweet_heart_(12).jpeg";
+import photo13 from "../../assets/birthday/photos/sweet_heart_(17).jpeg";
+import photo14 from "../../assets/birthday/photos/Screenshot_1.png";
+import photo15 from "../../assets/birthday/photos/sweet_heart_(9).jpeg";
+import photo16 from "../../assets/birthday/photos/sweet_heart_(18).jpeg";
+import statsPhoto from "../../assets/birthday/photos/sweet_heart_(1).jpeg";
 
-const sortedPhotoEntries = Object.entries(photoModules).sort(([a], [b]) => {
-  const numA = parseInt(a.match(/\((\d+)\)/)?.[1] ?? "0", 10);
-  const numB = parseInt(b.match(/\((\d+)\)/)?.[1] ?? "0", 10);
-  return numA - numB;
-});
+// Foto khusus untuk Slide 3 ("CHAPTER I · THE ESSENCE OF YOU")
+export const STATS_FAVORITES_PHOTO = statsPhoto;
 
-export const BIRTHDAY_PHOTOS: BirthdayPhoto[] = sortedPhotoEntries.map(
-  ([path, mod], idx) => ({
+// ════════════════════════════════════════════════════════════════════════
+// 📸 PENGATURAN SLIDE FOTO (SLIDE 1 - 16)
+// Edit Foto, Judul Header, Subtitle, dan Caption per slide DI SINI!
+// ════════════════════════════════════════════════════════════════════════
+export interface SlideConfigItem {
+  slide: number;
+  photo: string;
+  headerTitle: string;
+  headerSubtitle: string;
+  caption: string;
+}
+
+export const SLIDES_CONFIG: SlideConfigItem[] = [
+  {
+    slide: 1,
+    photo: photo1,
+    headerTitle: "CHAPTER I",
+    headerSubtitle: "OUR STORY",
+    caption: "I still smile every time I see this.",
+  },
+  {
+    slide: 2,
+    photo: photo2,
+    headerTitle: "FIRST SMILE",
+    headerSubtitle: "SWEET MOMENT",
+    caption: "Some moments never ask for attention. They simply become unforgettable.",
+  },
+  {
+    slide: 3,
+    photo: photo3,
+    headerTitle: "YOGYAKARTA",
+    headerSubtitle: "SWEET MEMORY",
+    caption: "If happiness had a face, it'd probably look a little like this.",
+  },
+  {
+    slide: 4,
+    photo: photo4,
+    headerTitle: "SUNSET WAVES",
+    headerSubtitle: "OCEAN BREEZE",
+    caption: "I don't remember every word we said. I only remember not wanting the day to end.",
+  },
+  {
+    slide: 5,
+    photo: photo5,
+    headerTitle: "ANCIENT PATHS",
+    headerSubtitle: "TIMELESS MOMENT",
+    caption: "It's funny how love quietly hides inside ordinary moments.",
+  },
+  {
+    slide: 6,
+    photo: photo6,
+    headerTitle: "ORCHARD LAUGHTER",
+    headerSubtitle: "SWEET DAYS",
+    caption: "You probably didn't notice it. I did.",
+  },
+  {
+    slide: 7,
+    photo: photo7,
+    headerTitle: "GREEN CANOPY",
+    headerSubtitle: "WISH COME TRUE",
+    caption: "One picture. A thousand little feelings.",
+  },
+  {
+    slide: 8,
+    photo: photo8,
+    headerTitle: "CALM SMILE",
+    headerSubtitle: "TOGETHER ALWAYS",
+    caption: "Somehow... you always make every place feel like home.",
+  },
+  {
+    slide: 9,
+    photo: photo9,
+    headerTitle: "BUSY STREETS",
+    headerSubtitle: "LOST WITH YOU",
+    caption: "Thank you for every ordinary day that somehow became extraordinary.",
+  },
+  {
+    slide: 10,
+    photo: photo10,
+    headerTitle: "GARDEN GLOW",
+    headerSubtitle: "MY WHOLE WORLD",
+    caption: "We never needed perfect moments. We only needed each other.",
+  },
+  {
+    slide: 11,
+    photo: photo11,
+    headerTitle: "NIGHT SKYLINE",
+    headerSubtitle: "BRIGHTEST LIGHT",
+    caption: "I hope this memory never gets old.",
+  },
+  {
+    slide: 12,
+    photo: photo12,
+    headerTitle: "STREET BITES",
+    headerSubtitle: "SWEET & SPICY",
+    caption: "I hope one day you get to see yourself the way I see you. Not just as someone beautiful, but as the person who quietly became my safest place, my favorite thought, and the reason so many ordinary days turned into memories I'll always want to keep.",
+  },
+  {
+    slide: 13,
+    photo: photo13,
+    headerTitle: "NEON CROWD",
+    headerSubtitle: "ONLY YOU",
+    caption: "Even distance couldn't make this memory any smaller.",
+  },
+  {
+    slide: 14,
+    photo: photo14,
+    headerTitle: "COLD BITES",
+    headerSubtitle: "HOLD ME CLOSE",
+    caption: "Another page. Another reason to be grateful.",
+  },
+  {
+    slide: 15,
+    photo: photo15,
+    headerTitle: "BAMBOO PATH",
+    headerSubtitle: "STILL IN TIME",
+    caption: "Every picture tells a story. My favorite stories always have you in them.",
+  },
+  {
+    slide: 16,
+    photo: photo16,
+    headerTitle: "MY HOME",
+    headerSubtitle: "FOREVER & ALWAYS",
+    caption: "And somehow... we're still writing the next chapter.",
+  },
+];
+
+export const BIRTHDAY_PHOTOS: BirthdayPhoto[] = [
+  ...SLIDES_CONFIG.map((s, idx) => ({
     id: `sweet-heart-${idx + 1}`,
-    src: (mod as { default: string }).default,
-    caption: "",
-  }),
-);
+    src: s.photo,
+    caption: s.caption,
+  })),
+  {
+    id: "sweet-heart-stats",
+    src: STATS_FAVORITES_PHOTO,
+    caption: "our favorite memory ✿",
+  },
+];
 
 // ── Music ────────────────────────────────────────────────────────────
 export const BIRTHDAY_BGM_SRC: string = birthdayBGM;
@@ -68,14 +210,14 @@ export const BIRTHDAY_BGM_SRC: string = birthdayBGM;
 // postcardCity is referenced in its matching caption — when you swap
 // the caption for an inside-joke, keep the city anchor so the
 // postmark still feels authentic.
-export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
-  // 1. F — Jakarta — sage washi
+const BASE_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
+  // 1. F — CHAPTER I — sage washi
   {
     layoutType: "full-bleed-hero",
     postcardSide: "front",
-    postcardCity: "Jakarta",
+    postcardCity: "CHAPTER I",
     postcardDate: "27 · VII",
-    postcardCountry: "Indonesia",
+    postcardCountry: "OUR STORY",
     rotation: -1.8,
     decoration: "washi-top",
     decorationColor: "sage",
@@ -93,13 +235,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "muted-red",
     dateStamp: "I",
   },
-  // 2. F — Bandung — rose washi
+  // 2. F — FIRST SMILE — rose washi
   {
     layoutType: "asymmetric-portrait",
     postcardSide: "front",
-    postcardCity: "Bandung",
+    postcardCity: "FIRST SMILE",
     postcardDate: "27 · VII",
-    postcardCountry: "Indonesia",
+    postcardCountry: "SWEET MOMENT",
     rotation: 2.6,
     decoration: "washi-corner",
     decorationColor: "rose",
@@ -117,13 +259,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "ochre",
     dateStamp: "II",
   },
-  // 3. B — Yogyakarta — paperclip
+  // 3. B — GOLDEN HOUR — paperclip
   {
     layoutType: "editorial-two-column",
     postcardSide: "back",
-    postcardCity: "Yogyakarta",
+    postcardCity: "GOLDEN HOUR",
     postcardDate: "27 · VII",
-    postcardCountry: "Indonesia",
+    postcardCountry: "WARM MEMORIES",
     rotation: 0.4,
     decoration: "paperclip",
     decorationColor: "tan",
@@ -141,13 +283,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "ochre",
     dateStamp: "III",
   },
-  // 4. F — Bali — heavy tilt, lavender corner
+  // 4. F — LOVE & LIGHT — heavy tilt, lavender corner
   {
     layoutType: "floating-tilt",
     postcardSide: "front",
-    postcardCity: "Bali",
+    postcardCity: "LOVE & LIGHT",
     postcardDate: "27 · VII",
-    postcardCountry: "Indonesia",
+    postcardCountry: "WITH YOU",
     rotation: -4.5,
     decoration: "washi-corner",
     decorationColor: "lavender",
@@ -165,13 +307,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "sage",
     dateStamp: "IV",
   },
-  // 5. B — Semarang — wax seal
+  // 5. B — LAUGHTER — wax seal
   {
     layoutType: "magazine-gallery",
     postcardSide: "back",
-    postcardCity: "Semarang",
+    postcardCity: "LAUGHTER",
     postcardDate: "27 · VII",
-    postcardCountry: "Indonesia",
+    postcardCountry: "UNFORGETTABLE",
     rotation: 1.6,
     decoration: "wax-seal",
     decorationColor: "rose",
@@ -189,13 +331,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "muted-red",
     dateStamp: "V",
   },
-  // 6. F — Malang — center polaroid, tan top washi
+  // 6. F — COZY NIGHTS — center polaroid, tan top washi
   {
     layoutType: "polaroid-stack",
     postcardSide: "front",
-    postcardCity: "Malang",
+    postcardCity: "COZY NIGHTS",
     postcardDate: "27 · VII",
-    postcardCountry: "Indonesia",
+    postcardCountry: "FAVORITE DAYS",
     rotation: -1.4,
     decoration: "washi-top",
     decorationColor: "tan",
@@ -213,13 +355,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "indigo",
     dateStamp: "VI",
   },
-  // 7. F — Bogor — sage corners
+  // 7. F — DEAR NICOLA — sage corners
   {
     layoutType: "centered-portrait",
     postcardSide: "front",
-    postcardCity: "Bogor",
+    postcardCity: "DEAR NICOLA",
     postcardDate: "27 · VII",
-    postcardCountry: "Indonesia",
+    postcardCountry: "MY HEART",
     rotation: 2.4,
     decoration: "corners-only",
     decorationColor: "sage",
@@ -237,21 +379,21 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "sage",
     dateStamp: "VII",
   },
-  // 8. B — Surabaya — hanging thread
+  // 8. B — OUR JOURNEY — hanging thread (PORTRAIT ORIENTATION)
   {
     layoutType: "diagonal-pair",
     postcardSide: "back",
-    postcardCity: "Surabaya",
+    postcardCity: "OUR JOURNEY",
     postcardDate: "27 · VII",
-    postcardCountry: "Indonesia",
+    postcardCountry: "HAND IN HAND",
     rotation: -0.2,
     decoration: "thread-hang",
     decorationColor: "gold",
     captionPosition: "overleaf",
     captionStyle: "handwrite",
     captionRotation: -0.6,
-    aspect: "square",
-    cropMode: "square",
+    aspect: "portrait",
+    cropMode: "portrait",
     kenBurns: "static",
     hueTint: "cream",
     borderStyle: "polaroid",
@@ -261,13 +403,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "ochre",
     dateStamp: "VIII",
   },
-  // 9. F — Manila — heavy gold corner
+  // 9. F — BRIGHT SHINE — heavy gold corner
   {
     layoutType: "full-width-landscape",
     postcardSide: "front",
-    postcardCity: "Manila",
+    postcardCity: "BRIGHT SHINE",
     postcardDate: "27 · VII",
-    postcardCountry: "Pilipinas",
+    postcardCountry: "TOGETHER",
     rotation: 4.0,
     decoration: "washi-corner",
     decorationColor: "gold",
@@ -285,13 +427,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "ochre",
     dateStamp: "IX",
   },
-  // 10. F — Singapore — center thin-frame
+  // 10. F — SOULMATES — center thin-frame
   {
     layoutType: "double-page-spread",
     postcardSide: "front",
-    postcardCity: "Singapore",
+    postcardCity: "SOULMATES",
     postcardDate: "27 · VII",
-    postcardCountry: "Singapura",
+    postcardCountry: "SIDE BY SIDE",
     rotation: -1.0,
     decoration: "washi-corner",
     decorationColor: "rose",
@@ -309,13 +451,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "muted-red",
     dateStamp: "X",
   },
-  // 11. B — Kuala Lumpur — paperclip, typewriter
+  // 11. B — MIDNIGHT TALKS — paperclip, typewriter
   {
     layoutType: "square-focus",
     postcardSide: "back",
-    postcardCity: "Kuala Lumpur",
+    postcardCity: "MIDNIGHT TALKS",
     postcardDate: "27 · VII",
-    postcardCountry: "Malaysia",
+    postcardCountry: "FOREVER",
     rotation: 1.0,
     decoration: "paperclip",
     decorationColor: "sage",
@@ -333,13 +475,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "sage",
     dateStamp: "XI",
   },
-  // 12. B — Bangkok — heavy tilt, torn edge
+  // 12. B — SWEET BLISS — heavy tilt, torn edge
   {
     layoutType: "editorial-offset-story",
     postcardSide: "back",
-    postcardCity: "Bangkok",
+    postcardCity: "SWEET BLISS",
     postcardDate: "27 · VII",
-    postcardCountry: "Thailand",
+    postcardCountry: "ALWAYS WE",
     rotation: -3.5,
     decoration: "washi-top",
     decorationColor: "lavender",
@@ -357,13 +499,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "indigo",
     dateStamp: "XII",
   },
-  // 13. F — Tokyo — center polaroid, sage top washi + wax combo
+  // 13. F — NEON DREAMS — center polaroid, sage top washi + wax combo
   {
     layoutType: "framed-art-print",
     postcardSide: "front",
-    postcardCity: "Tokyo",
+    postcardCity: "NEON DREAMS",
     postcardDate: "27 · VII",
-    postcardCountry: "Japan",
+    postcardCountry: "JUST US TWO",
     rotation: 2.6,
     decoration: "wax-seal",
     decorationColor: "sage",
@@ -381,13 +523,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "indigo",
     dateStamp: "XIII",
   },
-  // 14. F — Osaka — heavy tilt, gold corner
+  // 14. F — WARM EMBRACE — heavy tilt, gold corner
   {
     layoutType: "overlapping-strip",
     postcardSide: "front",
-    postcardCity: "Osaka",
+    postcardCity: "WARM EMBRACE",
     postcardDate: "27 · VII",
-    postcardCountry: "Japan",
+    postcardCountry: "ENDLESS LOVE",
     rotation: -0.6,
     decoration: "thread-hang",
     decorationColor: "gold",
@@ -405,13 +547,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "ochre",
     dateStamp: "XIV",
   },
-  // 15. B — Kyoto — letter, paperclip
+  // 15. B — QUIET WONDER — letter, paperclip
   {
     layoutType: "quiet-minimal",
     postcardSide: "back",
-    postcardCity: "Kyoto",
+    postcardCity: "QUIET WONDER",
     postcardDate: "27 · VII",
-    postcardCountry: "Japan",
+    postcardCountry: "STILL TIME",
     rotation: 1.4,
     decoration: "paperclip",
     decorationColor: "tan",
@@ -429,13 +571,13 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
     stampColor: "muted-red",
     dateStamp: "XV",
   },
-  // 16. F — FINALE: kembali ke Jakarta — biggest, most colorful
+  // 16. F — FINALE: FOREVER & EVER — biggest, most colorful
   {
     layoutType: "finale-hero",
     postcardSide: "front",
-    postcardCity: "Jakarta",
+    postcardCity: "FOREVER & EVER",
     postcardDate: "27 · VII · MMXXVI",
-    postcardCountry: "for you, always",
+    postcardCountry: "FOR YOU ALWAYS",
     rotation: -1.5,
     decoration: "washi-top",
     decorationColor: "rose",
@@ -455,6 +597,14 @@ export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = [
   },
 ];
 
+export const BIRTHDAY_PHOTO_VARIANTS: BirthdayPhotoVariant[] = BASE_PHOTO_VARIANTS.map(
+  (variant, idx) => ({
+    ...variant,
+    postcardCity: SLIDES_CONFIG[idx]?.headerTitle ?? variant.postcardCity,
+    postcardCountry: SLIDES_CONFIG[idx]?.headerSubtitle ?? variant.postcardCountry,
+  })
+);
+
 // ── Scene order & per-scene configuration ────────────────────────────
 const ROMAN: string[] = [
   "I", "II", "III", "IV", "V", "VI", "VII", "VIII",
@@ -464,11 +614,17 @@ const ROMAN: string[] = [
 export const BIRTHDAY_SCENE_ORDER: BirthdaySceneId[] = [
   "gift-open",
   "hero",
+  "stats-favorites",
   "scrapbook",
-  "photo-1", "photo-2", "photo-3", "photo-4",
-  "photo-5", "photo-6", "photo-7", "photo-8",
-  "photo-9", "photo-10", "photo-11", "photo-12",
-  "photo-13", "photo-14", "photo-15", "photo-16",
+  "photo-1", "photo-2", "photo-3",
+  "chapter-end-1",
+  "photo-4", "photo-5", "photo-6", "photo-7",
+  "map",
+  "photo-8", "photo-9", "photo-10",
+  "chapter-end-2",
+  "photo-11", "photo-12", "photo-13", "photo-14", "photo-15", "photo-16",
+  "stats-timeline",
+  "seal-close",
   "ending",
 ];
 
@@ -487,9 +643,8 @@ type PreOrderScene = Omit<BirthdaySceneConfig, "order">;
 const BIRTHDAY_PHOTO_SCENES: PreOrderScene[] = BIRTHDAY_PHOTO_VARIANTS.map(
   (variant, i) => ({
     id: `photo-${i + 1}` as BirthdaySceneId,
-    title: `${ROMAN[i] ?? i + 1} ${
-      variant.postcardSide === "front" ? "Front" : "Back"
-    } — ${variant.postcardCity}`,
+    title: `${ROMAN[i] ?? i + 1} ${variant.postcardSide === "front" ? "Front" : "Back"
+      } — ${variant.postcardCity}`,
     layout: "single-photo" as const,
     advanceMode: "manual" as const,
     bgmVolume: 0.72,
@@ -531,17 +686,37 @@ export const BIRTHDAY_SCENES: BirthdaySceneConfig[] = (
       bgmVolume: 0.65,
       transitionVariant: "slide",
     },
-    ...BIRTHDAY_PHOTO_SCENES.slice(0, 7),
+    ...BIRTHDAY_PHOTO_SCENES.slice(0, 3),
+    {
+      id: "chapter-end-1",
+      title: "End of Chapter I",
+      layout: "cinematic",
+      advanceMode: "auto",
+      durationMs: 3800,
+      bgmVolume: 0.55,
+      transitionVariant: "paper",
+    },
+    ...BIRTHDAY_PHOTO_SCENES.slice(3, 7),
     {
       id: "map",
-      title: "Atlas of Memories",
-      layout: "interactive",
+      title: "A Few Things I'll Always Remember",
+      layout: "cinematic",
       advanceMode: "auto",
-      durationMs: 8000,
+      durationMs: 4600,
       bgmVolume: 0.45,
-      transitionVariant: "cinematic",
+      transitionVariant: "paper",
     },
-    ...BIRTHDAY_PHOTO_SCENES.slice(7),
+    ...BIRTHDAY_PHOTO_SCENES.slice(7, 10),
+    {
+      id: "chapter-end-2",
+      title: "End of Chapter II",
+      layout: "cinematic",
+      advanceMode: "auto",
+      durationMs: 3800,
+      bgmVolume: 0.50,
+      transitionVariant: "paper",
+    },
+    ...BIRTHDAY_PHOTO_SCENES.slice(10),
     {
       id: "stats-timeline",
       title: "Our Love in Numbers",
@@ -555,7 +730,7 @@ export const BIRTHDAY_SCENES: BirthdaySceneConfig[] = (
       title: "Sealed With Love",
       layout: "cinematic",
       advanceMode: "auto",
-      durationMs: 7500,
+      durationMs: 4000,
       bgmVolume: 0.40,
       transitionVariant: "fade",
     },
@@ -578,7 +753,7 @@ export const BIRTHDAY_SCENES: BirthdaySceneConfig[] = (
 // scene's SVG reads naturally against this scatter.
 export const BIRTHDAY_CITY_PIN_POSITIONS: Array<{ x: number; y: number }> = [
   { x: 18, y: 32 }, // photo-1
-  { x: 26, y: 46 }, // photo-2
+  { x: 18, y: 32 }, // photo-2
   { x: 22, y: 28 }, // photo-3
   { x: 36, y: 42 }, // photo-4
   { x: 32, y: 54 }, // photo-5
@@ -602,38 +777,21 @@ export const BIRTHDAY_CONTENT: BirthdayContent = {
   recipientName: "Nicola",
   heroSubtitle: "A Postcard for You",
   heroText: "Nicola",
-  scrapbookQuote: "The shortest distance between two hearts is a single stamp.",
+  scrapbookQuote: "If I could keep time somewhere, I'd probably keep it here.",
   letterLines: [
-    "Nicola — di hari kamu bertambah satu tahun ini, ada satu hal yang jarang aku ucapkan keras-keras.",
-    "kamu bukan cuma seseorang yang aku cintai — kamu adalah orang yang membuat dunia ini terasa begitu hangat, bahkan di hari-hari yang paling dingin sekalipun.",
-    "Terima kasih sudah berjalan bersamaku melewati ribuan kilometer, kota-kota baru, dan setiap percakapan larut malam kita.",
-    "As you blow out these candles, please remember that my heart is celebrating you from afar. Every mile between us is just a small chapter in our beautiful story.",
-    "Make a wish, my love. I’ll be there to help you catch it.",
+    "I spent a long time thinking about what kind of gift could truly match someone like you.",
+    "Then I realized... Some gifts are opened once. But memories can be opened again and again.",
+    "So I made this little book. A place where a few of my favorite moments could quietly live.",
+    "I hope whenever life feels heavy, you can return here, turn these pages, and remember just how deeply you are loved.",
+    "Happy Birthday. Thank you for becoming one of the most beautiful chapters of my life.",
   ],
   endingMessage: "From Jakarta, with a love that doesn't expire.",
 };
 
-// ── Photo captions (16) — handwritten memory notes ──────────────────
-// Each caption is anchored to the city on its matching slide. Marked
-// `[GER: refine]` where only your actual inside-joke will land.
-export const BIRTHDAY_PHOTO_CAPTIONS: Record<number, string> = {
-  1: "Where our story first found its rhythm, under the quiet city lights.",
-  2: "The mist was cold, but your hand in mine was the warmest shelter.",
-  3: "Golden sunrises and sweet smiles; Yogyakarta felt like a dream painted just for us.",
-  4: "Watching the waves crash at sunset, thinking how lucky I am to be lost in you.",
-  5: "Walking through history, knowing you are my favorite era.",
-  6: "Laughter in the apple orchards. You made even the simplest day feel like a movie.",
-  7: "Under the canopy of green, I whispered a wish that came true: more days with you.",
-  8: "My nervous heartbeat next to your calm, reassuring smile. We conquered it together.",
-  9: "Through the busy streets and unfamiliar turns, I’d still choose to get lost with you.",
-  10: "Lit up like the supertrees, my whole world glows whenever you look at me.",
-  11: "Midnight skylines and quiet whispers. You shine brighter than any city light.",
-  12: "Sweet, spicy, and full of laughter—just like every adventure we embark on.",
-  13: "Lost in the neon crowds, yet my eyes could only ever focus on you.",
-  14: "Sharing warm bites and cold breezes, holding you close was all I needed.",
-  15: "Quiet bamboo paths, a gentle dusk, and a love that stands completely still in time.",
-  16: "Sixteen cities mapped, but my home will always be wherever you are.",
-};
+// ── Photo captions (16) — automatically derived from SLIDES_CONFIG ──
+export const BIRTHDAY_PHOTO_CAPTIONS: Record<number, string> = Object.fromEntries(
+  SLIDES_CONFIG.map((s) => [s.slide, s.caption])
+);
 
 // ── Chapter II: Little Things I Love About You ───────────────────────
 export interface LittleThingItem {

@@ -46,6 +46,7 @@ import {
   CityMapScene,
   StatsFavoritesScene,
   StatsTimelineScene,
+  ChapterDividerScene,
 } from "./scenes";
 
 // Only the scenes with a 1:1 component mapping live here. The 16
@@ -58,10 +59,12 @@ const BASE_COMPONENT_MAP: Partial<
   "hero": IntroScene as ComponentType<SceneComponentProps>,
   "stats-favorites": StatsFavoritesScene as ComponentType<SceneComponentProps>,
   "scrapbook": ScrapbookScene as ComponentType<SceneComponentProps>,
-  "map": CityMapScene as ComponentType<SceneComponentProps>,
+  "map": ChapterDividerScene as ComponentType<SceneComponentProps>,
   "stats-timeline": StatsTimelineScene as ComponentType<SceneComponentProps>,
   "seal-close": ClosingSealScene as ComponentType<SceneComponentProps>,
   "ending": EndingScene as ComponentType<SceneComponentProps>,
+  "chapter-end-1": ChapterDividerScene as ComponentType<SceneComponentProps>,
+  "chapter-end-2": ChapterDividerScene as ComponentType<SceneComponentProps>,
 };
 
 export interface BirthdayExperienceProps {

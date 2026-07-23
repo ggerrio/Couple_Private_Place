@@ -88,7 +88,7 @@ export function ScrapbookScene({ content, onAdvance }: BirthdaySceneProps) {
         />
 
         {/* Card Header text */}
-        <div className="absolute top-3 left-0 right-0 text-center font-serif italic text-[10px] tracking-[0.3em] text-[#705646] z-10">
+        <div className="absolute top-3 left-0 right-0 text-center font-serif italic text-[10px] tracking-[0.3em] text-[#3a2511] font-bold z-10">
           PROLOGUE · A LETTER FOR {content.recipientName?.toUpperCase()}
         </div>
 
@@ -165,7 +165,7 @@ export function ScrapbookScene({ content, onAdvance }: BirthdaySceneProps) {
               transition={{ delay: 1.8 }}
               className="absolute top-[2.4rem] left-3 font-handwrite text-sm text-[#3a2511] rotate-[-1.5deg]"
             >
-              Budi Residence, Jakarta
+              Your boy G, My HEART
             </motion.span>
           </div>
 
@@ -197,14 +197,9 @@ export function ScrapbookScene({ content, onAdvance }: BirthdaySceneProps) {
           <Sparkle className="absolute bottom-1 right-3 text-amber-400/85" size={16} />
         </div>
 
-        {/* Tiny footer */}
-        <div className="absolute bottom-1 left-3 font-mono text-[8px] tracking-[0.32em] text-[#5b3a32]/40">
-          {BIRTHDAY_FOOTER.SIXTEEN_MEMORIES}
-        </div>
       </motion.div>
 
-      {/* Tap-to-continue hint — pulses to BGM amplitude via the
-          audioAmplitude bus. */}
+      {/* Tap-to-continue hint */}
       <motion.p
         animate={{
           opacity: [0.4, 1, 0.4],
@@ -213,7 +208,7 @@ export function ScrapbookScene({ content, onAdvance }: BirthdaySceneProps) {
         transition={{ repeat: Infinity, duration: 2.4 }}
         className="absolute bottom-[6%] left-0 right-0 text-center text-[10px] uppercase tracking-[0.4em] text-[#5b3a32] font-bold origin-center"
       >
-        Tap to begin the postcards
+        Tap to turn the page
       </motion.p>
     </button>
   );

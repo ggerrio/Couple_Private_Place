@@ -31,10 +31,24 @@ export default function WeatherNotificationController() {
   } | null>(null);
   const [showGreeting, setShowGreeting] = useState(false);
   const [showForecast, setShowForecast] = useState(false);
+  const [activeMobileTab, setActiveMobileTab] = useState<"greeting" | "forecast">("greeting");
+  const [isMobile, setIsMobile] = useState(false);
   const hasShownInitialRef = useRef(false);
 
   const activeProfile = currentUser === "user_a" ? userA : userB;
   const fallbackCity = activeProfile.weatherCity || "Seoul";
+
+  // Check screen width for mobile optimization
+  useEffect(() => {
+    const checkMobile = () => {
+      if (typeof window !== "undefined") {
+        setIsMobile(window.innerWidth < 640);
+      }
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
 
   // 1. Get GPS navigator.geolocation
   useEffect(() => {
@@ -123,6 +137,44 @@ export default function WeatherNotificationController() {
 
   if (!weatherData) return null;
 
+  const handleCloseAll = () => {
+    setShowGreeting(false);
+    setShowForecast(false);
+  };
+
+  // On Mobile: render a single unified/tabbed notification card at top of viewport
+  if (isMobile) {
+    const isGreetingVisible = (showGreeting || showForecast) && activeMobileTab === "greeting";
+    const isForecastVisible = (showGreeting || showForecast) && activeMobileTab === "forecast";
+
+    return (
+      <>
+        {isGreetingVisible && (
+          <GreetingNotification 
+            weatherCode={weatherData.code} 
+            city={weatherData.city} 
+            temp={weatherData.temp} 
+            isVisible={true}
+            onClose={handleCloseAll}
+            hasForecast={showForecast}
+            onSwitchToForecast={() => setActiveMobileTab("forecast")}
+          />
+        )}
+        {isForecastVisible && (
+          <ForecastNotification 
+            dailyForecast={weatherData.daily} 
+            hourlyForecast={weatherData.hourly} 
+            isVisible={true} 
+            onClose={handleCloseAll}
+            hasGreeting={showGreeting}
+            onSwitchToGreeting={() => setActiveMobileTab("greeting")}
+          />
+        )}
+      </>
+    );
+  }
+
+  // On Desktop: render both independently at bottom-left and bottom-right
   return (
     <>
       <GreetingNotification 

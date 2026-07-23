@@ -966,10 +966,14 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
       )}
 
       {/* ── Floating Birthday Replay Trigger (left) ── */}
-      <BirthdayReplayButton
-        onOpen={birthday.open}
-        className="fixed bottom-24 left-4 sm:bottom-6 sm:left-6 z-50"
-      />
+      <AnimatePresence>
+        {!birthday.isOpen && (
+          <BirthdayReplayButton
+            onOpen={birthday.open}
+            className="fixed bottom-20 left-4 sm:bottom-[160px] sm:left-10 z-50"
+          />
+        )}
+      </AnimatePresence>
 
       {/* Birthday Experience overlay — lazy-mounted, only on demand */}
       <Suspense fallback={null}>
