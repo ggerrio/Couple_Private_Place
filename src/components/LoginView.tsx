@@ -7,16 +7,19 @@ import {
   signInWithPopup,
   signInAnonymously,
 } from "firebase/auth";
-import { Heart, Sparkles, AlertCircle, ArrowRight } from "lucide-react";
+import { Heart, Sparkles, AlertCircle, ArrowRight, FlaskConical } from "lucide-react";
 import { triggerHaptic } from "../lib/haptics";
 import { motion } from "motion/react";
 import { ScrapbookPage, WashiTapeDivider, StickerButton } from "./scrapbook";
+import { isDemoMode, enableDemoMode } from "../utils/demoMode";
 
 export default function LoginView() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [isUnauthorizedDomain, setIsUnauthorizedDomain] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const demoMode = isDemoMode();
 
   useEffect(() => {
     const cachedErr = localStorage.getItem("auth_error_msg");
@@ -27,10 +30,10 @@ export default function LoginView() {
   }, []);
   // Handle redirect result on mount (user returns from Google login)
   useEffect(() => {
+    if (demoMode || !auth) return; // Skip Firebase redirect check in demo mode
     getRedirectResult(auth)
       .then((result) => {
         if (result) {
-          // Redirect login successful — auth state listener in useAuthState will handle session
           console.log("[Login] Redirect sign-in successful", result.user?.email);
         }
         setLoading(false);
@@ -48,9 +51,10 @@ export default function LoginView() {
         }
         setErrorMsg(friendlyError);
       });
-  }, []);
+  }, [demoMode]);
 
   const handleGoogleLogin = () => {
+    if (!auth) return;
     setLoading(true);
     setErrorMsg("");
     setIsUnauthorizedDomain(false);
@@ -62,7 +66,6 @@ export default function LoginView() {
         console.log("[Login] Popup sign-in successful:", result.user?.email);
       })
       .catch((err: any) => {
-        // If the popup was closed by the user, just stop loading and don't redirect
         if (err.code === "auth/popup-closed-by-user") {
           console.log("[Login] Popup closed by user.");
           setLoading(false);
@@ -71,7 +74,6 @@ export default function LoginView() {
 
         console.warn("[Login] signInWithPopup failed, falling back to redirect:", err);
 
-        // Fallback to Redirect if popup fails or is blocked
         signInWithRedirect(auth, googleProvider)
           .catch((redirectErr: any) => {
             console.error("[Login] Redirect Sign-In also failed:", redirectErr);
@@ -90,6 +92,11 @@ export default function LoginView() {
             setLoading(false);
           });
       });
+  };
+
+  const handleDemoMode = () => {
+    triggerHaptic("medium");
+    enableDemoMode();
   };
 
   return (
@@ -130,10 +137,20 @@ export default function LoginView() {
             </svg>
           </div>
 
+          {/* Demo mode badge — shown when VITE_DEMO_MODE is set OR when Firebase isn't configured */}
+          {demoMode && (
+            <div className="flex justify-center mb-3">
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-900/60 border border-amber-400/40 text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                <FlaskConical className="w-3 h-3" />
+                Demo Mode
+              </span>
+            </div>
+          )}
+
           <div className="flex flex-col items-center">
             {/* Typewriter-style stamp */}
             <span className="font-mono text-[10px] tracking-widest uppercase text-[#8B7355] dark:text-[#B8B0A4] border border-dashed border-[#8B7355]/30 dark:border-white/20 px-2 py-0.5 rounded mb-3 select-none">
-              SECURE LOG — EST. 2024
+              {demoMode ? "DEMO SANDBOX — EST. 2024" : "SECURE LOG — EST. 2024"}
             </span>
             {/* Wooden carved heart emblem */}
             <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg mb-4 border animate-float"
@@ -149,58 +166,84 @@ export default function LoginView() {
               <Sparkles className="w-5 h-5 text-[#F4C542] animate-pulse" />
             </h2>
             <p className="text-base text-[#8B7355] dark:text-[#B8B0A4] font-handwrite mt-1">
-              Our Little Universe • Gerrio & Nicole
+              {demoMode ? "Sample Demo • Gerrio & Nicole" : "Our Little Universe • Gerrio & Nicole"}
             </p>
           </div>
 
           <WashiTapeDivider color="gold" label="Enter" />
 
           <div className="space-y-4">
-            <StickerButton
-              onClick={handleGoogleLogin}
-              disabled={loading}
-              color="primary"
-              size="lg"
-              className="w-full"
-              aria-label={loading ? "Signing in with Google" : "Sign in with Google to enter the treehouse"}
-              icon={
-                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                  <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.62 15.02 1 12 1 7.24 1 3.2 3.73 1.24 7.72l3.84 2.98C6.01 7.2 8.76 5.04 12 5.04z" />
-                  <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.46h6.44c-.28 1.47-1.11 2.72-2.36 3.56l3.65 2.83c2.14-1.97 3.37-4.87 3.37-8.5z" />
-                  <path fill="#FBBC05" d="M5.08 14.7L1.24 17.68C3.2 21.67 7.24 24 12 24c3.08 0 5.67-.99 7.56-2.69l-3.65-2.83c-1.01.68-2.3 1.08-3.91 1.08-3.24 0-5.99-2.16-6.92-5.66z" />
-                  <path fill="#34A853" d="M12 18.56c1.61 0 2.9-.4 3.91-1.08l3.65 2.83C17.67 23.01 15.08 24 12 24c-4.76 0-8.8-2.33-10.76-6.32l3.84-2.98c.93 3.5 3.68 5.66 6.92 5.66z" />
-                </svg>
-              }
-            >
-              {loading ? "Climbing the rope ladder..." : "Climb up with Google"}
-            </StickerButton>
+            {/* ── DEMO MODE: simplified entry ── */}
+            {demoMode ? (
+              <>
+                <p className="text-[11px] text-[var(--text-muted)] text-center leading-relaxed font-medium">
+                  👋 You're exploring a sample version of the Treehouse.
+                  <br />Everything runs in your browser — no data is saved to any server.
+                </p>
+                <StickerButton
+                  onClick={handleDemoMode}
+                  disabled={loading}
+                  color="gold"
+                  size="lg"
+                  className="w-full"
+                  aria-label="Enter demo mode"
+                  icon={<FlaskConical className="w-5 h-5 shrink-0 text-amber-600" />}
+                >
+                  Enter the Demo Treehouse 🎮
+                </StickerButton>
+              </>
+            ) : (
+              <>
+                {/* ── NORMAL MODE: Google Sign-In ── */}
+                {auth && (
+                  <StickerButton
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                    color="primary"
+                    size="lg"
+                    className="w-full"
+                    aria-label={loading ? "Signing in with Google" : "Sign in with Google to enter the treehouse"}
+                    icon={
+                      <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                        <path fill="#EA4335" d="M12 5.04c1.66 0 3.2.57 4.38 1.69l3.27-3.27C17.67 1.62 15.02 1 12 1 7.24 1 3.2 3.73 1.24 7.72l3.84 2.98C6.01 7.2 8.76 5.04 12 5.04z" />
+                        <path fill="#4285F4" d="M23.49 12.27c0-.81-.07-1.59-.2-2.35H12v4.46h6.44c-.28 1.47-1.11 2.72-2.36 3.56l3.65 2.83c2.14-1.97 3.37-4.87 3.37-8.5z" />
+                        <path fill="#FBBC05" d="M5.08 14.7L1.24 17.68C3.2 21.67 7.24 24 12 24c3.08 0 5.67-.99 7.56-2.69l-3.65-2.83c-1.01.68-2.3 1.08-3.91 1.08-3.24 0-5.99-2.16-6.92-5.66z" />
+                        <path fill="#34A853" d="M12 18.56c1.61 0 2.9-.4 3.91-1.08l3.65 2.83C17.67 23.01 15.08 24 12 24c-4.76 0-8.8-2.33-10.76-6.32l3.84-2.98c.93 3.5 3.68 5.66 6.92 5.66z" />
+                      </svg>
+                    }
+                  >
+                    {loading ? "Climbing the rope ladder..." : "Climb up with Google"}
+                  </StickerButton>
+                )}
 
-            {/* ── DEV-ONLY: anonymous sign-in for local testing (Vite tree-shakes at build) ── */}
-            {import.meta.env.DEV && (
-              <button
-                type="button"
-                onClick={async () => {
-                  setErrorMsg("");
-                  setIsUnauthorizedDomain(false);
-                  try {
-                    await signInAnonymously(auth);
-                    console.log("[Login] Anonymous sign-in successful (dev only)");
-                  } catch (err: any) {
-                    console.warn("[Login] Anonymous sign-in failed:", err);
-                    const friendly =
-                      err?.code === "auth/operation-not-allowed"
-                        ? "Anonymous sign-in is disabled in Firebase Console — enable it under Auth → Sign-in method."
-                        : err?.code === "auth/network-request-failed"
-                          ? "Network error — check your connection."
-                          : (err?.message as string) ?? "Anonymous sign-in failed";
-                    setErrorMsg(friendly);
-                  }
-                }}
-                className="w-full px-4 py-2 rounded-xl text-xs font-mono uppercase tracking-[0.32em] border border-dashed border-[#8B7355]/45 text-[#8B7355] dark:text-[#B8B0A4] hover:border-[#8B7355]/75 hover:bg-[#8B7355]/8 transition-colors cursor-pointer"
-                aria-label="Sign in anonymously (development preview)"
-              >
-                · dev only · sign in anonymously ·
-              </button>
+                {/* ── DEV-ONLY: anonymous sign-in for local testing ── */}
+                {import.meta.env.DEV && auth && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setErrorMsg("");
+                      setIsUnauthorizedDomain(false);
+                      try {
+                        await signInAnonymously(auth);
+                        console.log("[Login] Anonymous sign-in successful (dev only)");
+                      } catch (err: any) {
+                        console.warn("[Login] Anonymous sign-in failed:", err);
+                        const friendly =
+                          err?.code === "auth/operation-not-allowed"
+                            ? "Anonymous sign-in is disabled in Firebase Console."
+                            : err?.code === "auth/network-request-failed"
+                              ? "Network error — check your connection."
+                              : (err?.message as string) ?? "Anonymous sign-in failed";
+                        setErrorMsg(friendly);
+                      }
+                    }}
+                    className="w-full px-4 py-2 rounded-xl text-xs font-mono uppercase tracking-[0.32em] border border-dashed border-[#8B7355]/45 text-[#8B7355] dark:text-[#B8B0A4] hover:border-[#8B7355]/75 hover:bg-[#8B7355]/8 transition-colors cursor-pointer"
+                    aria-label="Sign in anonymously (development preview)"
+                  >
+                    · dev only · sign in anonymously ·
+                  </button>
+                )}
+              </>
             )}
 
             {/* ── Error Messages ── */}
@@ -254,9 +297,15 @@ export default function LoginView() {
             ) : null}
           </div>
 
-          <div className="pt-4 text-xs text-[var(--text-muted)] font-mono border-t" style={{ borderColor: 'var(--border-color)' }}>
-            🔒 Only for Gerrio & Nicole
-          </div>
+          {demoMode ? (
+            <div className="pt-4 text-[10px] text-amber-600 dark:text-amber-400 font-mono border-t text-center" style={{ borderColor: 'var(--border-color)' }}>
+              🧪 All data is sample-only · Nothing is saved externally
+            </div>
+          ) : (
+            <div className="pt-4 text-xs text-[var(--text-muted)] font-mono border-t" style={{ borderColor: 'var(--border-color)' }}>
+              🔒 Only for Gerrio & Nicole
+            </div>
+          )}
         </ScrapbookPage>
       </motion.div>
     </div>

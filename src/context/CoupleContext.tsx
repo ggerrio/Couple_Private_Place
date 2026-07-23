@@ -24,6 +24,7 @@ import type {
   CustomGreetings, GratitudeEntry,
 } from "../types";
 import { getDb } from "../firebaseClient";
+import { isDemoMode } from "../utils/demoMode";
 
 import { useAuthState } from "./useAuthState";
 import { useProfileState } from "./useProfileState";
@@ -309,9 +310,12 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
   // ─── Firestore helpers ─────────────────────────────────────────────
   const isTabActive = useCallback((tabs: string[]) => !activeTab || tabs.includes(activeTab), [activeTab]);
 
+  // Demo mode: skip ALL Firestore listeners — data comes from defaults.ts + localStorage
+  const demoMode = isDemoMode();
+
   // Always-on listeners: lightweight docs needed globally
   useEffect(() => {
-    if (!auth.session) return;
+    if (!auth.session || demoMode) return;
     const cleanups: (() => void)[] = [];
     let cancelled = false;
 
@@ -457,7 +461,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
 
   // Tab-specific: Memories + Journals — only when activeTab is "home" or "memories"
   useEffect(() => {
-    if (!auth.session || !isTabActive(["home", "memories"])) return;
+    if (!auth.session || demoMode || !isTabActive(["home", "memories"])) return;
     const cleanups: (() => void)[] = [];
     let cancelled = false;
 
@@ -543,7 +547,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
 
   // Tab-specific: Letters + Time Capsules — only when activeTab is "together"
   useEffect(() => {
-    if (!auth.session || !isTabActive(["together"])) return;
+    if (!auth.session || demoMode || !isTabActive(["together"])) return;
     const cleanups: (() => void)[] = [];
     let cancelled = false;
 
@@ -603,7 +607,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
 
   // Tab-specific: Gratitudes — only when activeTab is "home"
   useEffect(() => {
-    if (!auth.session || !isTabActive(["home"])) return;
+    if (!auth.session || demoMode || !isTabActive(["home"])) return;
     const cleanups: (() => void)[] = [];
     let cancelled = false;
 
