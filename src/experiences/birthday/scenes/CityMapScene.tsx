@@ -74,7 +74,7 @@ export function CityMapScene(props: CityMapSceneProps) {
           scale: 1 + amp * 0.005,
         }}
         transition={{ delay: 0.2, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-[96vw] sm:w-[92vw] max-w-[840px] aspect-[4/3] md:aspect-[16/10] max-h-[75vh] sm:max-h-[68vh] p-2 sm:p-4 md:p-8 flex flex-col justify-between z-10"
+        className="relative w-[96vw] sm:w-[92vw] max-w-[840px] min-h-[420px] sm:min-h-0 sm:aspect-[16/10] max-h-[80vh] sm:max-h-[68vh] p-3 sm:p-4 md:p-8 flex flex-col justify-between z-10"
       >
         {/* Book page background */}
         <div

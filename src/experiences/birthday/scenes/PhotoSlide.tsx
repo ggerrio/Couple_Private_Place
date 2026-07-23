@@ -147,7 +147,7 @@ export function PhotoSlide(props: BirthdaySceneProps) {
           mass: 0.8,
         }}
         style={reduced || !supportsHover ? {} : { rotateX, rotateY, transformStyle: "preserve-3d", willChange: "transform" }}
-        className="relative w-[95vw] sm:w-[92vw] max-w-[840px] aspect-[4/3] sm:aspect-[16/10] md:aspect-[16/10] max-h-[80vh] sm:max-h-[72vh] rounded-[4px] p-3 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden shadow-[0_24px_48px_rgba(44,38,35,0.12),0_4px_12px_rgba(44,38,35,0.06)]"
+        className="relative w-[96vw] sm:w-[92vw] max-w-[840px] min-h-[420px] sm:min-h-0 sm:aspect-[16/10] max-h-[82vh] sm:max-h-[72vh] rounded-[4px] p-3 sm:p-6 md:p-8 flex flex-col justify-between overflow-hidden shadow-[0_24px_48px_rgba(44,38,35,0.12),0_4px_12px_rgba(44,38,35,0.06)]"
       >
         {/* Fine paper background */}
         <div

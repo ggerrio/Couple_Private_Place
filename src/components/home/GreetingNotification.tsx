@@ -219,7 +219,7 @@ export default function GreetingNotification({
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -30, scale: 0.95, transition: { duration: 0.25 } }}
         transition={{ type: "spring", stiffness: 180, damping: 18 }}
-        className="fixed z-40 overflow-visible max-h-[85vh] max-sm:top-16 max-sm:left-3 max-sm:right-3 max-sm:w-auto max-sm:bottom-auto sm:bottom-6 sm:left-6 sm:w-full sm:max-w-[340px]"
+        className="fixed z-40 overflow-visible max-h-[85vh] max-sm:bottom-20 max-sm:left-3 max-sm:right-3 max-sm:w-auto max-sm:top-auto sm:bottom-6 sm:left-6 sm:w-full sm:max-w-[340px]"
       >
         {/* Washi Tape Accent */}
         <div className="absolute -top-3.5 left-12 z-20 rotate-[-4deg]">

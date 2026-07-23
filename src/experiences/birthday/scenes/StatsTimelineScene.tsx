@@ -69,7 +69,7 @@ export function StatsTimelineScene({ onAdvance }: BirthdaySceneProps) {
             "0 8px 24px rgba(120,80,40,0.12), 0 40px 80px rgba(120,80,40,0.20)",
           transition: { type: "spring", stiffness: 200, damping: 24 },
         }}
-        className="relative w-[95vw] sm:w-[88vw] max-w-[820px] min-h-[50vh] sm:aspect-[3/2] flex"
+        className="relative w-[95vw] sm:w-[88vw] max-w-[820px] min-h-[50vh] sm:aspect-[3/2] flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden"
         onClick={(e) => {
           // Prevent advance if clicking on interactive elements
           const target = e.target as HTMLElement;
@@ -108,7 +108,7 @@ export function StatsTimelineScene({ onAdvance }: BirthdaySceneProps) {
         {/* Vertical divider */}
         <div
           aria-hidden
-          className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-px pointer-events-none"
+          className="hidden sm:block absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-px pointer-events-none"
           style={{
             background:
               "linear-gradient(180deg, transparent 0%, rgba(229,222,201,0.8) 12%, rgba(229,222,201,0.8) 88%, transparent 100%)",

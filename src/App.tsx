@@ -232,16 +232,9 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
   const [showNavbar, setShowNavbar] = useState(true);
   const [arrivalRoom, setArrivalRoom] = useState<string | null>(null);
 
-  // Initialize Lenis smooth scrolling globally
+  // Native browser scrolling enabled for maximum FPS and smooth performance
   useEffect(() => {
-    const lenis = new Lenis({
-      autoRaf: true,
-      anchors: true,
-    });
-
-    return () => {
-      lenis.destroy();
-    };
+    // Lenis JS scroll intercept removed — native scrolling runs on GPU thread
   }, []);
 
   // Reset scroll to top instantly on tab switch
