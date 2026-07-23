@@ -41,6 +41,7 @@ import { isLatencyOverlayEnabled, record as recordLatency } from "./utils/latenc
 import { useBirthdayTrigger, BirthdayReplayButton } from "./experiences/birthday";
 import { isDemoMode } from "./utils/demoMode";
 import DemoBadge from "./components/DemoBadge";
+import { DemoTelemetryBar } from "./components/DemoTelemetryBar";
 
 // Lazy-load the full Birthday Experience — keeps HomeView + baseline
 // bundle unchanged. Clicking the replay button pulls in this chunk.
@@ -543,6 +544,8 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
       id="app-root-wrapper"
     >
 
+      {/* Live Demo Telemetry Bar */}
+      <DemoTelemetryBar />
       {/* Emotional experiences */}
       <DemoBadge />
       <NightAmbient />

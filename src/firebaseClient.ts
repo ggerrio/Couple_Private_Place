@@ -151,8 +151,12 @@ export const uploadToCloudinary = async (
   cloudName: string,
   uploadPreset: string
 ): Promise<string> => {
-  if (!cloudName || !uploadPreset) {
-    throw new Error("Cloudinary configuration missing.");
+  if (!cloudName || !uploadPreset || isDemoMode()) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(fileBlob);
+    });
   }
   const formData = new FormData();
   formData.append("file", fileBlob, filename);

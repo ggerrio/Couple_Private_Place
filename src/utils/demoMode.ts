@@ -38,6 +38,13 @@ export function isDemoMode(): boolean {
     }
   }
 
+  // 4. Auto-fallback for public live demo deployments (e.g. Vercel)
+  // If no Firebase API key is set, automatically activate isolated Demo Mode
+  const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
+  if (!apiKey || apiKey.trim() === "") {
+    return true;
+  }
+
   return false;
 }
 

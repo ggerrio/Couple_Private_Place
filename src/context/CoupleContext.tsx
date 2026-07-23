@@ -25,6 +25,7 @@ import type {
 } from "../types";
 import { getDb } from "../firebaseClient";
 import { isDemoMode } from "../utils/demoMode";
+import { telemetrySimulator } from "../utils/telemetrySimulator";
 
 import { useAuthState } from "./useAuthState";
 import { useProfileState } from "./useProfileState";
@@ -265,6 +266,17 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
     return () => cancelAnimationFrame(handle);
   });
   // ponytail: no dep array → runs every render; deferred to next paint via rAF
+
+  // ─── Live Telemetry Simulator Partner Sync (Demo Mode) ────────────────
+  useEffect(() => {
+    if (!isDemoMode()) return;
+    const unsub = telemetrySimulator.subscribePartner((updates) => {
+      updateProfile("user_b", updates);
+    });
+    return () => {
+      unsub();
+    };
+  }, [updateProfile]);
 
   // ── Track latest progressMs via ref to avoid stale closure in sync ───
   const progressSyncRef = useRef(currentSong.progressMs);
