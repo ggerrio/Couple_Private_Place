@@ -550,24 +550,6 @@ export function FloatingEmbers({
       className={`${POINTER_NONE_CLASS} ${className ?? "absolute inset-0"}`}
       aria-hidden
     >
-      <style>{`
-        @keyframes floatDrift {
-          0% {
-            transform: translate(0, 0) rotate(0deg) scale(0.8);
-            opacity: 0;
-          }
-          15% {
-            opacity: 0.8;
-          }
-          85% {
-            opacity: 0.8;
-          }
-          100% {
-            transform: translate(var(--drift-x), var(--drift-y)) rotate(var(--drift-r)) scale(1.15);
-            opacity: 0;
-          }
-        }
-      `}</style>
       {Array.from({ length: count }).map((_, i) => {
         // Deterministic pseudo-random values based on index
         const left = `${10 + (i * 37) % 80}%`;
@@ -1028,14 +1010,14 @@ export function PostcardEdges({
           "0 26px 50px rgba(120,80,40,0.18), 0 4px 10px rgba(120,80,40,0.10), inset 0 0 50px rgba(170,130,80,0.10)",
       }}
     >
-      {/* Paper-grain noise overlay */}
+      {/* Paper-grain texture overlay */}
       <div
         aria-hidden
-        className="absolute inset-0 rounded-[4px] mix-blend-multiply"
+        className="absolute inset-0 rounded-[4px]"
         style={{
           backgroundImage:
-            "url(\"data:image/svg+xml,%3Csvg width='180' height='180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper-grain-postcard'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.05' numOctaves='4' result='noise' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.45 0 0 0 0 0.35 0 0 0 0 0.22 0 0 0 0.4 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23paper-grain-postcard)'/%3E%3C/svg%3E\")",
-          opacity: 0.30,
+            "url(\"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMTBoNjBNMCAyMGg2ME0wIDMwaDYwTTAgNDBoNjBNMCA1MGg2ME0xMCAwdjYwTTIwIDB2NjBNMzAgMHY2ME04MCAwdjYwTTUwIDB2NjAiIHN0cm9rZT0iIzhiNzM1NSIgc3Ryb2tlLXdpZHRoPSIwLjE1IiBvcGFjaXR5PSIwLjA4IiBmaWxsPSJub25lIi8+PC9zdmc+\")",
+          opacity: 0.15,
           pointerEvents: "none",
         }}
       />

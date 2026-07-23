@@ -99,23 +99,23 @@ export function ExperienceOverlay({
                 "radial-gradient(circle at 50% 30%, rgba(255,247,237,0.96), rgba(233,221,208,0.94) 35%, rgba(196,178,158,0.88))",
             }}
           />
-          {/* Subtle paper grain */}
+          {/* Subtle paper texture overlay */}
           <div
             aria-hidden
-            className="absolute inset-0 opacity-[0.08] mix-blend-multiply pointer-events-none"
+            className="absolute inset-0 opacity-[0.04] pointer-events-none"
             style={{
               backgroundImage:
-                "url(\"data:image/svg+xml,%3Csvg width='180' height='180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper-grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='5' result='noise' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.55 0 0 0 0 0.45 0 0 0 0 0.35 0 0 0 0.4 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23paper-grain)'/%3E%3C/svg%3E\")",
+                "url(\"data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMTBoNjBNMCAyMGg2ME0wIDMwaDYwTTAgNDBoNjBNMCA1MGg2ME0xMCAwdjYwTTIwIDB2NjBNMzAgMHY2ME00MCAwdjYwTTUwIDB2NjAiIHN0cm9rZT0iIzhiNzM1NSIgc3Ryb2tlLXdpZHRoPSIwLjE1IiBvcGFjaXR5PSIwLjA4IiBmaWxsPSJub25lIi8+PC9zdmc+\")",
             }}
           />
-          {/* Soft top/bottom light bloom */}
+          {/* Soft top/bottom light bloom — GPU optimized radial gradients */}
           <div
             aria-hidden
-            className="absolute -top-40 left-1/2 -translate-x-1/2 w-[80vw] h-[60vh] rounded-full bg-amber-200/20 blur-3xl pointer-events-none"
+            className="absolute -top-40 left-1/2 -translate-x-1/2 w-[80vw] h-[60vh] rounded-full bg-[radial-gradient(circle_at_center,rgba(253,230,138,0.3)_0%,transparent_70%)] pointer-events-none"
           />
           <div
             aria-hidden
-            className="absolute -bottom-40 right-1/4 w-[60vw] h-[60vh] rounded-full bg-rose-200/15 blur-3xl pointer-events-none"
+            className="absolute -bottom-40 right-1/4 w-[60vw] h-[60vh] rounded-full bg-[radial-gradient(circle_at_center,rgba(254,205,211,0.25)_0%,transparent_70%)] pointer-events-none"
           />
 
           {/* Content layer */}

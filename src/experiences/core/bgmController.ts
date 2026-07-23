@@ -96,7 +96,8 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
   const dataRef = useRef<Uint8Array | null>(null);
   const fadeRafRef = useRef<number | null>(null);
 
-  const gainRef = useRef<GainNode | null>(null);
+  const gainRefA = useRef<GainNode | null>(null);
+  const gainRefB = useRef<GainNode | null>(null);
   const targetVolumeRef = useRef<number>(0.7);
 
   useEffect(() => {
@@ -106,11 +107,11 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
     let player: AudioBufferSourceNode | null = null;
     let startTime = 0;
 
-    const armAudioContext = (): Promise<void> => {
+    const armAudioContext = (preArmedCtx?: AudioContext | null): Promise<void> => {
       return new Promise((resolve, reject) => {
         try {
-          // Reuse pre-armed AudioContext if available
-          let ctx = consumePreArmedCtx();
+          // Reuse pre-armed AudioContext if provided or parked
+          let ctx = preArmedCtx ?? consumePreArmedCtx();
           if (!ctx) {
             const Ctor = window.AudioContext ?? (window as any).webkitAudioContext;
             if (!Ctor) {
@@ -121,11 +122,16 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
           }
           ctxRef.current = ctx;
 
-          // Single GainNode
-          const gainNode = ctx.createGain();
-          gainNode.gain.value = 0;
-          gainNode.connect(ctx.destination);
-          gainRef.current = gainNode;
+          // Create dual GainNodes (A & B) for leapfrog crossfade & volume compatibility
+          const gainNodeA = ctx.createGain();
+          gainNodeA.gain.value = 0;
+          gainNodeA.connect(ctx.destination);
+          gainRefA.current = gainNodeA;
+
+          const gainNodeB = ctx.createGain();
+          gainNodeB.gain.value = 0;
+          gainNodeB.connect(gainNodeA);
+          gainRefB.current = gainNodeB;
 
           // Analyser
           const analyser = ctx.createAnalyser();
@@ -134,7 +140,7 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
           analyserRef.current = analyser;
           analyser.connect(ctx.destination);
           dataRef.current = new Uint8Array(analyser.frequencyBinCount);
-          gainNode.connect(analyser);
+          gainNodeA.connect(analyser);
 
           // Fetch + decode
           fetch(opts.src)
@@ -149,14 +155,16 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
               player = ctx.createBufferSource();
               player.buffer = decoded;
               player.loop = true; // Seamless native loop!
-              player.connect(gainNode);
+              player.connect(gainNodeB);
               
               startTime = ctx.currentTime;
               player.start(0);
 
               const initVol = targetVolumeRef.current;
-              gainNode.gain.setValueAtTime(initVol, ctx.currentTime);
-              gainNode.gain.linearRampToValueAtTime(initVol, ctx.currentTime + 0.4);
+              gainNodeA.gain.setValueAtTime(initVol, ctx.currentTime);
+              gainNodeA.gain.linearRampToValueAtTime(initVol, ctx.currentTime + 0.4);
+              gainNodeB.gain.setValueAtTime(initVol, ctx.currentTime);
+              gainNodeB.gain.linearRampToValueAtTime(initVol, ctx.currentTime + 0.4);
               isPlayingRef.current = true;
 
               const tick = () => {
@@ -177,8 +185,8 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
                 }
                 if (isPlayingRef.current) {
                   setRotation(cumulativeTimeRef.current * 200);
+                  fadeRafRef.current = requestAnimationFrame(tick);
                 }
-                fadeRafRef.current = requestAnimationFrame(tick);
               };
               fadeRafRef.current = requestAnimationFrame(tick);
               resolve();
@@ -206,10 +214,19 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
       window.removeEventListener("keydown", arm);
     };
 
-    arm();
-    window.addEventListener("pointerdown", arm, { once: true });
-    window.addEventListener("click", arm, { once: true });
-    window.addEventListener("keydown", arm, { once: true });
+    // If pre-armed context is already available (e.g. user clicked trigger button), arm immediately.
+    // Otherwise wait for user gesture to avoid autoplay policy violations.
+    const preArmed = consumePreArmedCtx();
+    if (preArmed) {
+      armed = true;
+      armAudioContext(preArmed).catch((err) => {
+        console.warn("[bgmController] pre-armed setup failed:", err);
+      });
+    } else {
+      window.addEventListener("pointerdown", arm, { once: true });
+      window.addEventListener("click", arm, { once: true });
+      window.addEventListener("keydown", arm, { once: true });
+    }
 
     return () => {
       cancelled = true;
@@ -225,7 +242,8 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
       bufferRef.current = null;
       analyserRef.current = null;
       dataRef.current = null;
-      gainRef.current = null;
+      gainRefA.current = null;
+      gainRefB.current = null;
       isPlayingRef.current = false;
     };
   }, [opts.src, opts.disabled]);
@@ -235,12 +253,18 @@ export function useBgmController(opts: BgmControllerOptions): BgmControllerHandl
     targetVolumeRef.current = target;
     const ctx = ctxRef.current;
     if (!ctx) return;
-    const gainNode = gainRef.current;
     const now = ctx.currentTime;
-    if (gainNode) {
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(target, now + 0.7);
+    const gA = gainRefA.current;
+    const gB = gainRefB.current;
+    if (gA) {
+      gA.gain.cancelScheduledValues(now);
+      gA.gain.setValueAtTime(gA.gain.value, now);
+      gA.gain.linearRampToValueAtTime(target, now + 0.7);
+    }
+    if (gB) {
+      gB.gain.cancelScheduledValues(now);
+      gB.gain.setValueAtTime(gB.gain.value, now);
+      gB.gain.linearRampToValueAtTime(target, now + 0.7);
     }
   };
 

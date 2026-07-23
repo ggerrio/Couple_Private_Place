@@ -34,7 +34,7 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
     <button
       type="button"
       onClick={onAdvance}
-      className="relative w-full h-full flex items-center justify-center cursor-pointer px-4 py-10 outline-none select-none"
+      className="relative w-full h-full flex items-center justify-center cursor-pointer px-3 sm:px-4 py-8 sm:py-10 outline-none select-none"
       aria-label="Continue to the letter"
     >
       <FloatingEmbers count={12} />
@@ -42,7 +42,7 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
       {/* Decorative backdrop glow (turns deep violet when purple vibe is active) */}
       <div
         aria-hidden
-        className={`absolute w-[80vw] max-w-[1000px] h-[60vh] rounded-full transition-colors duration-1000 blur-3xl pointer-events-none ${purpleVibe ? "bg-violet-500/20" : "bg-rose-200/10"
+        className={`absolute w-[80vw] max-w-[1000px] h-[60vh] rounded-full transition-colors duration-1000 pointer-events-none ${purpleVibe ? "bg-[radial-gradient(circle_at_center,rgba(139,92,246,0.3)_0%,transparent_70%)]" : "bg-[radial-gradient(circle_at_center,rgba(254,205,211,0.25)_0%,transparent_70%)]"
           }`}
       />
 
@@ -66,7 +66,7 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
             "0 8px 24px rgba(120,80,40,0.12), 0 40px 80px rgba(120,80,40,0.20)",
           transition: { type: "spring", stiffness: 200, damping: 24 },
         }}
-        className="relative w-[88vw] max-w-[820px] aspect-[3/2] flex"
+        className="relative w-[95vw] sm:w-[88vw] max-w-[820px] min-h-[50vh] sm:aspect-[3/2] flex"
         onClick={(e) => {
           // Prevent advance if clicking on interactive elements
           const target = e.target as HTMLElement;
@@ -115,7 +115,7 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
         {/* LEFT PAGE: Poetic list of little things I love about Nicola */}
         <div
           data-testid="left-page-column"
-          className="relative flex-1 px-5 pt-8 pb-5 flex flex-col justify-between items-start overflow-hidden text-left"
+          className="relative flex-1 px-3 sm:px-5 pt-6 sm:pt-8 pb-3 sm:pb-5 flex flex-col justify-between items-start overflow-hidden text-left"
         >
           <div className="w-full flex flex-col gap-2 mt-1">
             <span className="font-serif italic text-[10px] md:text-xs uppercase tracking-[0.2em] text-[#705646] font-bold">
@@ -141,10 +141,10 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
                   initial={reduced ? { opacity: 1, x: 0 } : { opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.3 + idx * 0.35, duration: 0.6, ease: "easeOut" }}
-                  className="flex items-start gap-1.5"
+                  className="flex items-start gap-1"
                 >
-                  <span className="text-[#7c2b22] text-xs mt-1 select-none">✿</span>
-                  <p className="font-handwrite text-[13px] md:text-[15px] text-[#3a2511] font-bold leading-tight">
+                  <span className="text-[#7c2b22] text-[10px] sm:text-xs mt-0.5 select-none">✿</span>
+                  <p className="font-handwrite text-[11px] sm:text-[13px] md:text-[15px] text-[#3a2511] font-bold leading-snug sm:leading-tight">
                     {item}
                   </p>
                 </motion.div>
@@ -169,7 +169,7 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
         </div>
 
         {/* RIGHT PAGE: Doodles (Rabbit & Fawn) at the top, Polaroid photo at the bottom */}
-        <div className="relative flex-1 px-8 pt-10 pb-6 flex flex-col justify-between items-center overflow-hidden">
+        <div className="relative flex-1 px-4 sm:px-8 pt-6 sm:pt-10 pb-3 sm:pb-6 flex flex-col justify-between items-center overflow-hidden">
           {/* Interactive Doodles (Side-by-side) */}
           <div className="flex justify-around items-center w-full mt-1 gap-2">
             {/* Interactive Rabbit */}
@@ -258,7 +258,7 @@ export function StatsFavoritesScene({ photos, onAdvance }: BirthdaySceneProps) {
           {/* Polaroid Photo Frame (Original proportions, slim bottom border) */}
           <motion.div
             whileHover={{ scale: 1.03, rotate: -1.5 }}
-            className="interactive-target mt-1 p-1.5 pb-2 bg-[#fefdfa] border border-[#ebdcb9] shadow-md rounded-[2px] w-[62%] aspect-[4/5] flex flex-col justify-between relative select-none"
+            className="interactive-target mt-1 p-1.5 pb-2 bg-[#fefdfa] border border-[#ebdcb9] shadow-md rounded-[2px] w-[80%] sm:w-[62%] aspect-[4/5] flex flex-col justify-between relative select-none"
           >
             {/* Washi tape sticker on top of polaroid */}
             <WashiTape

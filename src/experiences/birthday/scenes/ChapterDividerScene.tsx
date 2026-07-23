@@ -88,7 +88,7 @@ export function ChapterDividerScene({ config }: BirthdaySceneProps) {
       <div
         role="region"
         aria-label="A Few Things I'll Always Remember"
-        className="relative w-full h-full flex flex-col items-center justify-center px-6 py-10 select-none overflow-hidden"
+        className="relative w-full h-full flex flex-col items-center justify-center px-4 sm:px-6 py-6 sm:py-10 select-none overflow-hidden"
       >
         {/* Background radial gradient yang halus & premium */}
         <div
@@ -179,7 +179,7 @@ export function ChapterDividerScene({ config }: BirthdaySceneProps) {
     <div
       role="region"
       aria-label={`End of Chapter ${copy.romanChapter}`}
-      className="relative w-full h-full flex flex-col items-center justify-center px-6 py-10 select-none overflow-hidden"
+      className="relative w-full h-full flex flex-col items-center justify-center px-4 sm:px-6 py-6 sm:py-10 select-none overflow-hidden"
     >
       {/* Background radial gradient yang halus & premium */}
       <div

@@ -36,7 +36,7 @@ import type {
 } from "./birthday.types";
 
 // ── Photo Imports ───────────────────────────────────────────────────
-import photo1 from "../../assets/birthday/photos/roblox_1.png";
+import photo1 from "../../assets/birthday/photos/roblox_1.jpg";
 import photo2 from "../../assets/birthday/photos/sweet_heart_(2).jpeg";
 import photo3 from "../../assets/birthday/photos/sweet_heart_(11).jpeg";
 import photo4 from "../../assets/birthday/photos/Our_Sketch_Masterpiece.jpg";
@@ -44,12 +44,12 @@ import photo5 from "../../assets/birthday/photos/heartopia_2.jpg";
 import photo6 from "../../assets/birthday/photos/sweet_heart_(6).jpeg";
 import photo7 from "../../assets/birthday/photos/sweet_heart_(7).jpeg";
 import photo8 from "../../assets/birthday/photos/sweet_heart_(16).jpeg";
-import photo9 from "../../assets/birthday/photos/It_Takes_Two_7_23_2026.png";
+import photo9 from "../../assets/birthday/photos/It_Takes_Two_7_23_2026.jpg";
 import photo10 from "../../assets/birthday/photos/sweet_heart_(19).jpeg";
 import photo11 from "../../assets/birthday/photos/sweet_heart_(5).jpeg";
 import photo12 from "../../assets/birthday/photos/sweet_heart_(12).jpeg";
 import photo13 from "../../assets/birthday/photos/sweet_heart_(17).jpeg";
-import photo14 from "../../assets/birthday/photos/Screenshot_1.png";
+import photo14 from "../../assets/birthday/photos/Screenshot_1.jpg";
 import photo15 from "../../assets/birthday/photos/sweet_heart_(9).jpeg";
 import photo16 from "../../assets/birthday/photos/sweet_heart_(18).jpeg";
 import statsPhoto from "../../assets/birthday/photos/sweet_heart_(1).jpeg";

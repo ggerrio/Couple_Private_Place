@@ -71,18 +71,18 @@ export function ScrapbookPage({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className={cn(
-        "scrapbook-page relative overflow-hidden rounded-2xl bg-[#FDFBF7] dark:bg-[#252542] border border-[#E8DDD0] dark:border-white/5 shadow-[0_10px_30px_rgba(45,42,38,0.06),0_1px_4px_rgba(45,42,38,0.04)] hover:shadow-[0_20px_45px_rgba(45,42,38,0.12),0_8px_16px_rgba(45,42,38,0.06)] transition-all duration-500 w-full",
+        "scrapbook-page relative overflow-hidden rounded-2xl bg-[#FDFBF7] dark:bg-[#252542] border border-[#E8DDD0] dark:border-white/5 shadow-[0_10px_30px_rgba(45,42,38,0.06),0_1px_4px_rgba(45,42,38,0.04)] hover:shadow-[0_20px_45px_rgba(45,42,38,0.12),0_8px_16px_rgba(45,42,38,0.06)] transition-shadow transition-colors duration-300 w-full",
         !compact && "p-6 md:p-8",
         compact && "p-4 sm:p-5",
         tiltClass,
         className
       )}
     >
-      {/* High-quality Tactile Canvas/Paper Grain Texture Overlay (Base64 Canvas + Grain) */}
+      {/* Lightweight Tactile Canvas Grid Texture Overlay */}
       <div 
         className="absolute inset-0 opacity-[0.06] dark:opacity-[0.03] pointer-events-none z-10 mix-blend-overlay"
         style={{
-          backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMTBoNjBNMCAyMGg2ME0wIDMwaDYwTTAgNDBoNjBNMCA1MGg2ME0xMCAwdjYwTTIwIDB2NjBNMzAgMHY2ME00MCAwdjYwTTUwIDB2NjAiIHN0cm9rZT0iIzhiNzM1NSIgc3Ryb2tlLXdpZHRoPSIwLjE1IiBvcGFjaXR5PSIwLjA4IiBmaWxsPSJub25lIi8+PC9zdmc+"), url("data:image/svg+xml,%3Csvg width='180' height='180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='paper-grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.04' numOctaves='5' result='noise' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 0.35 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23paper-grain)'/%3E%3C/svg%3E")`
+          backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHBhdGggZD0iTTAgMTBoNjBNMCAyMGg2ME0wIDMwaDYwTTAgNDBoNjBNMCA5MGg2ME0xMCAwdjYwTTIwIDB2NjBNMzAgMHY2ME00MCAwdjYwTTUwIDB2NjAiIHN0cm9rZT0iIzhiNzM1NSIgc3Ryb2tlLXdpZHRoPSIwLjE1IiBvcGFjaXR5PSIwLjA4IiBmaWxsPSJub25lIi8+PC9zdmc+")`
         }}
       />
 

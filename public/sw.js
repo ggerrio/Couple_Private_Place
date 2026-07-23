@@ -1,4 +1,4 @@
-const CACHE_NAME = "gn-universe-cache-v1";
+const CACHE_NAME = "gn-universe-cache-v2";
 const OFFLINE_URL = "/index.html";
 
 const ASSETS_TO_CACHE = [

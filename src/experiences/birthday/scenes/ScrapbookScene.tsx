@@ -32,7 +32,7 @@ export function ScrapbookScene({ content, onAdvance }: BirthdaySceneProps) {
     <button
       type="button"
       onClick={onAdvance}
-      className="relative w-full h-full flex items-center justify-center cursor-pointer px-4 py-10 outline-none"
+      className="relative w-full h-full flex items-center justify-center cursor-pointer px-3 sm:px-4 py-6 sm:py-10 outline-none"
       aria-label="Continue from the letter"
     >
       <FloatingEmbers count={10} />
@@ -40,7 +40,7 @@ export function ScrapbookScene({ content, onAdvance }: BirthdaySceneProps) {
       {/* Backdrop halo */}
       <div
         aria-hidden
-        className="absolute w-[80vw] max-w-[1000px] h-[60vh] rounded-full bg-rose-200/20 blur-3xl pointer-events-none"
+        className="absolute w-[80vw] max-w-[1000px] h-[60vh] rounded-full bg-[radial-gradient(circle_at_center,rgba(254,205,211,0.4)_0%,transparent_70%)] pointer-events-none"
       />
 
       <motion.div
@@ -63,7 +63,7 @@ export function ScrapbookScene({ content, onAdvance }: BirthdaySceneProps) {
             "0 8px 24px rgba(120,80,40,0.12), 0 40px 80px rgba(120,80,40,0.20)",
           transition: { type: "spring", stiffness: 200, damping: 24 },
         }}
-        className="relative w-[88vw] max-w-[820px] aspect-[3/2] flex"
+        className="relative w-[95vw] sm:w-[88vw] max-w-[820px] aspect-[4/3] sm:aspect-[3/2] flex"
       >
         {/* Fine paper background */}
         <div
@@ -103,11 +103,11 @@ export function ScrapbookScene({ content, onAdvance }: BirthdaySceneProps) {
         />
 
         {/* LEFT half: handwritten letter */}
-        <div className="relative flex-1 px-7 md:px-10 pt-8 pb-6 text-left overflow-hidden">
-          <h3 className="font-serif italic text-[#5C3A1E] text-base md:text-lg mb-2">
+        <div className="relative flex-1 px-3 sm:px-7 md:px-10 pt-5 sm:pt-8 pb-4 sm:pb-6 text-left overflow-hidden">
+          <h3 className="font-serif italic text-[#5C3A1E] text-sm sm:text-base md:text-lg mb-1.5 sm:mb-2">
             Dear {content.recipientName},
           </h3>
-          <div className="font-handwrite text-[#3a2511] text-[13px] md:text-[15px] leading-[1.7] tracking-[0.01em] space-y-2.5 max-h-[68%] overflow-hidden">
+          <div className="font-handwrite text-[#3a2511] text-[11px] sm:text-[13px] md:text-[15px] leading-[1.5] sm:leading-[1.7] tracking-[0.01em] space-y-1.5 sm:space-y-2.5 max-h-[65%] sm:max-h-[68%] overflow-hidden">
             {letter.slice(0, 5).map((line, i) => (
               <motion.p
                 key={i}
@@ -123,14 +123,14 @@ export function ScrapbookScene({ content, onAdvance }: BirthdaySceneProps) {
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 2.2, duration: 0.6 }}
-            className="absolute bottom-4 left-7 md:left-10 font-serif italic text-[#7c2b22] text-sm"
+            className="absolute bottom-3 sm:bottom-4 left-3 sm:left-7 md:left-10 font-serif italic text-[#7c2b22] text-xs sm:text-sm"
           >
             {letterSignOff(content.recipientName)}
           </motion.div>
         </div>
 
         {/* RIGHT half: stamp + postmark + address */}
-        <div className="relative flex-1 px-7 md:px-10 pt-8 pb-6 overflow-hidden">
+        <div className="relative flex-1 px-3 sm:px-7 md:px-10 pt-5 sm:pt-8 pb-4 sm:pb-6 overflow-hidden">
           {/* Stamp in top-right corner */}
           <motion.div
             initial={{ x: 180, y: -160, scale: 0.4, rotate: -45, opacity: 0 }}

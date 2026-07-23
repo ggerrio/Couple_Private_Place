@@ -53,7 +53,7 @@ export function EndingScene({ content, onAdvance, onReplay }: BirthdaySceneProps
 
   return (
     <div
-      className="relative w-full h-full flex flex-col items-center justify-center px-6 py-10 select-none"
+      className="relative w-full h-full flex flex-col items-center justify-center px-4 sm:px-6 py-6 sm:py-10 select-none"
       role="region"
       aria-label="Final postcard"
     >
@@ -61,7 +61,7 @@ export function EndingScene({ content, onAdvance, onReplay }: BirthdaySceneProps
 
       <div
         aria-hidden
-        className="absolute w-[78vw] max-w-[820px] h-[44vh] rounded-full bg-rose-200/25 blur-3xl pointer-events-none"
+        className="absolute w-[78vw] max-w-[820px] h-[44vh] rounded-full bg-[radial-gradient(circle_at_center,rgba(254,205,211,0.35)_0%,transparent_70%)] pointer-events-none"
       />
 
       <Botany className="absolute top-[6%] left-[4%] w-16 md:w-20 opacity-60" />
@@ -120,7 +120,7 @@ export function EndingScene({ content, onAdvance, onReplay }: BirthdaySceneProps
         initial={{ opacity: 0, y: 24, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
-        className="relative max-w-[520px] aspect-[16/10] w-[82vw] z-10 p-6 rounded-[4px] shadow-[0_24px_48px_rgba(44,38,35,0.12)] flex flex-col justify-between"
+        className="relative max-w-[520px] aspect-[4/3] sm:aspect-[16/10] w-[88vw] sm:w-[82vw] z-10 p-4 sm:p-6 rounded-[4px] shadow-[0_24px_48px_rgba(44,38,35,0.12)] flex flex-col justify-between"
       >
         {/* Fine paper background */}
         <div

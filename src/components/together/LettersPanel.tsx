@@ -126,7 +126,7 @@ export default function LettersPanel() {
         <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
           onSubmit={handleComposeLetter}
           className="p-6 rounded-3xl space-y-4 max-w-xl mx-auto shadow-sm border border-[var(--wood-oak)]/15"
-          style={{ backgroundColor: "var(--fabric-cream)", backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E\")" }}
+          style={{ backgroundColor: "var(--fabric-cream)" }}
         >
           <div className="flex items-center gap-1 text-xs font-bold text-[var(--primary)] uppercase tracking-wide">
             <Sparkles className="w-4.5 h-4.5 fill-current animate-pulse" /> Compose Sealed Message
@@ -162,7 +162,7 @@ export default function LettersPanel() {
         <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
           onSubmit={handleCreateCapsule}
           className="p-6 rounded-3xl space-y-4 max-w-xl mx-auto shadow-sm border border-[var(--wood-oak)]/15"
-          style={{ backgroundColor: "var(--fabric-cream)", backgroundImage: "url(\"data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E\")" }}
+          style={{ backgroundColor: "var(--fabric-cream)" }}
         >
           <div className="flex items-center gap-1 text-xs font-bold text-slate-800 uppercase tracking-wide">
             <Lock className="w-4.5 h-4.5 text-slate-800 animate-pulse" /> Seal a New Time Capsule

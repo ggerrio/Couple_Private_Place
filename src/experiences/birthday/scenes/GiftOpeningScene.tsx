@@ -134,7 +134,7 @@ export function CakeCuttingScene({ onAdvance }: CakeCuttingSceneProps) {
 
   return (
     <div
-      className="relative w-full h-full flex flex-col items-center justify-center select-none px-6 py-4 gap-4 overflow-hidden"
+      className="relative w-full h-full flex flex-col items-center justify-center select-none px-3 sm:px-6 py-3 sm:py-4 gap-2 sm:gap-4 overflow-hidden"
       role="region"
       aria-label="Birthday cake scene"
     >
@@ -231,13 +231,13 @@ export function CakeCuttingScene({ onAdvance }: CakeCuttingSceneProps) {
         className="flex flex-col items-center text-center"
       >
         <p
-          className={`font-serif italic text-base md:text-lg uppercase tracking-[0.45em] ${
+          className={`font-serif italic text-sm sm:text-base md:text-lg uppercase tracking-[0.3em] sm:tracking-[0.45em] ${
             allBlown ? "text-[#7c2b22]" : "text-[#8a6a44]"
           }`}
         >
           {stage.eyebrow}
         </p>
-        <p className="font-serif italic text-xs md:text-sm tracking-wider text-[#7d5a36]/75 mt-1">
+        <p className="font-serif italic text-[10px] sm:text-xs md:text-sm tracking-wider text-[#7d5a36]/75 mt-1">
           {stage.sub}
         </p>
       </motion.div>
@@ -250,7 +250,7 @@ export function CakeCuttingScene({ onAdvance }: CakeCuttingSceneProps) {
             • inner motion.div  holds idle + celebration (framer only) */}
       <div
         key={`puff-${puffKey}`}
-        className="relative"
+        className="relative max-w-full overflow-hidden"
         style={{
           perspective: 1000,
           // Each tap retriggers a short squash-tilt that reads as
@@ -336,7 +336,7 @@ export function CakeCuttingScene({ onAdvance }: CakeCuttingSceneProps) {
             ? { duration: 0.3 }
             : { repeat: Infinity, duration: 1.9 }
         }
-        className="text-xs font-bold tracking-[0.32em] uppercase text-[#7d5a36] origin-bottom"
+        className="text-[10px] sm:text-xs font-bold tracking-[0.25em] sm:tracking-[0.32em] uppercase text-[#7d5a36] origin-bottom"
       >
         {stage.hint}
       </motion.p>

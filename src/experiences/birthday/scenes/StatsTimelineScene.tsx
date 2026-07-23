@@ -38,7 +38,7 @@ export function StatsTimelineScene({ onAdvance }: BirthdaySceneProps) {
     <button
       type="button"
       onClick={onAdvance}
-      className="relative w-full h-full flex items-center justify-center cursor-pointer px-4 py-10 outline-none select-none"
+      className="relative w-full h-full flex items-center justify-center cursor-pointer px-3 sm:px-4 py-8 sm:py-10 outline-none select-none"
       aria-label="Continue to wax seal envelope"
     >
       <FloatingEmbers count={10} />
@@ -46,7 +46,7 @@ export function StatsTimelineScene({ onAdvance }: BirthdaySceneProps) {
       {/* Backdrop halo */}
       <div
         aria-hidden
-        className="absolute w-[80vw] max-w-[1000px] h-[60vh] rounded-full bg-violet-200/10 blur-3xl pointer-events-none"
+        className="absolute w-[80vw] max-w-[1000px] h-[60vh] rounded-full bg-[radial-gradient(circle_at_center,rgba(221,214,254,0.25)_0%,transparent_70%)] pointer-events-none"
       />
 
       <motion.div
@@ -69,7 +69,7 @@ export function StatsTimelineScene({ onAdvance }: BirthdaySceneProps) {
             "0 8px 24px rgba(120,80,40,0.12), 0 40px 80px rgba(120,80,40,0.20)",
           transition: { type: "spring", stiffness: 200, damping: 24 },
         }}
-        className="relative w-[88vw] max-w-[820px] aspect-[3/2] flex"
+        className="relative w-[95vw] sm:w-[88vw] max-w-[820px] min-h-[50vh] sm:aspect-[3/2] flex"
         onClick={(e) => {
           // Prevent advance if clicking on interactive elements
           const target = e.target as HTMLElement;

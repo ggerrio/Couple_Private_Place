@@ -28,6 +28,11 @@
    1. DESIGN TOKENS — Color, Spacing, Shadow
    ═══════════════════════════════════════════════════════════════════════════ */
 
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
 :root {
   color-scheme: light;
   /* ─── Base Palette ──────────────────────────────────────────────────── */
@@ -809,9 +814,9 @@ h1, h2, h3, h4, h5, h6, .font-display {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .dock-runner {
-  background: rgba(255, 255, 255, 0.45) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(10px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
   border: 1px solid rgba(255, 255, 255, 0.45) !important;
   box-shadow: 
     0 12px 40px -10px rgba(0, 0, 0, 0.08),
@@ -821,9 +826,9 @@ h1, h2, h3, h4, h5, h6, .font-display {
 }
 
 .dark .dock-runner {
-  background: rgba(18, 16, 14, 0.55) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  background: rgba(18, 16, 14, 0.75) !important;
+  backdrop-filter: blur(10px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
   border: 1px solid rgba(255, 255, 255, 0.08) !important;
   box-shadow: 
     0 12px 40px -10px rgba(0, 0, 0, 0.45),
@@ -2298,5 +2303,23 @@ input:focus:not(:focus-visible) {
     0 24px 60px -15px rgba(0, 0, 0, 0.5),
     inset 0 1px 1px rgba(255, 255, 255, 0.05) !important;
 }
+
+@keyframes floatDrift {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(0.8);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  85% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(var(--drift-x, 0px), var(--drift-y, -150px)) rotate(var(--drift-r, 180deg)) scale(1.15);
+    opacity: 0;
+  }
+}
+
 
 

@@ -35,7 +35,7 @@ export function IntroScene({ content, onAdvance }: BirthdaySceneProps) {
     <div
       role="region"
       aria-label="Birthday hero scene"
-      className="relative w-full h-full flex flex-col items-center justify-center px-6 py-10 gap-6"
+      className="relative w-full h-full flex flex-col items-center justify-center px-4 sm:px-6 py-6 sm:py-10 gap-4 sm:gap-6"
     >
       <FloatingEmbers count={22} />
 
@@ -44,7 +44,7 @@ export function IntroScene({ content, onAdvance }: BirthdaySceneProps) {
         aria-hidden
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
       >
-        <div className="h-[60vh] max-h-[600px] w-[80vw] max-w-[900px] rounded-full bg-amber-200/30 blur-3xl" />
+        <div className="h-[60vh] max-h-[600px] w-[80vw] max-w-[900px] rounded-full bg-[radial-gradient(circle_at_center,rgba(253,230,138,0.4)_0%,transparent_70%)]" />
       </div>
 
       {/* Botanical sprig in corners */}
@@ -79,7 +79,7 @@ export function IntroScene({ content, onAdvance }: BirthdaySceneProps) {
         initial={{ opacity: 0, y: 20, scale: 0.97 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ delay: 1.4, duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-[88vw] max-w-[560px] p-6 md:p-8 rounded-[4px] shadow-[0_20px_40px_rgba(44,38,35,0.10)] flex flex-col justify-between"
+        className="relative w-[92vw] sm:w-[88vw] max-w-[560px] p-4 sm:p-6 md:p-8 rounded-[4px] shadow-[0_20px_40px_rgba(44,38,35,0.10)] flex flex-col justify-between"
       >
         <div
           aria-hidden
@@ -100,13 +100,13 @@ export function IntroScene({ content, onAdvance }: BirthdaySceneProps) {
           </div>
 
           <div className="flex-grow flex flex-col items-center justify-center py-2 gap-2.5 text-center">
-            <p className="font-serif italic text-[#3a2511] text-sm md:text-base leading-relaxed max-w-[92%] font-medium">
+            <p className="font-serif italic text-[#3a2511] text-xs sm:text-sm md:text-base leading-relaxed max-w-[95%] sm:max-w-[92%] font-medium">
               "Not every memory fits inside a photograph."
             </p>
-            <p className="font-serif italic text-[#3a2511] text-sm md:text-base leading-relaxed max-w-[92%] font-medium">
+            <p className="font-serif italic text-[#3a2511] text-xs sm:text-sm md:text-base leading-relaxed max-w-[95%] sm:max-w-[92%] font-medium">
               "Some quietly stay inside the heart."
             </p>
-            <p className="font-serif italic text-[#3a2511] text-sm md:text-base leading-relaxed max-w-[92%] font-medium">
+            <p className="font-serif italic text-[#3a2511] text-xs sm:text-sm md:text-base leading-relaxed max-w-[95%] sm:max-w-[92%] font-medium">
               "Tonight, I'd like to share a few of mine with you."
             </p>
           </div>

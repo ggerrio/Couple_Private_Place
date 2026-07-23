@@ -43,7 +43,7 @@ export function ClosingSealScene({ content, onAdvance }: BirthdaySceneProps) {
       role="region"
       aria-label="Closing wax seal scene"
       onClick={onAdvance}
-      className="relative w-full h-full flex flex-col items-center justify-center select-none px-6 py-10 gap-6 overflow-hidden cursor-pointer"
+      className="relative w-full h-full flex flex-col items-center justify-center select-none px-4 sm:px-6 py-6 sm:py-10 gap-4 sm:gap-6 overflow-hidden cursor-pointer"
     >
       {/* Soft warm glow + paper grain */}
       <div

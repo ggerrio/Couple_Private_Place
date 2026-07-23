@@ -41,12 +41,12 @@ export function CityMapScene(props: CityMapSceneProps) {
       type="button"
       onClick={onAdvance}
       aria-label="Chapter II: Little Things I Love About You"
-      className="relative w-full h-full flex flex-col items-center justify-center px-4 py-8 md:py-10 select-none overflow-hidden cursor-pointer text-left outline-none"
+      className="relative w-full h-full flex flex-col items-center justify-center px-3 sm:px-4 py-4 sm:py-8 md:py-10 select-none overflow-hidden cursor-pointer text-left outline-none"
     >
       {/* Soft warm ambient halo */}
       <div
         aria-hidden
-        className="absolute w-[80vw] max-w-[900px] h-[55vh] rounded-full bg-[#FAF5EC]/90 blur-3xl pointer-events-none"
+        className="absolute w-[80vw] max-w-[900px] h-[55vh] rounded-full bg-[radial-gradient(circle_at_center,#FAF5EC_0%,transparent_70%)] opacity-80 pointer-events-none"
       />
 
       {/* Chapter Eyebrow */}
@@ -74,7 +74,7 @@ export function CityMapScene(props: CityMapSceneProps) {
           scale: 1 + amp * 0.005,
         }}
         transition={{ delay: 0.2, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-        className="relative w-[92vw] max-w-[840px] aspect-[4/3] md:aspect-[16/10] max-h-[68vh] p-4 md:p-8 flex flex-col justify-between z-10"
+        className="relative w-[96vw] sm:w-[92vw] max-w-[840px] aspect-[4/3] md:aspect-[16/10] max-h-[75vh] sm:max-h-[68vh] p-2 sm:p-4 md:p-8 flex flex-col justify-between z-10"
       >
         {/* Book page background */}
         <div
@@ -99,7 +99,7 @@ export function CityMapScene(props: CityMapSceneProps) {
         />
 
         {/* 6-Card Editorial Grid */}
-        <div className="relative flex-1 grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 items-center justify-center p-2 z-10 overflow-y-auto max-h-full">
+        <div className="relative flex-1 grid grid-cols-2 md:grid-cols-3 gap-1.5 sm:gap-3 md:gap-4 items-center justify-center p-1 sm:p-2 z-10 overflow-y-auto max-h-full">
           {LITTLE_THINGS_ITEMS.map((item, idx) => {
             const isSelected = selectedId === item.id;
             return (
@@ -122,7 +122,7 @@ export function CityMapScene(props: CityMapSceneProps) {
                     onJumpTo(`photo-${(idx % 16) + 1}`);
                   }
                 }}
-                className={`relative flex flex-col justify-between p-3 md:p-4 rounded-[3px] border text-left transition-all duration-300 cursor-pointer outline-none focus:ring-2 focus:ring-[#705646]/40 ${isSelected
+                className={`relative flex flex-col justify-between p-2 sm:p-3 md:p-4 rounded-[3px] border text-left transition-all duration-300 cursor-pointer outline-none focus:ring-2 focus:ring-[#705646]/40 ${isSelected
                   ? "bg-[#FAF8F5] border-[#705646] shadow-md ring-1 ring-[#705646]/30"
                   : "bg-[#FAF8F5]/80 border-[#E5DEC9] hover:border-[#705646]/50 shadow-sm"
                   }`}

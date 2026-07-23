@@ -26,14 +26,14 @@ import {
 } from "../birthday.data";
 
 describe("BIRTHDAY_SCENES", () => {
-  it("has exactly 24 entries (post-P4 splice)", () => {
-    expect(BIRTHDAY_SCENES).toHaveLength(24);
+  it("has exactly 26 entries (post-P4 splice + chapter ends)", () => {
+    expect(BIRTHDAY_SCENES).toHaveLength(26);
   });
 
   it("places the 'map' reverse-nav montage between photo-7 and photo-8", () => {
-    expect(BIRTHDAY_SCENES[10].id).toBe("photo-7");
-    expect(BIRTHDAY_SCENES[11].id).toBe("map");
-    expect(BIRTHDAY_SCENES[12].id).toBe("photo-8");
+    expect(BIRTHDAY_SCENES[11].id).toBe("photo-7");
+    expect(BIRTHDAY_SCENES[12].id).toBe("map");
+    expect(BIRTHDAY_SCENES[13].id).toBe("photo-8");
   });
 
   it("has leading scenes in order: gift-open, hero, stats-favorites, scrapbook", () => {
@@ -55,7 +55,7 @@ describe("BIRTHDAY_SCENES", () => {
 
   it("orders 1..N sequentially (re-sequencer works)", () => {
     const orders = BIRTHDAY_SCENES.map((s) => s.order);
-    expect(orders).toEqual(Array.from({ length: 24 }, (_, i) => i + 1));
+    expect(orders).toEqual(Array.from({ length: 26 }, (_, i) => i + 1));
   });
 
   it("contains all 16 photos each exactly once", () => {
