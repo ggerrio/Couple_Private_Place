@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { useCouple, DEFAULT_AVATAR_A, DEFAULT_AVATAR_B } from "../context/CoupleContext";
+import { initialUserA, initialUserB } from "../context/defaults";
 import { getDb } from "../firebaseClient";
-import { Heart, Sparkles, LogOut, CheckCircle, ShieldAlert, User } from "lucide-react";
+import { Heart, Sparkles, LogOut, CheckCircle, ShieldAlert, User, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "motion/react";
 import { ScrapbookPage, WashiTapeDivider, StickerButton } from "./scrapbook";
+import { isDemoMode } from "../utils/demoMode";
 
 export default function OnboardingView() {
   const { logout, claimProfileSlot } = useCouple();
   const [selectedSlot, setSelectedSlot] = useState<"user_a" | "user_b" | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+
+  const demoMode = isDemoMode();
 
   const [slotsStatus, setSlotsStatus] = useState<{
     user_a: { claimed: boolean; name: string; avatarUrl?: string };
@@ -21,9 +25,19 @@ export default function OnboardingView() {
   });
 
   useEffect(() => {
+    // Demo mode: skip Firestore listener — show both slots as available
+    if (demoMode) {
+      setSlotsStatus({
+        user_a: { claimed: false, name: initialUserA.name + " (Demo)" },
+        user_b: { claimed: false, name: initialUserB.name + " (Demo)" },
+      });
+      return;
+    }
+
     let unsubscribe: (() => void) | null = null;
     (async () => {
       const db = await getDb();
+      if (!db) return;
       const { collection, onSnapshot } = await import("firebase/firestore");
       unsubscribe = onSnapshot(collection(db, "profiles"), (snapshot) => {
         const profilesList: any[] = [];
@@ -53,7 +67,7 @@ export default function OnboardingView() {
     })();
 
     return () => { if (unsubscribe) unsubscribe(); };
-  }, []);
+  }, [demoMode]);
 
   const handleClaim = async () => {
     if (!selectedSlot) return;
@@ -87,6 +101,16 @@ export default function OnboardingView() {
         className="w-full max-w-lg relative z-10"
       >
         <ScrapbookPage>
+          {/* Demo mode badge */}
+          {demoMode && (
+            <div className="flex justify-center mb-3">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/60 border border-amber-400/40 text-[9px] font-bold uppercase tracking-widest text-amber-700 dark:text-amber-300">
+                <FlaskConical className="w-2.5 h-2.5" />
+                Demo
+              </span>
+            </div>
+          )}
+
           <div className="flex flex-col items-center space-y-2">
             <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg border animate-float mb-2"
               style={{
@@ -101,7 +125,9 @@ export default function OnboardingView() {
               <Sparkles className="w-5 h-5" style={{ color: 'var(--wood-pine)' }} />
             </h2>
             <p className="text-xs text-[var(--text-muted)] max-w-sm leading-relaxed mx-auto font-medium font-sans">
-              You've climbed the rope ladder! Now choose which side of the treehouse is yours.
+              {demoMode
+                ? "You're in demo mode! Pick a side to explore the Treehouse with sample data."
+                : "You've climbed the rope ladder! Now choose which side of the treehouse is yours."}
             </p>
           </div>
 
@@ -111,17 +137,17 @@ export default function OnboardingView() {
             {/* Partner A */}
             <button
               type="button"
-              disabled={slotsStatus.user_a.claimed}
+              disabled={slotsStatus.user_a.claimed && !demoMode}
               aria-label={`Select ${slotsStatus.user_a.name}'s slot (Slot A)`}
               aria-pressed={selectedSlot === "user_a"}
               onClick={() => {
-                if (!slotsStatus.user_a.claimed) {
+                if (!slotsStatus.user_a.claimed || demoMode) {
                   setSelectedSlot("user_a");
                   setErrorMsg("");
                 }
               }}
               className={`p-5 rounded-2xl border transition-all flex flex-col items-center text-center relative ${
-                slotsStatus.user_a.claimed
+                slotsStatus.user_a.claimed && !demoMode
                   ? "opacity-50 cursor-not-allowed"
                   : selectedSlot === "user_a"
                   ? "scale-[1.02]"
@@ -129,11 +155,11 @@ export default function OnboardingView() {
               }`}
               style={{
                 backgroundColor: selectedSlot === "user_a" ? 'var(--color-muted)' : 'rgba(255, 255, 255, 0.5)',
-                borderColor: selectedSlot === "user_a" ? 'var(--wood-walnut)' : (slotsStatus.user_a.claimed ? 'var(--border-color)' : 'var(--wood-oak)'),
+                borderColor: selectedSlot === "user_a" ? 'var(--wood-walnut)' : (slotsStatus.user_a.claimed && !demoMode ? 'var(--border-color)' : 'var(--wood-oak)'),
                 boxShadow: selectedSlot === "user_a" ? '0 4px 20px rgba(92, 58, 30, 0.15)' : 'none'
               }}
             >
-              {slotsStatus.user_a.claimed && slotsStatus.user_a.avatarUrl ? (
+              {slotsStatus.user_a.claimed && slotsStatus.user_a.avatarUrl && !demoMode ? (
                 <img loading="lazy"
                   src={slotsStatus.user_a.avatarUrl}
                   alt={slotsStatus.user_a.name}
@@ -155,11 +181,11 @@ export default function OnboardingView() {
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
                   style={{ backgroundColor: 'color-mix(in srgb, var(--wood-walnut) 10%, transparent)', color: 'var(--wood-walnut)' }}
                 >
-                  Pria ♂️
+                  {demoMode ? "♂️" : "Pria ♂️"}
                 </span>
               </div>
 
-              {slotsStatus.user_a.claimed ? (
+              {slotsStatus.user_a.claimed && !demoMode ? (
                 <span className="mt-3.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1"
                   style={{ backgroundColor: 'rgba(168, 50, 68, 0.08)', color: 'var(--color-destructive)' }}
                 >
@@ -175,7 +201,7 @@ export default function OnboardingView() {
                 <span className="mt-3.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
                   style={{ backgroundColor: 'color-mix(in srgb, var(--wood-oak) 12%, transparent)', color: 'var(--wood-walnut)' }}
                 >
-                  Available
+                  {demoMode ? "Pick me!" : "Available"}
                 </span>
               )}
             </button>
@@ -183,17 +209,17 @@ export default function OnboardingView() {
             {/* Partner B */}
             <button
               type="button"
-              disabled={slotsStatus.user_b.claimed}
+              disabled={slotsStatus.user_b.claimed && !demoMode}
               aria-label={`Select ${slotsStatus.user_b.name}'s slot (Slot B)`}
               aria-pressed={selectedSlot === "user_b"}
               onClick={() => {
-                if (!slotsStatus.user_b.claimed) {
+                if (!slotsStatus.user_b.claimed || demoMode) {
                   setSelectedSlot("user_b");
                   setErrorMsg("");
                 }
               }}
               className={`p-5 rounded-2xl border transition-all flex flex-col items-center text-center relative ${
-                slotsStatus.user_b.claimed
+                slotsStatus.user_b.claimed && !demoMode
                   ? "opacity-50 cursor-not-allowed"
                   : selectedSlot === "user_b"
                   ? "scale-[1.02]"
@@ -201,11 +227,11 @@ export default function OnboardingView() {
               }`}
               style={{
                 backgroundColor: selectedSlot === "user_b" ? 'var(--color-muted)' : 'rgba(255, 255, 255, 0.5)',
-                borderColor: selectedSlot === "user_b" ? 'var(--wood-walnut)' : (slotsStatus.user_b.claimed ? 'var(--border-color)' : 'var(--wood-oak)'),
+                borderColor: selectedSlot === "user_b" ? 'var(--wood-walnut)' : (slotsStatus.user_b.claimed && !demoMode ? 'var(--border-color)' : 'var(--wood-oak)'),
                 boxShadow: selectedSlot === "user_b" ? '0 4px 20px rgba(92, 58, 30, 0.15)' : 'none'
               }}
             >
-              {slotsStatus.user_b.claimed && slotsStatus.user_b.avatarUrl ? (
+              {slotsStatus.user_b.claimed && slotsStatus.user_b.avatarUrl && !demoMode ? (
                 <img loading="lazy"
                   src={slotsStatus.user_b.avatarUrl}
                   alt={slotsStatus.user_b.name}
@@ -227,11 +253,11 @@ export default function OnboardingView() {
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded"
                   style={{ backgroundColor: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', color: 'var(--color-primary)' }}
                 >
-                  Wanita ♀️
+                  {demoMode ? "♀️" : "Wanita ♀️"}
                 </span>
               </div>
 
-              {slotsStatus.user_b.claimed ? (
+              {slotsStatus.user_b.claimed && !demoMode ? (
                 <span className="mt-3.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1"
                   style={{ backgroundColor: 'rgba(168, 50, 68, 0.08)', color: 'var(--color-destructive)' }}
                 >
@@ -247,7 +273,7 @@ export default function OnboardingView() {
                 <span className="mt-3.5 text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
                   style={{ backgroundColor: 'color-mix(in srgb, var(--wood-oak) 12%, transparent)', color: 'var(--wood-walnut)' }}
                 >
-                  Available
+                  {demoMode ? "Pick me!" : "Available"}
                 </span>
               )}
             </button>
@@ -266,7 +292,7 @@ export default function OnboardingView() {
               type="button"
               onClick={handleClaim}
               disabled={!selectedSlot || loading}
-              color="gold"
+              color={demoMode ? "gold" : "gold"}
               size="lg"
               className="w-full"
               aria-label={!selectedSlot ? "Select a slot first" : `Enter treehouse as ${selectedSlot === "user_a" ? slotsStatus.user_a.name : slotsStatus.user_b.name}`}
@@ -274,7 +300,7 @@ export default function OnboardingView() {
               {loading ? (
                 "Climbing in..."
               ) : !selectedSlot ? (
-                "Select Your Spot Above"
+                demoMode ? "Tap a slot above" : "Select Your Spot Above"
               ) : (
                 `Enter as ${selectedSlot === "user_a" ? slotsStatus.user_a.name : slotsStatus.user_b.name}`
               )}
@@ -287,9 +313,9 @@ export default function OnboardingView() {
               size="sm"
               className="w-full"
               icon={<LogOut className="w-3.5 h-3.5" />}
-              aria-label="Switch to a different Google account"
+              aria-label={demoMode ? "Exit demo mode" : "Switch to a different Google account"}
             >
-              Switch Account
+              {demoMode ? "Exit Demo" : "Switch Account"}
             </StickerButton>
           </div>
         </ScrapbookPage>

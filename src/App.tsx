@@ -39,6 +39,8 @@ import "lenis/dist/lenis.css";
 import { LatencyOverlay } from "./components/dev/LatencyOverlay";
 import { isLatencyOverlayEnabled, record as recordLatency } from "./utils/latencyTracker";
 import { useBirthdayTrigger, BirthdayReplayButton } from "./experiences/birthday";
+import { isDemoMode } from "./utils/demoMode";
+import DemoBadge from "./components/DemoBadge";
 
 // Lazy-load the full Birthday Experience — keeps HomeView + baseline
 // bundle unchanged. Clicking the replay button pulls in this chunk.
@@ -549,6 +551,7 @@ function AppContent({ activeTab, onTabChange }: { activeTab: TabId; onTabChange:
     >
 
       {/* Emotional experiences */}
+      <DemoBadge />
       <NightAmbient />
       <ConfettiEffect key={confettiTrigger} active={confettiTrigger > 0} count={50} duration={5000} />
       <WeatherBadge />
