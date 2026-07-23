@@ -1,17 +1,11 @@
 /**
  * useAuthState.ts — Auth state, current user, onboarding, slot management
- *
- * In demo mode (VITE_DEMO_MODE=true / ?demo=1 / localStorage.demo_mode),
- * Firebase Auth is completely bypassed. A mock session is created so the
- * main app UI renders immediately with dummy data from defaults.ts.
- *
  * Extracted from CoupleContext for modularity.
  */
 import { useState, useEffect } from "react";
 import { auth, getDb } from "../firebaseClient";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { DEFAULT_AVATAR_A, DEFAULT_AVATAR_B } from "./defaults";
-import { isDemoMode, DEMO_MOCK_SESSION, disableDemoMode } from "../utils/demoMode";
 
 export function useAuthState() {
   const [session, setSession] = useState<any>(null);
@@ -20,19 +14,8 @@ export function useAuthState() {
 
   const partnerId: "user_a" | "user_b" = currentUser === "user_a" ? "user_b" : "user_a";
 
-  const demoMode = isDemoMode();
-
   // ─── Auth listener ──────────────────────────────────────────────────────
   useEffect(() => {
-    // ── Demo mode: skip Firebase Auth entirely ──────────────────────────
-    if (demoMode) {
-      console.log("[Auth] Demo mode active — using mock session");
-      setSession(DEMO_MOCK_SESSION);
-      setCurrentUser("user_a");
-      setIsOnboarding(false);
-      return;
-    }
-
     const unsub = onAuthStateChanged(auth, (user) => {
       if (user) {
         resolveSlot(user)
@@ -56,7 +39,7 @@ export function useAuthState() {
       }
     });
     return () => unsub();
-  }, [demoMode]);
+  }, []);
 
   const resolveSlot = async (user: any) => {
     const uid = user.uid;
@@ -183,14 +166,6 @@ export function useAuthState() {
   };
 
   const claimProfileSlot = async (slotId: "user_a" | "user_b") => {
-    // Demo mode: skip Firestore, just set the slot locally
-    if (demoMode) {
-      console.log("[Auth] Demo mode — claiming slot locally:", slotId);
-      setCurrentUser(slotId);
-      setIsOnboarding(false);
-      return;
-    }
-
     const user = auth.currentUser || session;
     if (!user) throw new Error("No active session");
     const db = await getDb();
@@ -214,14 +189,7 @@ export function useAuthState() {
     setIsOnboarding(false);
   };
 
-  const logout = () => {
-    if (demoMode) {
-      disableDemoMode();
-      setSession(null);
-      return Promise.resolve();
-    }
-    return signOut(auth).then(() => setSession(null));
-  };
+  const logout = () => signOut(auth).then(() => setSession(null));
 
   return {
     session, setSession,

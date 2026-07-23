@@ -24,8 +24,6 @@ import type {
   CustomGreetings, GratitudeEntry,
 } from "../types";
 import { getDb } from "../firebaseClient";
-import { isDemoMode } from "../utils/demoMode";
-import { telemetrySimulator } from "../utils/telemetrySimulator";
 
 import { useAuthState } from "./useAuthState";
 import { useProfileState } from "./useProfileState";
@@ -267,16 +265,6 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
   });
   // ponytail: no dep array → runs every render; deferred to next paint via rAF
 
-  // ─── Live Telemetry Simulator Partner Sync (Demo Mode) ────────────────
-  useEffect(() => {
-    if (!isDemoMode()) return;
-    const unsub = telemetrySimulator.subscribePartner((updates) => {
-      updateProfile("user_b", updates);
-    });
-    return () => {
-      unsub();
-    };
-  }, [updateProfile]);
 
   // ── Track latest progressMs via ref to avoid stale closure in sync ───
   const progressSyncRef = useRef(currentSong.progressMs);
@@ -322,12 +310,10 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
   // ─── Firestore helpers ─────────────────────────────────────────────
   const isTabActive = useCallback((tabs: string[]) => !activeTab || tabs.includes(activeTab), [activeTab]);
 
-  // Demo mode: skip ALL Firestore listeners — data comes from defaults.ts + localStorage
-  const demoMode = isDemoMode();
 
   // Always-on listeners: lightweight docs needed globally
   useEffect(() => {
-    if (!auth.session || demoMode) return;
+    if (!auth.session) return;
     const cleanups: (() => void)[] = [];
     let cancelled = false;
 
@@ -473,7 +459,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
 
   // Tab-specific: Memories + Journals — only when activeTab is "home" or "memories"
   useEffect(() => {
-    if (!auth.session || demoMode || !isTabActive(["home", "memories"])) return;
+    if (!auth.session || !isTabActive(["home", "memories"])) return;
     const cleanups: (() => void)[] = [];
     let cancelled = false;
 
@@ -559,7 +545,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
 
   // Tab-specific: Letters + Time Capsules — only when activeTab is "together"
   useEffect(() => {
-    if (!auth.session || demoMode || !isTabActive(["together"])) return;
+    if (!auth.session || !isTabActive(["together"])) return;
     const cleanups: (() => void)[] = [];
     let cancelled = false;
 
@@ -619,7 +605,7 @@ export const CoupleProvider: React.FC<{ children: React.ReactNode; activeTab?: s
 
   // Tab-specific: Gratitudes — only when activeTab is "home"
   useEffect(() => {
-    if (!auth.session || demoMode || !isTabActive(["home"])) return;
+    if (!auth.session || !isTabActive(["home"])) return;
     const cleanups: (() => void)[] = [];
     let cancelled = false;
 
