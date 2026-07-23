@@ -216,31 +216,32 @@ export default function LoginView() {
                   </StickerButton>
                 )}
 
-                {/* ── DEV-ONLY: anonymous sign-in for local testing ── */}
-                {import.meta.env.DEV && auth && (
+                {/* ── Direct Live Demo Button ── */}
+                <StickerButton
+                  onClick={handleDemoMode}
+                  disabled={loading}
+                  color="gold"
+                  size="lg"
+                  className="w-full"
+                  aria-label="Enter live demo mode"
+                  icon={<FlaskConical className="w-5 h-5 shrink-0 text-amber-600" />}
+                >
+                  Enter Live Demo Mode 🎮
+                </StickerButton>
+
+                {/* ── DEV-ONLY: Quick Live Demo trigger for local testing ── */}
+                {import.meta.env.DEV && (
                   <button
                     type="button"
-                    onClick={async () => {
+                    onClick={() => {
                       setErrorMsg("");
                       setIsUnauthorizedDomain(false);
-                      try {
-                        await signInAnonymously(auth);
-                        console.log("[Login] Anonymous sign-in successful (dev only)");
-                      } catch (err: any) {
-                        console.warn("[Login] Anonymous sign-in failed:", err);
-                        const friendly =
-                          err?.code === "auth/operation-not-allowed"
-                            ? "Anonymous sign-in is disabled in Firebase Console."
-                            : err?.code === "auth/network-request-failed"
-                              ? "Network error — check your connection."
-                              : (err?.message as string) ?? "Anonymous sign-in failed";
-                        setErrorMsg(friendly);
-                      }
+                      handleDemoMode();
                     }}
                     className="w-full px-4 py-2 rounded-xl text-xs font-mono uppercase tracking-[0.32em] border border-dashed border-[#8B7355]/45 text-[#8B7355] dark:text-[#B8B0A4] hover:border-[#8B7355]/75 hover:bg-[#8B7355]/8 transition-colors cursor-pointer"
-                    aria-label="Sign in anonymously (development preview)"
+                    aria-label="Enter live demo mode (development preview)"
                   >
-                    · dev only · sign in anonymously ·
+                    · dev only · enter live demo mode ·
                   </button>
                 )}
               </>
